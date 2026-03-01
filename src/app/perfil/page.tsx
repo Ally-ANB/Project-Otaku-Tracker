@@ -25,8 +25,9 @@ export default function PerfilPage() {
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
 
+  // ✅ Token do AniList adicionado aos estados
   const [dadosPerfil, setDadosPerfil] = useState({ 
-    nome: "", avatar: "", bio: "", tema: "azul", custom_color: "#3b82f6", pin: "" 
+    nome: "", avatar: "", bio: "", tema: "azul", custom_color: "#3b82f6", pin: "", anilist_token: "" 
   });
   
   const [obrasUsuario, setObrasUsuario] = useState<any[]>([]);
@@ -80,7 +81,8 @@ export default function PerfilPage() {
         bio: perfil.bio || "",
         tema: perfil.cor_tema || "azul",
         custom_color: perfil.custom_color || "#3b82f6",
-        pin: perfil.pin || "" 
+        pin: perfil.pin || "",
+        anilist_token: perfil.anilist_token || "" // ✅ Token carregado
       });
     }
     setCarregando(false);
@@ -94,7 +96,8 @@ export default function PerfilPage() {
         avatar: dadosPerfil.avatar,
         cor_tema: dadosPerfil.tema,
         custom_color: dadosPerfil.custom_color,
-        pin: dadosPerfil.pin 
+        pin: dadosPerfil.pin,
+        anilist_token: dadosPerfil.anilist_token // ✅ Token salvo
       }).eq("nome_original", usuarioAtivo);
       if (error) throw error;
       alert("✨ Hunter Sincronizado!");
@@ -191,10 +194,10 @@ export default function PerfilPage() {
 
         <h1 className="text-3xl font-black text-white uppercase tracking-tighter mt-6 mb-1 italic">{dadosPerfil.nome}</h1>
         
-        {/* RANK/ELO: SOBERANO (OUTRA COISA) */}
+        {/* RANK/ELO */}
         <p className={`text-[10px] font-black bg-gradient-to-r ${elo.cor} bg-clip-text text-transparent uppercase tracking-[0.5em] mb-10`}>RANK: {elo.tier}</p>
 
-        {/* NAVEGAÇÃO: AURA GLOBAL (UMA COISA) */}
+        {/* NAVEGAÇÃO */}
         <div className="flex flex-wrap gap-6 md:gap-8 border-b border-white/5 w-full justify-center pb-6 mb-10 relative z-20">
           {["STATUS", "TROFÉUS", "MISSÕES", "CONFIG"].map(aba => (
             <button key={aba} onClick={() => setAbaAtiva(aba)} className={`text-[9px] font-black uppercase tracking-[0.2em] transition-all ${abaAtiva === aba ? aura.text + " scale-110 drop-shadow-[0_0_8px_currentColor]" : 'text-zinc-600 hover:text-zinc-400'}`}>
@@ -226,7 +229,6 @@ export default function PerfilPage() {
             </div>
           )}
 
-          {/* 5 TROFÉUS POR FILEIRA - SCROLL VERTICAL APENAS */}
           {abaAtiva === "TROFÉUS" && (
             <div className="grid grid-cols-5 gap-y-10 gap-x-2 justify-items-center animate-in fade-in slide-in-from-right-4 pb-10">
               {listaTrofeus.map(t => (
@@ -256,9 +258,8 @@ export default function PerfilPage() {
                     <span className={`text-[9px] font-black ${aura.text}`}>🎁 {m.rec}</span>
                   </div>
                   <div className="w-full h-1 bg-black rounded-full overflow-hidden">
-  {/* O aura.bg agora volta a existir e o erro some */}
-  <div className={`h-full ${aura.bg} transition-all duration-1000`} style={{ width: `${Math.min((m.prog/m.meta)*100, 100)}%` }} />
-</div>
+                    <div className={`h-full ${aura.bg} transition-all duration-1000`} style={{ width: `${Math.min((m.prog/m.meta)*100, 100)}%` }} />
+                  </div>
                 </div>
               ))}
             </div>
@@ -268,10 +269,24 @@ export default function PerfilPage() {
             <div className="space-y-6 animate-in fade-in zoom-in-95 pb-10">
               <input type="text" placeholder="Nome Hunter" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold outline-none" value={dadosPerfil.nome} onChange={e => setDadosPerfil({...dadosPerfil, nome: e.target.value})} />
               <input type="text" placeholder="URL Imagem Avatar" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-xs outline-none" value={dadosPerfil.avatar} onChange={e => setDadosPerfil({...dadosPerfil, avatar: e.target.value})} />
+              
               <div className="grid grid-cols-1 gap-4">
                 <label className="text-[8px] font-black text-zinc-500 uppercase tracking-widest ml-1">Código PIN (4 Dígitos)</label>
                 <input type="password" maxLength={4} className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold tracking-[1em] text-center" value={dadosPerfil.pin} onChange={e => setDadosPerfil({...dadosPerfil, pin: e.target.value})} />
               </div>
+
+              {/* ✅ INPUT DO ANILIST RESTAURADO */}
+              <div className="grid grid-cols-1 gap-4">
+                <label className="text-[8px] font-black text-zinc-500 uppercase tracking-widest ml-1">Token de Sincronização AniList</label>
+                <input 
+                  type="password" 
+                  placeholder="Cole seu Token do AniList aqui..." 
+                  className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-xs font-mono outline-none focus:border-white/20 transition-all" 
+                  value={dadosPerfil.anilist_token} 
+                  onChange={e => setDadosPerfil({...dadosPerfil, anilist_token: e.target.value})} 
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <select className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-[10px] font-bold uppercase" value={dadosPerfil.tema} onChange={e => setDadosPerfil({...dadosPerfil, tema: e.target.value})}>
                   <option value="azul">Azul Neon</option> <option value="verde">Verde Hacker</option> <option value="roxo">Roxo Galático</option> <option value="laranja">Laranja Fogo</option> <option value="custom">Personalizada</option>

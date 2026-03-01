@@ -165,21 +165,59 @@ export default function Home() {
     mostrarToast(`📡 Sincronizando ${abaPrincipal}...`);
   }
 
-  async function atualizarCapitulo(manga: Manga, novo: number) {
+async function atualizarCapitulo(manga: Manga, novo: number) {
     if (novo < 0) return;
     let novoStatus = manga.status;
     if (manga.total_capitulos > 0 && novo >= manga.total_capitulos) novoStatus = "Completos";
+    
     const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : "animes";
     const setLista = abaPrincipal === "MANGA" ? setMangas : setAnimes;
-    setLista((prev: Manga[]) => prev.map(m => m.id === manga.id ? { ...m, capitulo_atual: novo, status: novoStatus } : m));
-    await supabase.from(tabelaDb).update({ capitulo_atual: novo, status: novoStatus, ultima_leitura: new Date().toISOString() }).eq("id", manga.id);
+    const agora = new Date().toISOString();
+
+    // 1. Atualiza a estante principal
+    setLista((prev: Manga[]) => prev.map(m => m.id === manga.id ? { ...m, capitulo_atual: novo, status: novoStatus, ultima_leitura: agora } : m));
+    
+    // ✅ FIX BUG 2: Atualiza o Modal em tempo real para os botões funcionarem
+    if (mangaDetalhe?.id === manga.id) {
+      setMangaDetalhe(prev => prev ? { ...prev, capitulo_atual: novo, status: novoStatus, ultima_leitura: agora } : null);
+    }
+
+    // 2. Salva no banco de dados
+    await supabase.from(tabelaDb).update({ capitulo_atual: novo, status: novoStatus, ultima_leitura: agora }).eq("id", manga.id);
+
+    // ✅ FIX BUG 1: Chama o AniList e dispara as Notificações
+    const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual);
+    if (perfilAtivo && perfilAtivo.anilist_token) {
+      sincronizarComAniList(manga.titulo, novo, novoStatus, perfilAtivo.anilist_token, "SALVAR", abaPrincipal);
+    }
   }
 
   async function atualizarDados(id: number, campos: any) {
     const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : "animes";
     const setLista = abaPrincipal === "MANGA" ? setMangas : setAnimes;
+    const listaAtual = abaPrincipal === "MANGA" ? mangas : animes;
+
+    // 1. Atualiza a estante principal
     setLista((prev: Manga[]) => prev.map(m => m.id === id ? { ...m, ...campos } : m));
+    
+    // ✅ FIX BUG 2: Atualiza o Modal em tempo real
+    if (mangaDetalhe?.id === id) {
+      setMangaDetalhe(prev => prev ? { ...prev, ...campos } : null);
+    }
+
+    // 2. Salva no banco de dados
     await supabase.from(tabelaDb).update(campos).eq("id", id);
+
+    // ✅ FIX BUG 1: Sincronização AniList para Status
+    if (campos.status || campos.capitulo_atual !== undefined) {
+      const mangaAlterado = listaAtual.find(m => m.id === id);
+      const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual);
+      if (mangaAlterado && perfilAtivo && perfilAtivo.anilist_token) {
+        const progressoEnvio = campos.capitulo_atual !== undefined ? campos.capitulo_atual : mangaAlterado.capitulo_atual;
+        const statusEnvio = campos.status || mangaAlterado.status;
+        sincronizarComAniList(mangaAlterado.titulo, progressoEnvio, statusEnvio, perfilAtivo.anilist_token, "SALVAR", abaPrincipal);
+      }
+    }
   }
 
   async function deletarMangaDaEstante(id: number) {
