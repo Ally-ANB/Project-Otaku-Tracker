@@ -13,9 +13,10 @@ interface MangaDetailsModalProps {
   aoAtualizarCapitulo: (manga: Manga, novo: number) => void;
   aoAtualizarDados: (id: number, campos: any) => void;
   aoDeletar: (id: number) => void;
+  aoTraduzir: () => void; // ✅ RESTAURADO: Propriedade para receber a função de tradução
 }
 
-export default function MangaDetailsModal({ manga, abaPrincipal, aoFechar, aoAtualizarCapitulo, aoAtualizarDados, aoDeletar }: MangaDetailsModalProps) {
+export default function MangaDetailsModal({ manga, abaPrincipal, aoFechar, aoAtualizarCapitulo, aoAtualizarDados, aoDeletar, aoTraduzir }: MangaDetailsModalProps) {
   
   const termoProgresso = abaPrincipal === "MANGA" ? "Capítulo" : "Episódio";
 
@@ -35,7 +36,7 @@ export default function MangaDetailsModal({ manga, abaPrincipal, aoFechar, aoAtu
                 {abaPrincipal} • {manga.status}
               </span>
               
-              {/* ✅ BOTÃO FAVORITAR VOLTOU */}
+              {/* BOTÃO FAVORITAR */}
               <button 
                 onClick={() => aoAtualizarDados(manga.id, { favorito: !manga.favorito })}
                 className={`absolute top-0 right-0 w-12 h-12 flex items-center justify-center rounded-xl border border-zinc-800 transition-all ${manga.favorito ? 'bg-zinc-800 text-yellow-500' : 'text-zinc-600 hover:text-white'}`}
@@ -57,21 +58,18 @@ export default function MangaDetailsModal({ manga, abaPrincipal, aoFechar, aoAtu
               <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-4">Progresso Atual</p>
               <div className="flex items-center justify-between gap-2">
                 <button onClick={() => aoAtualizarCapitulo(manga, manga.capitulo_atual - 1)} className="w-10 h-10 rounded-xl bg-zinc-800 hover:bg-zinc-700 transition-all font-black text-xl">-</button>
-                
-                {/* ✅ INPUT PARA DIGITAR CAPÍTULO VOLTOU */}
                 <input 
                   type="number"
                   className="w-20 text-center bg-transparent text-3xl font-black text-white outline-none"
                   value={manga.capitulo_atual}
                   onChange={(e) => aoAtualizarCapitulo(manga, parseInt(e.target.value) || 0)}
                 />
-                
                 <button onClick={() => aoAtualizarCapitulo(manga, manga.capitulo_atual + 1)} className="w-10 h-10 rounded-xl bg-zinc-800 hover:bg-zinc-700 transition-all font-black text-xl">+</button>
               </div>
               <p className="text-center text-[10px] text-zinc-700 mt-2 font-bold uppercase tracking-widest">Total: {manga.total_capitulos || '?'}</p>
             </div>
 
-            {/* ✅ NOTA PESSOAL VOLTOU */}
+            {/* NOTA PESSOAL */}
             <div className="bg-zinc-900/50 p-6 rounded-3xl border border-zinc-800">
               <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-4">Nota Pessoal</p>
               <input 
@@ -87,9 +85,18 @@ export default function MangaDetailsModal({ manga, abaPrincipal, aoFechar, aoAtu
           <div className="md:col-span-2 space-y-8">
             <div>
               <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-4">Sinopse da Obra</p>
-              <p className="text-zinc-400 text-sm leading-relaxed max-h-40 overflow-y-auto pr-4 custom-scrollbar">
-                {manga.sinopse || "Sem descrição disponível."}
-              </p>
+              <div className="relative group">
+                <p className="text-zinc-400 text-sm leading-relaxed max-h-40 overflow-y-auto pr-4 custom-scrollbar">
+                  {manga.sinopse || "Sem descrição disponível."}
+                </p>
+                {/* ✅ BOTÃO DE TRADUÇÃO RESTAURADO */}
+                <button 
+                  onClick={aoTraduzir}
+                  className="mt-2 text-[8px] font-black uppercase tracking-widest text-blue-500 hover:text-white transition-colors"
+                >
+                  🌐 Traduzir com Google
+                </button>
+              </div>
             </div>
             
             <div className="flex justify-end pt-4">

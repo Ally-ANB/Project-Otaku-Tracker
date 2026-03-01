@@ -99,9 +99,26 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
           })) || []);
         }
       } catch (err) { console.error("Erro na busca:", err); } finally { setBuscando(false); }
-    }, 1500); // Debounce maior para evitar o erro 429
+    }, 1500); 
     return () => clearTimeout(t);
   }, [termoAnilist, abaPrincipal]);
+
+  // ✅ FUNÇÃO RESTAURADA: Tradução Automática da Sinopse
+  async function traduzirSinopse() {
+    if (!novoManga.sinopse) return;
+    setTraduzindo(true);
+    try {
+      const textoLimpo = novoManga.sinopse.replace(/<[^>]*>?/gm, '');
+      const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=pt-BR&dt=t&q=${encodeURIComponent(textoLimpo)}`);
+      const json = await res.json();
+      const textoTraduzido = json[0].map((item: any) => item[0]).join('');
+      setNovoManga(prev => ({ ...prev, sinopse: textoTraduzido }));
+    } catch { 
+      alert("Erro na tradução."); 
+    } finally { 
+      setTraduzindo(false); 
+    }
+  }
 
   async function salvarObraFinal() {
     if (!usuarioAtual) return;
@@ -137,11 +154,20 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
               <img src={novoManga.capa} className="w-28 h-40 object-cover rounded-2xl shadow-2xl" />
               <div className="flex-1">
                 <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Obra Selecionada</p>
-                <h2 className="text-2xl font-bold text-white mb-4 leading-tight italic">{novoManga.titulo}</h2>
+                <h2 className="text-2xl font-bold text-white mb-2 leading-tight italic">{novoManga.titulo}</h2>
+                
+                {/* ✅ BOTÃO RESTAURADO */}
+                <button 
+                  onClick={traduzirSinopse} 
+                  disabled={traduzindo}
+                  className="text-[9px] font-black uppercase text-green-500 hover:text-white transition-colors"
+                >
+                  {traduzindo ? "Traduzindo..." : "🌐 Traduzir Sinopse"}
+                </button>
+
               </div>
             </div>
 
-            {/* ✅ CAMPOS RESTAURADOS: PROGRESSO E STATUS */}
             <div className="grid grid-cols-2 gap-6">
               <div>
                 <p className="text-[10px] font-bold text-zinc-500 uppercase mb-3 ml-1 tracking-widest">Aonde parou? ({abaPrincipal === "MANGA" ? "Capítulo" : "Episódio"})</p>
