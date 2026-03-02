@@ -39,7 +39,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
     }
   }, [estaAberto]);
 
-  // --- HIERARQUIA: CACHE -> IA -> ANILIST -> MAL ---
+// --- HIERARQUIA: CACHE -> IA -> ANILIST -> MAL ---
   useEffect(() => {
     if (termoAnilist.length < 3) { setResultados([]); return; }
     
@@ -48,24 +48,27 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
       try {
         let termoFinal = termoAnilist;
 
-        // 1. VERIFICA CACHE NO SUPABASE
-        const { data: cacheHit } = await supabase.from('search_cache').select('resultado_ia').ilike('termo_original', termoAnilist).maybeSingle();
+        // 🛑 FIX: Ignoramos a IA completamente se for Filme! O TMDB é nativo em PT-BR.
+        if (abaPrincipal !== "FILME") {
+          // 1. VERIFICA CACHE NO SUPABASE
+          const { data: cacheHit } = await supabase.from('search_cache').select('resultado_ia').ilike('termo_original', termoAnilist).maybeSingle();
 
-        if (cacheHit) {
-          termoFinal = cacheHit.resultado_ia;
-        } else {
-          // 2. CONSULTA IA (GROQ)
-          const resIA = await fetch('/api/tradutor-ia', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ termo: termoAnilist })
-          });
-          
-          if (resIA.ok) {
-            const jsonIA = await resIA.json();
-            if (jsonIA.resultado && !jsonIA.resultado.includes('⚠️')) {
-              termoFinal = jsonIA.resultado;
-              await supabase.from('search_cache').insert([{ termo_original: termoAnilist, resultado_ia: termoFinal }]);
+          if (cacheHit) {
+            termoFinal = cacheHit.resultado_ia;
+          } else {
+            // 2. CONSULTA IA (GROQ)
+            const resIA = await fetch('/api/tradutor-ia', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ termo: termoAnilist })
+            });
+            
+            if (resIA.ok) {
+              const jsonIA = await resIA.json();
+              if (jsonIA.resultado && !jsonIA.resultado.includes('⚠️')) {
+                termoFinal = jsonIA.resultado;
+                await supabase.from('search_cache').insert([{ termo_original: termoAnilist, resultado_ia: termoFinal }]);
+              }
             }
           }
         }
@@ -82,6 +85,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
           }
 
           try {
+            // Aqui ele usa o termo exato em português
             const resTmdb = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&language=pt-BR&query=${encodeURIComponent(termoFinal)}`);
             
             if (!resTmdb.ok) {
@@ -128,7 +132,6 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
               sinopse: m.description || "", fonte: "AniList"
             })));
           } else {
-            // ✅ FIX: Correção na sintaxe do Jikan (não pode ter "s" no final)
             const resMal = await fetch(`https://api.jikan.moe/v4/${abaPrincipal === "MANGA" ? "manga" : "anime"}?q=${encodeURIComponent(termoFinal)}&limit=5`);
             const jsonMal = await resMal.json();
             setResultados(jsonMal.data?.map((m: any): ResultadoBusca => ({
@@ -143,7 +146,6 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
     }, 1500); 
     return () => clearTimeout(t);
   }, [termoAnilist, abaPrincipal]);
-
   async function traduzirSinopse() {
     if (!novoManga.sinopse) return;
     setTraduzindo(true);
