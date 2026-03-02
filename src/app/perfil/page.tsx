@@ -30,8 +30,9 @@ export default function PerfilPage() {
   });
   
   const [obrasUsuario, setObrasUsuario] = useState<any[]>([]);
+  // ✅ FIX: "filmes" adicionado aos status para rastreio dos troféus
   const [stats, setStats] = useState({ 
-    obras: 0, caps: 0, finais: 0, horasVida: 0, favs: 0 
+    obras: 0, caps: 0, finais: 0, horasVida: 0, favs: 0, filmes: 0 
   });
 
   const [elo, setElo] = useState({ tier: "BRONZE", cor: "from-orange-800 to-orange-500", glow: "shadow-orange-900/40", efeito: "" });
@@ -45,11 +46,9 @@ export default function PerfilPage() {
     setUsuarioAtivo(hunter);
   }, []);
 
-  // ✅ NOVO: Capturador Automático de Token do AniList
   useEffect(() => {
     if (!usuarioAtivo) return;
 
-    // Escaneia a URL em busca do token retornado pelo AniList
     const hash = window.location.hash;
     if (hash.includes("access_token")) {
       const params = new URLSearchParams(hash.substring(1));
@@ -65,8 +64,6 @@ export default function PerfilPage() {
           if (!error) {
             setDadosPerfil(prev => ({ ...prev, anilist_token: token }));
             alert("✅ Conta AniList conectada com sucesso!");
-            
-            // Apaga o rastro do token gigante da URL para segurança
             window.history.replaceState(null, '', window.location.pathname);
           } else {
             alert("Erro ao conectar AniList: " + error.message);
@@ -82,19 +79,24 @@ export default function PerfilPage() {
   async function carregarDados() {
     const { data: mangas } = await supabase.from("mangas").select("*").eq("usuario", usuarioAtivo);
     const { data: animes } = await supabase.from("animes").select("*").eq("usuario", usuarioAtivo);
+    const { data: filmes } = await supabase.from("filmes").select("*").eq("usuario", usuarioAtivo); // ✅ FIX: Busca de filmes adicionada
     const { data: perfil } = await supabase.from("perfis").select("*").eq("nome_original", usuarioAtivo).single();
 
-    if (mangas || animes) {
-      const all = [...(mangas || []), ...(animes || [])];
+    if (mangas || animes || filmes) {
+      const all = [...(mangas || []), ...(animes || []), ...(filmes || [])];
+      
+      // ✅ FIX: Cálculo de horas de vida agora inclui filmes (estimativa de 2h = 120 min por filme visto)
       const epsVistos = (animes || []).reduce((acc, a) => acc + (a.capitulo_atual || 0), 0);
+      const minFilmesVistos = (filmes || []).filter(f => f.status === "Completos").length * 120; 
       
       setObrasUsuario(all);
       setStats({
         obras: all.length,
         caps: all.reduce((acc, o) => acc + (o.capitulo_atual || 0), 0),
         finais: all.filter(o => o.status === "Completos").length,
-        horasVida: Math.floor((epsVistos * 23) / 60),
-        favs: all.filter(o => o.favorito === true || o.favorito === "true").length
+        horasVida: Math.floor(((epsVistos * 23) + minFilmesVistos) / 60), 
+        favs: all.filter(o => o.favorito === true || o.favorito === "true").length,
+        filmes: (filmes || []).length // Guarda a quantidade de filmes
       });
 
       const t = all.length;
@@ -136,11 +138,13 @@ export default function PerfilPage() {
     } catch (err: any) { alert("Erro: " + err.message); } finally { setSalvando(false); }
   }
 
+  // ✅ FIX: Exportação/Importação agora blinda seus filmes no backup
   async function exportarBiblioteca() {
     try {
       const { data: m } = await supabase.from("mangas").select("*").eq("usuario", usuarioAtivo);
       const { data: a } = await supabase.from("animes").select("*").eq("usuario", usuarioAtivo);
-      const backup = { hunter: dadosPerfil.nome, biblioteca: { mangas: m || [], animes: a || [] } };
+      const { data: f } = await supabase.from("filmes").select("*").eq("usuario", usuarioAtivo);
+      const backup = { hunter: dadosPerfil.nome, biblioteca: { mangas: m || [], animes: a || [], filmes: f || [] } };
       const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -155,15 +159,16 @@ export default function PerfilPage() {
     reader.onload = async (event) => {
       const content = JSON.parse(event.target?.result as string);
       const format = (o: any) => { const { id, ...r } = o; return { ...r, usuario: usuarioAtivo }; };
-      await supabase.from("mangas").insert(content.biblioteca.mangas.map(format));
-      await supabase.from("animes").insert(content.biblioteca.animes.map(format));
+      if (content.biblioteca.mangas) await supabase.from("mangas").insert(content.biblioteca.mangas.map(format));
+      if (content.biblioteca.animes) await supabase.from("animes").insert(content.biblioteca.animes.map(format));
+      if (content.biblioteca.filmes) await supabase.from("filmes").insert(content.biblioteca.filmes.map(format));
       alert("Importação Concluída!"); carregarDados();
     };
     reader.readAsText(file);
   }
 
   // ==========================================
-  // [SESSÃO 4] - HUB VISUAL
+  // [SESSÃO 4] - 70 TROFÉUS (GRID EXPANDIDO)
   // ==========================================
   const aura = dadosPerfil.tema === "custom" ? TEMAS.custom : (TEMAS[dadosPerfil.tema as keyof typeof TEMAS] || TEMAS.azul);
 
@@ -172,21 +177,40 @@ export default function PerfilPage() {
     "☕","📚","📦","🌟","🖋️","⚡","❤️","🧘","💾","👑",
     "🐦","🎯","🌐","🎨","🎖️","🏮","⛩️","🐉","🌋","🌌",
     "🔮","🧿","🧸","🃏","🎭","🩰","🧶","🧵","🧹","🧺",
-    "🧷","🧼","🧽","🧴","🗝️","⚙️","🧪","🛰️","🔭","🔱"
+    "🧷","🧼","🧽","🧴","🗝️","⚙️","🧪","🛰️","🔭","🔱",
+    // ✅ 20 NOVOS ÍCONES PARA A ALA DE FILMES (IDs 51 a 70)
+    "🎬","🍿","🎟️","📽️","🎞️","📼","🎫","📺","🎥","🧛",
+    "🦸","🧙","🧟","👽","🕵️","🥷","🧑‍🚀","🦖","🦈","🛸"
   ];
 
-  const listaTrofeus = Array.from({ length: 50 }, (_, i) => {
+  const listaTrofeus = Array.from({ length: 70 }, (_, i) => {
     const id = i + 1;
     let check = false;
     let nome = `Troféu Hunter ${id}`;
     let desc = `Bloqueado: Requer Nível ${id * 2} de progresso.`;
 
-    if (id === 1) { nome = "Semente"; desc = "Adicionou 1 obra"; check = stats.obras >= 1; }
-    else if (id === 2) { nome = "Viciado"; desc = "Adicionou 10 obras"; check = stats.obras >= 10; }
-    else if (id === 3) { nome = "Maratonista"; desc = "Leu 100 capítulos"; check = stats.caps >= 100; }
-    else if (id === 4) { nome = "Sem Tempo"; desc = "10 Horas assistidas"; check = stats.horasVida >= 10; }
-    else if (id === 5) { nome = "Curador"; desc = "Marcou 5 favoritos"; check = stats.favs >= 5; }
-    else { check = stats.obras >= (id * 3); }
+    // ALA CLÁSSICA (Mangás/Animes/Geral)
+    if (id <= 50) {
+      if (id === 1) { nome = "Semente"; desc = "Adicionou 1 obra"; check = stats.obras >= 1; }
+      else if (id === 2) { nome = "Viciado"; desc = "Adicionou 10 obras"; check = stats.obras >= 10; }
+      else if (id === 3) { nome = "Maratonista"; desc = "Leu 100 capítulos"; check = stats.caps >= 100; }
+      else if (id === 4) { nome = "Sem Tempo"; desc = "10 Horas assistidas"; check = stats.horasVida >= 10; }
+      else if (id === 5) { nome = "Curador"; desc = "Marcou 5 favoritos"; check = stats.favs >= 5; }
+      else { check = stats.obras >= (id * 3); }
+    } 
+    // ✅ ALA DOS CINEASTAS (Filmes)
+    else {
+      const nivelFilme = id - 50; 
+      nome = `Cineasta Nv. ${nivelFilme}`;
+      desc = `Bloqueado: Requer ${nivelFilme * 5} filmes na estante.`;
+      
+      if (id === 51) { nome = "Primeiro Ingresso"; desc = "Adicionou 1 filme"; check = stats.filmes >= 1; }
+      else if (id === 52) { nome = "Pipoca Doce"; desc = "Adicionou 5 filmes"; check = stats.filmes >= 5; }
+      else if (id === 53) { nome = "Crítico de Sofá"; desc = "Adicionou 10 filmes"; check = stats.filmes >= 10; }
+      else if (id === 54) { nome = "Cinéfilo"; desc = "Adicionou 25 filmes"; check = stats.filmes >= 25; }
+      else if (id === 55) { nome = "Diretor Mestre"; desc = "Adicionou 50 filmes"; check = stats.filmes >= 50; }
+      else { check = stats.filmes >= (nivelFilme * 5); } // Os demais pedem múltiplos de 5
+    }
     
     return { id, nome, desc, icone: iconesTrofeus[i], check };
   });
@@ -202,7 +226,6 @@ export default function PerfilPage() {
   return (
     <main className="min-h-screen bg-[#040405] flex flex-col items-center justify-center p-6 transition-all duration-500 relative overflow-hidden" style={{ "--aura": dadosPerfil.custom_color } as any}>
       
-      {/* BOTÕES SUPERIORES */}
       <div className="fixed top-0 left-0 w-full p-6 md:p-10 flex justify-between items-center z-[110] pointer-events-none">
         <Link href="/" className="pointer-events-auto text-[10px] font-black uppercase tracking-widest text-zinc-600 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-xl backdrop-blur-md border border-white/5">← Voltar</Link>
         <button onClick={() => setTelaCheia(!telaCheia)} className="pointer-events-auto text-[10px] font-black uppercase tracking-widest bg-zinc-900/90 backdrop-blur-md px-4 py-2 rounded-xl border border-zinc-800 text-zinc-400 hover:text-white transition-all shadow-xl">
@@ -252,7 +275,6 @@ export default function PerfilPage() {
                  <span className="text-4xl opacity-20 group-hover:opacity-100 group-hover:scale-110 transition-all">⏳</span>
               </div>
 
-              {/* ✅ INTEGRAÇÃO ANILIST AUTOMÁTICA VISUAL */}
               <div className="col-span-2">
                 {dadosPerfil.anilist_token ? (
                   <div className="bg-[#0a0f1a] border border-blue-900/50 p-5 rounded-3xl flex items-center justify-between shadow-inner">
@@ -269,8 +291,7 @@ export default function PerfilPage() {
                   </div>
                 ) : (
                   <a 
-                    /* ⚠️ ATENÇÃO: Substitua o SEU_CLIENT_ID_AQUI pelo seu ID real do painel do AniList! */
-                    href="https://anilist.co/api/v2/oauth/authorize?client_id=36602&response_type=token" 
+                    href="https://anilist.co/api/v2/oauth/authorize?client_id=SEU_CLIENT_ID_AQUI&response_type=token" 
                     className="bg-blue-600/10 border border-blue-500/30 p-5 rounded-3xl flex items-center justify-between hover:bg-blue-600/20 transition-all cursor-pointer group"
                   >
                     <div className="flex items-center gap-4">
@@ -332,7 +353,6 @@ export default function PerfilPage() {
                 <input type="password" maxLength={4} className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold tracking-[1em] text-center" value={dadosPerfil.pin} onChange={e => setDadosPerfil({...dadosPerfil, pin: e.target.value})} />
               </div>
 
-              {/* ✅ INPUT DO ANILIST BLINDADO E OCULTO */}
               <div className="grid grid-cols-1 gap-2">
                 <label className="text-[8px] font-black text-zinc-500 uppercase tracking-widest ml-1">Integração AniList</label>
                 <div className="flex gap-3">
