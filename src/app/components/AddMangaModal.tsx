@@ -114,8 +114,21 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
       // 3.2 SUBTÍTULO: MOTOR GOOGLE BOOKS + OPEN LIBRARY
       // ==========================================
       } else if (abaPrincipal === "LIVRO") {
+        const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY; // 🔒 Puxado do Cofre Seguro
+        
+        // Se a chave existir, usa ela. Se não, tenta a sorte no modo anônimo como plano de fuga.
+        const urlBusca = GOOGLE_API_KEY 
+          ? `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(termoFinal)}&maxResults=5&langRestrict=pt&key=${GOOGLE_API_KEY}`
+          : `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(termoFinal)}&maxResults=5&langRestrict=pt`;
+
         try {
-          const resBooks = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(termoFinal)}&maxResults=5&langRestrict=pt`);
+          const resBooks = await fetch(urlBusca);
+          if (resBooks.status === 429) {
+            alert("⚠️ O Google bloqueou a busca por excesso de acessos. Verifique se a sua Chave de API está correta no .env.local!");
+            setBuscando(false);
+            return;
+          }
+          
           const jsonBooks = await resBooks.json();
           
           if (jsonBooks.items && jsonBooks.items.length > 0) {
@@ -145,6 +158,8 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
                 fonte: "Google Books"
               };
             }));
+          } else {
+             setResultados([]); // Limpa se não achar nada
           }
         } catch (error) {
           console.error("Erro no Google Books:", error);
