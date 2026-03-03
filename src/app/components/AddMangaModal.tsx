@@ -2,25 +2,30 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 
-// ✅ INTERFACES PARA BLINDAR O TYPESCRIPT
+// ==========================================
+// 📦 SESSÃO 1: INTERFACES PARA BLINDAR O TYPESCRIPT
+// ==========================================
 interface ResultadoBusca {
   id: number | string;
   titulo: string;
   capa: string;
   total: number;
   sinopse: string;
-  fonte: "AniList" | "MyAnimeList" | "TMDB";
+  fonte: "AniList" | "MyAnimeList" | "TMDB" | "Google Books"; // ✅ FONTE LIVROS ADICIONADA
 }
 
 interface AddMangaModalProps {
   estaAberto: boolean;
   fechar: () => void;
   usuarioAtual: string;
-  abaPrincipal: "MANGA" | "ANIME" | "FILME";
+  abaPrincipal: "MANGA" | "ANIME" | "FILME" | "LIVRO"; // ✅ ABA LIVROS ADICIONADA
   aoSalvar: (novoManga: any) => void;
 }
 
 export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPrincipal, aoSalvar }: AddMangaModalProps) {
+  // ==========================================
+  // 🔐 SESSÃO 2: ESTADOS DO MODAL
+  // ==========================================
   const [termoAnilist, setTermoAnilist] = useState("");
   const [resultados, setResultados] = useState<ResultadoBusca[]>([]);
   const [buscando, setBuscando] = useState(false);
@@ -39,7 +44,9 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
     }
   }, [estaAberto]);
 
-// --- HIERARQUIA: CACHE -> IA -> ANILIST -> MAL ---
+  // ==========================================
+  // 🧠 SESSÃO 3: MOTOR DE BUSCA (CACHE -> IA -> FONTES)
+  // ==========================================
   useEffect(() => {
     if (termoAnilist.length < 3) { setResultados([]); return; }
     
@@ -48,8 +55,8 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
       try {
         let termoFinal = termoAnilist;
 
-        // 🛑 FIX: Ignoramos a IA completamente se for Filme! O TMDB é nativo em PT-BR.
-        if (abaPrincipal !== "FILME") {
+        // 🛑 IGNORAMOS A IA PARA FILMES E LIVROS (O TMDB e Google Books são nativos em PT-BR)
+        if (abaPrincipal !== "FILME" && abaPrincipal !== "LIVRO") {
           // 1. VERIFICA CACHE NO SUPABASE
           const { data: cacheHit } = await supabase.from('search_cache').select('resultado_ia').ilike('termo_original', termoAnilist).maybeSingle();
 
@@ -73,26 +80,20 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
           }
         }
 
-        // 3. SEPARAÇÃO DO MOTOR: FILMES VS OTAKU
+        // 3. SEPARAÇÃO DO MOTOR: FILMES VS LIVROS VS OTAKU
         if (abaPrincipal === "FILME") {
-          // 🎬 MOTOR TMDB (FILMES)
-          const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
+          // 🎬 SUBTÍTULO: MOTOR TMDB (FILMES)
+          const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY; // 🔒 SEGURO: Puxando do .env
           
-          if (TMDB_API_KEY === "SUA_CHAVE_TMDB_AQUI" || !TMDB_API_KEY) {
-            alert("⚠️ Hunter, você esqueceu de colocar a API Key do TMDB no código ou no .env.local!");
+          if (!TMDB_API_KEY || TMDB_API_KEY === "SUA_CHAVE_TMDB_AQUI") {
+            alert("⚠️ Hunter, a API Key do TMDB está faltando no cofre (.env.local)!");
             setBuscando(false);
             return;
           }
 
           try {
-            // Aqui ele usa o termo exato em português
             const resTmdb = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&language=pt-BR&query=${encodeURIComponent(termoFinal)}`);
-            
-            if (!resTmdb.ok) {
-              console.error("Erro TMDB. Status:", resTmdb.status);
-              throw new Error("Falha ao comunicar com TMDB. Chave inválida ou limite atingido.");
-            }
-
+            if (!resTmdb.ok) throw new Error("Falha ao comunicar com TMDB.");
             const jsonTmdb = await resTmdb.json();
             
             if (jsonTmdb.results && jsonTmdb.results.length > 0) {
@@ -109,11 +110,35 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
             }
           } catch (error) {
             console.error("Erro no TMDB:", error);
-            alert("Erro na busca de filmes. Olhe o console (F12) para detalhes.");
             setResultados([]);
           }
+
+        } else if (abaPrincipal === "LIVRO") {
+          // 📚 SUBTÍTULO: MOTOR GOOGLE BOOKS (LIVROS)
+          try {
+            const resBooks = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(termoFinal)}&maxResults=5&langRestrict=pt`);
+            const jsonBooks = await resBooks.json();
+            
+            if (jsonBooks.items && jsonBooks.items.length > 0) {
+              setResultados(jsonBooks.items.map((m: any): ResultadoBusca => ({
+                id: m.id, 
+                titulo: m.volumeInfo.title, 
+                // Troca HTTP por HTTPS para evitar erros mistos de segurança
+                capa: m.volumeInfo.imageLinks?.thumbnail?.replace('http:', 'https:') || "https://i.imgur.com/8Km9t4S.png",
+                total: m.volumeInfo.pageCount || 1, 
+                sinopse: m.volumeInfo.description || "Sem sinopse em português.", 
+                fonte: "Google Books"
+              })));
+            } else {
+              setResultados([]); 
+            }
+          } catch (error) {
+            console.error("Erro no Google Books:", error);
+            setResultados([]);
+          }
+
         } else {
-          // 📚 MOTOR ANILIST / MYANIMELIST (MANGÁS E ANIMES)
+          // 🌸 SUBTÍTULO: MOTOR ANILIST / MYANIMELIST (MANGÁS E ANIMES)
           const resAni = await fetch("https://graphql.anilist.co", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -146,6 +171,10 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
     }, 1500); 
     return () => clearTimeout(t);
   }, [termoAnilist, abaPrincipal]);
+
+  // ==========================================
+  // 🛠️ SESSÃO 4: AÇÕES E SALVAMENTO
+  // ==========================================
   async function traduzirSinopse() {
     if (!novoManga.sinopse) return;
     setTraduzindo(true);
@@ -165,14 +194,18 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
   async function salvarObraFinal() {
     if (!usuarioAtual) return;
     setSalvando(true);
-    // ✅ FIX: Redirecionamento correto para a tabela "filmes"
-    const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : abaPrincipal === "ANIME" ? "animes" : "filmes";
+    
+    // ✅ REDIRECIONAMENTO EXPANDIDO PARA INCLUIR "livros"
+    const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : abaPrincipal === "ANIME" ? "animes" : abaPrincipal === "FILME" ? "filmes" : "livros";
     
     const { error } = await supabase.from(tabelaDb).insert([{ ...novoManga, usuario: usuarioAtual, ultima_leitura: new Date().toISOString() }]);
     if (!error) { aoSalvar(novoManga); fechar(); }
     setSalvando(false);
   }
 
+  // ==========================================
+  // 🖥️ SESSÃO 5: RENDERIZAÇÃO
+  // ==========================================
   if (!estaAberto) return null;
 
   return (
@@ -181,7 +214,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
         <button onClick={fechar} className="absolute top-6 right-6 text-zinc-500 hover:text-white p-2">✕</button>
         {!novoManga.titulo ? (
           <div className="space-y-6">
-            <h3 className="text-xl font-bold text-green-500 uppercase italic tracking-tighter">Hunter Search S+ (Motor Groq)</h3>
+            <h3 className="text-xl font-bold text-green-500 uppercase italic tracking-tighter">Hunter Search S+</h3>
             <input autoFocus type="text" className="w-full bg-zinc-950 p-5 rounded-2xl border border-zinc-800 outline-none text-white text-lg font-bold" placeholder="Digite em português..." value={termoAnilist} onChange={(e) => setTermoAnilist(e.target.value)} />
             <div className="mt-4 max-h-64 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
               {resultados.map((m: ResultadoBusca) => (
@@ -190,7 +223,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
                   <p className="font-bold text-sm group-hover:text-green-500">{m.titulo}</p>
                 </div>
               ))}
-              {buscando && <div className="text-center p-4 text-green-500 animate-pulse font-black text-[10px] uppercase">Processando Motor S+ ...</div>}
+              {buscando && <div className="text-center p-4 text-green-500 animate-pulse font-black text-[10px] uppercase">Buscando na base de dados...</div>}
             </div>
           </div>
         ) : (
@@ -212,14 +245,16 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
 
             <div className="grid grid-cols-2 gap-6">
               <div>
-                <p className="text-[10px] font-bold text-zinc-500 uppercase mb-3 ml-1 tracking-widest">Aonde parou? ({abaPrincipal === "MANGA" ? "Capítulo" : abaPrincipal === "ANIME" ? "Episódio" : "Parte"})</p>
+                <p className="text-[10px] font-bold text-zinc-500 uppercase mb-3 ml-1 tracking-widest">
+                  Aonde parou? ({abaPrincipal === "MANGA" ? "Capítulo" : abaPrincipal === "ANIME" ? "Episódio" : abaPrincipal === "LIVRO" ? "Página" : "Parte"})
+                </p>
                 <input type="number" className="w-full bg-zinc-950 p-5 rounded-2xl border border-zinc-800 outline-none text-2xl font-bold text-green-500" value={novoManga.capitulo_atual} onChange={e => setNovoManga({...novoManga, capitulo_atual: parseInt(e.target.value) || 0})} />
               </div>
               <div>
                 <p className="text-[10px] font-bold text-zinc-500 uppercase mb-3 ml-1 tracking-widest">Status Inicial</p>
                 <select value={novoManga.status} onChange={(e) => setNovoManga({...novoManga, status: e.target.value})} className="w-full bg-zinc-950 p-5 rounded-2xl border border-zinc-800 text-sm font-bold text-white uppercase cursor-pointer">
-                  <option value="Lendo">{abaPrincipal === "MANGA" ? "Lendo" : "Assistindo"}</option>
-                  <option value="Planejo Ler">{abaPrincipal === "MANGA" ? "Planejo Ler" : "Planejo Assistir"}</option>
+                  <option value="Lendo">{abaPrincipal === "ANIME" || abaPrincipal === "FILME" ? "Assistindo" : "Lendo"}</option>
+                  <option value="Planejo Ler">{abaPrincipal === "ANIME" || abaPrincipal === "FILME" ? "Planejo Assistir" : "Planejo Ler"}</option>
                   <option value="Completos">Completos</option>
                   <option value="Pausados">Pausados</option>
                   <option value="Dropados">Dropados</option>
