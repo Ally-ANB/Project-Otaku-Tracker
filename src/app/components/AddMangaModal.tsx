@@ -45,158 +45,149 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
   }, [estaAberto]);
 
   // ==========================================
-  // 🧠 SESSÃO 3: MOTOR DE BUSCA (CACHE -> IA -> FONTES)
+  // 🧠 SESSÃO 3: MOTOR DE BUSCA (ACIONADO POR BOTAO/ENTER)
   // ==========================================
-  useEffect(() => {
-    if (termoAnilist.length < 3) { setResultados([]); return; }
+  async function executarBusca() {
+    if (termoAnilist.length < 3) return;
     
-    const t = setTimeout(async () => {
-      setBuscando(true);
-      try {
-        let termoFinal = termoAnilist;
+    setBuscando(true);
+    setResultados([]); // Limpa resultados anteriores
 
-        // 🛑 IGNORAMOS A IA PARA FILMES E LIVROS
-        if (abaPrincipal !== "FILME" && abaPrincipal !== "LIVRO") {
-          const { data: cacheHit } = await supabase.from('search_cache').select('resultado_ia').ilike('termo_original', termoAnilist).maybeSingle();
+    try {
+      let termoFinal = termoAnilist;
 
-          if (cacheHit) {
-            termoFinal = cacheHit.resultado_ia;
-          } else {
-            const resIA = await fetch('/api/tradutor-ia', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ termo: termoAnilist })
-            });
-            
-            if (resIA.ok) {
-              const jsonIA = await resIA.json();
-              if (jsonIA.resultado && !jsonIA.resultado.includes('⚠️')) {
-                termoFinal = jsonIA.resultado;
-                await supabase.from('search_cache').insert([{ termo_original: termoAnilist, resultado_ia: termoFinal }]);
-              }
-            }
-          }
-        }
+      // 🛑 IGNORAMOS A IA PARA FILMES E LIVROS
+      if (abaPrincipal !== "FILME" && abaPrincipal !== "LIVRO") {
+        const { data: cacheHit } = await supabase.from('search_cache').select('resultado_ia').ilike('termo_original', termoAnilist).maybeSingle();
 
-        // ==========================================
-        // 3.1 SUBTÍTULO: MOTOR TMDB (FILMES)
-        // ==========================================
-        if (abaPrincipal === "FILME") {
-          const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY; // 🔒 Puxado do Cofre Seguro
-          
-          if (!TMDB_API_KEY) {
-            alert("⚠️ Hunter, a API Key do TMDB está faltando no cofre (.env.local)!");
-            setBuscando(false);
-            return;
-          }
-
-          try {
-            const resTmdb = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&language=pt-BR&query=${encodeURIComponent(termoFinal)}`);
-            if (!resTmdb.ok) throw new Error("Falha ao comunicar com TMDB.");
-            const jsonTmdb = await resTmdb.json();
-            
-            if (jsonTmdb.results && jsonTmdb.results.length > 0) {
-              setResultados(jsonTmdb.results.slice(0, 5).map((m: any): ResultadoBusca => ({
-                id: m.id, 
-                titulo: m.title, 
-                capa: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://placehold.co/400x600/1f1f22/52525b.png?text=SEM+CAPA",
-                total: 1, 
-                sinopse: m.overview || "Sem sinopse em português.", 
-                fonte: "TMDB"
-              })));
-            } else {
-              setResultados([]); 
-            }
-          } catch (error) {
-            console.error("Erro no TMDB:", error);
-            setResultados([]);
-          }
-
-        // ==========================================
-        // 3.2 SUBTÍTULO: MOTOR GOOGLE BOOKS + OPEN LIBRARY
-        // ==========================================
-        } else if (abaPrincipal === "LIVRO") {
-          try {
-            const resBooks = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(termoFinal)}&maxResults=5&langRestrict=pt`);
-            const jsonBooks = await resBooks.json();
-            
-            if (jsonBooks.items && jsonBooks.items.length > 0) {
-              setResultados(jsonBooks.items.map((m: any): ResultadoBusca => {
-                const links = m.volumeInfo?.imageLinks;
-                let imagemLivro = links?.thumbnail || links?.smallThumbnail;
-                
-                // Backup da Capa pela Open Library via ISBN
-                if (!imagemLivro) {
-                  const isbns = m.volumeInfo?.industryIdentifiers;
-                  const isbnObj = isbns?.find((id: any) => id.type === "ISBN_13" || id.type === "ISBN_10");
-                  
-                  if (isbnObj) {
-                    imagemLivro = `https://covers.openlibrary.org/b/isbn/${isbnObj.identifier}-L.jpg`;
-                  } else {
-                    imagemLivro = "https://placehold.co/400x600/1f1f22/52525b.png?text=SEM+CAPA";
-                  }
-                } else {
-                  imagemLivro = imagemLivro.replace('http:', 'https:').replace('&edge=curl', '');
-                }
-
-                return {
-                  id: m.id, 
-                  titulo: m.volumeInfo?.title || "Sem Título", 
-                  capa: imagemLivro,
-                  total: m.volumeInfo?.pageCount || 1, 
-                  sinopse: m.volumeInfo?.description || "Sem sinopse em português.", 
-                  fonte: "Google Books"
-                };
-              }));
-            } else {
-              setResultados([]); 
-            }
-          } catch (error) {
-            console.error("Erro no Google Books:", error);
-            setResultados([]);
-          }
-
-        // ==========================================
-        // 3.3 SUBTÍTULO: MOTOR ANILIST / MYANIMELIST (MANGÁS/ANIMES)
-        // ==========================================
+        if (cacheHit) {
+          termoFinal = cacheHit.resultado_ia;
         } else {
-          try {
-            const resAni = await fetch("https://graphql.anilist.co", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ 
-                query: `query ($search: String, $type: MediaType) { Page(perPage: 5) { media(search: $search, type: $type) { id title { romaji english } coverImage { large } chapters episodes description } } }`,
-                variables: { search: termoFinal, type: abaPrincipal }
-              })
-            });
-            const jsonAni = await resAni.json();
-            const listaAni = jsonAni.data?.Page?.media || [];
-
-            if (listaAni.length > 0) {
-              setResultados(listaAni.map((m: any): ResultadoBusca => ({
-                id: m.id, titulo: m.title.romaji || m.title.english, capa: m.coverImage.large,
-                total: abaPrincipal === "MANGA" ? (m.chapters || 0) : (m.episodes || 0),
-                sinopse: m.description || "", fonte: "AniList"
-              })));
-            } else {
-              const resMal = await fetch(`https://api.jikan.moe/v4/${abaPrincipal === "MANGA" ? "manga" : "anime"}?q=${encodeURIComponent(termoFinal)}&limit=5`);
-              const jsonMal = await resMal.json();
-              setResultados(jsonMal.data?.map((m: any): ResultadoBusca => ({
-                id: m.mal_id, titulo: m.title, capa: m.images.jpg.large_image_url,
-                total: abaPrincipal === "MANGA" ? (m.chapters || 0) : (m.episodes || 0),
-                sinopse: m.synopsis || "", fonte: "MyAnimeList"
-              })) || []);
+          const resIA = await fetch('/api/tradutor-ia', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ termo: termoAnilist })
+          });
+          
+          if (resIA.ok) {
+            const jsonIA = await resIA.json();
+            if (jsonIA.resultado && !jsonIA.resultado.includes('⚠️')) {
+              termoFinal = jsonIA.resultado;
+              await supabase.from('search_cache').insert([{ termo_original: termoAnilist, resultado_ia: termoFinal }]);
             }
-          } catch (error) {
-            console.error("Erro no AniList/MAL:", error);
-            setResultados([]);
           }
         }
+      }
 
-      } catch (err) { console.error("Erro na busca geral:", err); } finally { setBuscando(false); }
-    }, 1500); 
-    return () => clearTimeout(t);
-  }, [termoAnilist, abaPrincipal]);
+      // ==========================================
+      // 3.1 SUBTÍTULO: MOTOR TMDB (FILMES)
+      // ==========================================
+      if (abaPrincipal === "FILME") {
+        const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY; 
+        
+        if (!TMDB_API_KEY) {
+          alert("⚠️ Hunter, a API Key do TMDB está faltando no cofre (.env.local)!");
+          setBuscando(false);
+          return;
+        }
+
+        try {
+          const resTmdb = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&language=pt-BR&query=${encodeURIComponent(termoFinal)}`);
+          if (!resTmdb.ok) throw new Error("Falha ao comunicar com TMDB.");
+          const jsonTmdb = await resTmdb.json();
+          
+          if (jsonTmdb.results && jsonTmdb.results.length > 0) {
+            setResultados(jsonTmdb.results.slice(0, 5).map((m: any): ResultadoBusca => ({
+              id: m.id, 
+              titulo: m.title, 
+              capa: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://placehold.co/400x600/1f1f22/52525b.png?text=SEM+CAPA",
+              total: 1, 
+              sinopse: m.overview || "Sem sinopse em português.", 
+              fonte: "TMDB"
+            })));
+          }
+        } catch (error) {
+          console.error("Erro no TMDB:", error);
+        }
+
+      // ==========================================
+      // 3.2 SUBTÍTULO: MOTOR GOOGLE BOOKS + OPEN LIBRARY
+      // ==========================================
+      } else if (abaPrincipal === "LIVRO") {
+        try {
+          const resBooks = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(termoFinal)}&maxResults=5&langRestrict=pt`);
+          const jsonBooks = await resBooks.json();
+          
+          if (jsonBooks.items && jsonBooks.items.length > 0) {
+            setResultados(jsonBooks.items.map((m: any): ResultadoBusca => {
+              const links = m.volumeInfo?.imageLinks;
+              let imagemLivro = links?.thumbnail || links?.smallThumbnail;
+              
+              if (!imagemLivro) {
+                const isbns = m.volumeInfo?.industryIdentifiers;
+                const isbnObj = isbns?.find((id: any) => id.type === "ISBN_13" || id.type === "ISBN_10");
+                
+                if (isbnObj) {
+                  imagemLivro = `https://covers.openlibrary.org/b/isbn/${isbnObj.identifier}-L.jpg`;
+                } else {
+                  imagemLivro = "https://placehold.co/400x600/1f1f22/52525b.png?text=SEM+CAPA";
+                }
+              } else {
+                imagemLivro = imagemLivro.replace('http:', 'https:').replace('&edge=curl', '');
+              }
+
+              return {
+                id: m.id, 
+                titulo: m.volumeInfo?.title || "Sem Título", 
+                capa: imagemLivro,
+                total: m.volumeInfo?.pageCount || 1, 
+                sinopse: m.volumeInfo?.description || "Sem sinopse em português.", 
+                fonte: "Google Books"
+              };
+            }));
+          }
+        } catch (error) {
+          console.error("Erro no Google Books:", error);
+        }
+
+      // ==========================================
+      // 3.3 SUBTÍTULO: MOTOR ANILIST / MYANIMELIST
+      // ==========================================
+      } else {
+        try {
+          const resAni = await fetch("https://graphql.anilist.co", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              query: `query ($search: String, $type: MediaType) { Page(perPage: 5) { media(search: $search, type: $type) { id title { romaji english } coverImage { large } chapters episodes description } } }`,
+              variables: { search: termoFinal, type: abaPrincipal }
+            })
+          });
+          const jsonAni = await resAni.json();
+          const listaAni = jsonAni.data?.Page?.media || [];
+
+          if (listaAni.length > 0) {
+            setResultados(listaAni.map((m: any): ResultadoBusca => ({
+              id: m.id, titulo: m.title.romaji || m.title.english, capa: m.coverImage.large,
+              total: abaPrincipal === "MANGA" ? (m.chapters || 0) : (m.episodes || 0),
+              sinopse: m.description || "", fonte: "AniList"
+            })));
+          } else {
+            const resMal = await fetch(`https://api.jikan.moe/v4/${abaPrincipal === "MANGA" ? "manga" : "anime"}?q=${encodeURIComponent(termoFinal)}&limit=5`);
+            const jsonMal = await resMal.json();
+            setResultados(jsonMal.data?.map((m: any): ResultadoBusca => ({
+              id: m.mal_id, titulo: m.title, capa: m.images.jpg.large_image_url,
+              total: abaPrincipal === "MANGA" ? (m.chapters || 0) : (m.episodes || 0),
+              sinopse: m.synopsis || "", fonte: "MyAnimeList"
+            })) || []);
+          }
+        } catch (error) {
+          console.error("Erro no AniList/MAL:", error);
+        }
+      }
+
+    } catch (err) { console.error("Erro na busca geral:", err); } finally { setBuscando(false); }
+  }
 
   // ==========================================
   // 🛠️ SESSÃO 4: AÇÕES E SALVAMENTO
@@ -240,7 +231,27 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
         {!novoManga.titulo ? (
           <div className="space-y-6">
             <h3 className="text-xl font-bold text-green-500 uppercase italic tracking-tighter">Hunter Search S+</h3>
-            <input autoFocus type="text" className="w-full bg-zinc-950 p-5 rounded-2xl border border-zinc-800 outline-none text-white text-lg font-bold" placeholder="Digite a obra..." value={termoAnilist} onChange={(e) => setTermoAnilist(e.target.value)} />
+            
+            {/* ✅ FIX: NOVA BARRA DE PESQUISA COM BOTÃO */}
+            <div className="flex gap-3">
+              <input 
+                autoFocus 
+                type="text" 
+                className="flex-1 bg-zinc-950 p-5 rounded-2xl border border-zinc-800 outline-none text-white text-lg font-bold placeholder:text-zinc-700" 
+                placeholder="Digite a obra e aperte ENTER..." 
+                value={termoAnilist} 
+                onChange={(e) => setTermoAnilist(e.target.value)} 
+                onKeyDown={(e) => e.key === 'Enter' && executarBusca()} 
+              />
+              <button 
+                onClick={executarBusca}
+                disabled={buscando}
+                className="px-8 bg-green-600 hover:bg-green-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-black font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg active:scale-95"
+              >
+                {buscando ? "..." : "Buscar"}
+              </button>
+            </div>
+
             <div className="mt-4 max-h-64 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
               {resultados.map((m: ResultadoBusca) => (
                 <div key={m.id} onClick={() => setNovoManga({ titulo: m.titulo, capa: m.capa, capitulo_atual: 0, total_capitulos: m.total, status: "Planejo Ler", sinopse: m.sinopse })} className="p-4 bg-zinc-900/50 rounded-2xl hover:bg-zinc-800 cursor-pointer flex gap-4 items-center border border-zinc-800 transition-all group">
@@ -248,7 +259,10 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
                   <p className="font-bold text-sm group-hover:text-green-500">{m.titulo}</p>
                 </div>
               ))}
-              {buscando && <div className="text-center p-4 text-green-500 animate-pulse font-black text-[10px] uppercase">Buscando na base de dados...</div>}
+              {buscando && <div className="text-center p-4 text-green-500 animate-pulse font-black text-[10px] uppercase tracking-widest">Vasculhando a rede...</div>}
+              {!buscando && termoAnilist.length >= 3 && resultados.length === 0 && (
+                <div className="text-center p-4 text-zinc-600 font-black text-[10px] uppercase tracking-widest">Nenhum resultado. Aperte ENTER para buscar.</div>
+              )}
             </div>
           </div>
         ) : (
