@@ -70,10 +70,13 @@ export default function ProfileSelection({
           );
         })}
 
-        {/* PERFIL ADMINISTRADOR */}
-        <div onClick={() => setPinAdminAberto(true)} className="flex flex-col items-center gap-4 cursor-pointer group">
+        {/* ✅ FIX: PERFIL ADMINISTRADOR CORRIGIDO */}
+        <div 
+          onClick={() => tentarMudarPerfil("Admin")} 
+          className="flex flex-col items-center gap-4 cursor-pointer group"
+        >
           <div className="w-40 h-40 bg-zinc-900 border-4 border-dashed border-zinc-700 rounded-[3rem] flex items-center justify-center text-7xl group-hover:border-yellow-500 group-hover:bg-yellow-500/5 transition-all duration-500 group-hover:scale-105">
-            ⚙️
+            👑
           </div>
           <span className="font-bold uppercase text-zinc-700 group-hover:text-yellow-500 text-[10px] tracking-widest transition-colors">
             Administrador
