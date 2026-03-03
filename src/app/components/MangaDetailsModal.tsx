@@ -8,7 +8,7 @@ interface Manga {
 
 interface MangaDetailsModalProps {
   manga: Manga;
-  abaPrincipal: "MANGA" | "ANIME" | "FILME"; 
+  abaPrincipal: "MANGA" | "ANIME" | "FILME" | "LIVRO"; // ✅ LIVRO ADICIONADO
   aoFechar: () => void;
   aoAtualizarCapitulo: (manga: Manga, novo: number) => void;
   aoAtualizarDados: (id: number, campos: any) => void;
@@ -50,10 +50,7 @@ export default function MangaDetailsModal({ manga, abaPrincipal, aoFechar, aoAtu
         {/* ======================= CORPO DO MODAL ======================= */}
         <div className="p-8 grid grid-cols-1 md:grid-cols-3 gap-12">
           
-          {/* COLUNA ESQUERDA: Controles Numéricos e Status */}
           <div className="space-y-8">
-            
-            {/* PROGRESSO */}
             <div className="bg-zinc-900/50 p-6 rounded-3xl border border-zinc-800">
               <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-4">Progresso Atual</p>
               <div className="flex items-center justify-between gap-2">
@@ -69,7 +66,6 @@ export default function MangaDetailsModal({ manga, abaPrincipal, aoFechar, aoAtu
               <p className="text-center text-[10px] text-zinc-700 mt-2 font-bold uppercase tracking-widest">Total: {manga.total_capitulos || '?'}</p>
             </div>
 
-            {/* NOTA PESSOAL */}
             <div className="bg-zinc-900/50 p-6 rounded-3xl border border-zinc-800">
               <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-4">Nota Pessoal</p>
               <input 
@@ -80,7 +76,6 @@ export default function MangaDetailsModal({ manga, abaPrincipal, aoFechar, aoAtu
               />
             </div>
 
-            {/* ✅ FIX: SELETOR DE STATUS RESTAURADO E ALINHADO */}
             <div className="bg-zinc-900/50 p-6 rounded-3xl border border-zinc-800">
               <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-4">Status da Obra</p>
               <select 
@@ -88,17 +83,15 @@ export default function MangaDetailsModal({ manga, abaPrincipal, aoFechar, aoAtu
                 onChange={(e) => aoAtualizarDados(manga.id, { status: e.target.value })} 
                 className="w-full bg-black border border-zinc-800 p-4 rounded-xl text-sm font-bold text-white uppercase cursor-pointer outline-none focus:border-white/20 transition-all"
               >
-                <option value="Lendo">{abaPrincipal === "MANGA" ? "Lendo" : "Assistindo"}</option>
-                <option value="Planejo Ler">{abaPrincipal === "MANGA" ? "Planejo Ler" : "Planejo Assistir"}</option>
+                <option value="Lendo">{abaPrincipal === "ANIME" || abaPrincipal === "FILME" ? "Assistindo" : "Lendo"}</option>
+                <option value="Planejo Ler">{abaPrincipal === "ANIME" || abaPrincipal === "FILME" ? "Planejo Assistir" : "Planejo Ler"}</option>
                 <option value="Completos">Completos</option>
                 <option value="Pausados">Pausados</option>
                 <option value="Dropados">Dropados</option>
               </select>
             </div>
-
           </div>
 
-          {/* COLUNA DIREITA: Sinopse e Botão Deletar */}
           <div className="md:col-span-2 space-y-8">
             <div>
               <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] mb-4">Sinopse da Obra</p>
@@ -120,7 +113,7 @@ export default function MangaDetailsModal({ manga, abaPrincipal, aoFechar, aoAtu
                 onClick={() => aoDeletar(manga.id)}
                 className="px-6 py-3 rounded-xl border border-red-500/20 text-red-500 text-[10px] font-black uppercase hover:bg-red-500 hover:text-white transition-all"
               >
-                Remover {abaPrincipal === "MANGA" ? "Mangá" : abaPrincipal === "ANIME" ? "Anime" : "Filme"}
+                Remover Obra
               </button>
             </div>
           </div>
