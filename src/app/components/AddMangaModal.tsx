@@ -83,7 +83,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
         // 3. SEPARAÇÃO DO MOTOR: FILMES VS LIVROS VS OTAKU
         if (abaPrincipal === "FILME") {
           // 🎬 SUBTÍTULO: MOTOR TMDB (FILMES)
-          const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY; // 🔒 SEGURO: Puxando do .env
+          const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY; 
           
           if (!TMDB_API_KEY || TMDB_API_KEY === "SUA_CHAVE_TMDB_AQUI") {
             alert("⚠️ Hunter, a API Key do TMDB está faltando no cofre (.env.local)!");
@@ -100,7 +100,8 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
               setResultados(jsonTmdb.results.slice(0, 5).map((m: any): ResultadoBusca => ({
                 id: m.id, 
                 titulo: m.title, 
-                capa: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://i.imgur.com/8Km9t4S.png",
+                // ✅ FIX: Capa de emergência substituída por gerador dinâmico
+                capa: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://placehold.co/400x600/1f1f22/52525b.png?text=SEM+CAPA",
                 total: 1, 
                 sinopse: m.overview || "Sem sinopse em português.", 
                 fonte: "TMDB"
@@ -120,15 +121,21 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
             const jsonBooks = await resBooks.json();
             
             if (jsonBooks.items && jsonBooks.items.length > 0) {
-              setResultados(jsonBooks.items.map((m: any): ResultadoBusca => ({
-                id: m.id, 
-                titulo: m.volumeInfo.title, 
-                // Troca HTTP por HTTPS para evitar erros mistos de segurança
-                capa: m.volumeInfo.imageLinks?.thumbnail?.replace('http:', 'https:') || "https://i.imgur.com/8Km9t4S.png",
-                total: m.volumeInfo.pageCount || 1, 
-                sinopse: m.volumeInfo.description || "Sem sinopse em português.", 
-                fonte: "Google Books"
-              })));
+              setResultados(jsonBooks.items.map((m: any): ResultadoBusca => {
+                // ✅ FIX: Puxa capas melhores, remove o efeito de "página dobrada" e usa gerador dinâmico se falhar
+                const links = m.volumeInfo.imageLinks;
+                let imagemLivro = links?.thumbnail || links?.smallThumbnail || "https://placehold.co/400x600/1f1f22/52525b.png?text=SEM+CAPA";
+                imagemLivro = imagemLivro.replace('http:', 'https:').replace('&edge=curl', '');
+
+                return {
+                  id: m.id, 
+                  titulo: m.volumeInfo.title, 
+                  capa: imagemLivro,
+                  total: m.volumeInfo.pageCount || 1, 
+                  sinopse: m.volumeInfo.description || "Sem sinopse em português.", 
+                  fonte: "Google Books"
+                };
+              }));
             } else {
               setResultados([]); 
             }
