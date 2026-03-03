@@ -1,7 +1,7 @@
 "use client";
 
 // ==========================================
-// 📦 1. IMPORTAÇÕES E INTERFACES
+// 📦 [SESSÃO 1] - IMPORTAÇÕES E INTERFACES
 // ==========================================
 import AcessoMestre from "./components/AcessoMestre";
 import { supabase } from "./supabase";
@@ -29,6 +29,9 @@ interface Manga {
   favorito: boolean; 
 }
 
+// ==========================================
+// 🎨 [SESSÃO 2] - TEMAS E ESTILOS (AURAS)
+// ==========================================
 const TEMAS = {
   verde: { nome: "Verde Néon", bg: "bg-green-500", bgActive: "bg-green-600", text: "text-green-500", border: "border-green-500", shadow: "shadow-[0_0_20px_rgba(34,197,94,0.3)]", focus: "focus:border-green-500" },
   azul: { nome: "Azul Elétrico", bg: "bg-blue-500", bgActive: "bg-blue-600", text: "text-blue-500", border: "border-blue-500", shadow: "shadow-[0_0_20px_rgba(59,130,246,0.3)]", focus: "focus:border-blue-500" },
@@ -39,17 +42,25 @@ const TEMAS = {
 };
 
 export default function Home() {
+  // ==========================================
+  // 🔐 [SESSÃO 3] - ESTADOS GERAIS DO APP
+  // ==========================================
+  
+  // -- Segurança e Acesso --
   const [mestreAutorizado, setMestreAutorizado] = useState(false);
   const [usuarioAtual, setUsuarioAtual] = useState<string | null>(null);
   const [perfilAlvoParaBloqueio, setPerfilAlvoParaBloqueio] = useState<string | null>(null);
   const [pinDigitado, setPinDigitado] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
 
+  // -- Dados da Estante --
   const [abaPrincipal, setAbaPrincipal] = useState<"MANGA" | "ANIME" | "FILME">("MANGA"); 
   const [mangas, setMangas] = useState<Manga[]>([]);
   const [animes, setAnimes] = useState<Manga[]>([]); 
   const [filmes, setFilmes] = useState<Manga[]>([]); 
   const [perfis, setPerfis] = useState<any[]>([]); 
+  
+  // -- Controle de Interface --
   const [estaAbertoAdd, setEstaAbertoAdd] = useState(false);
   const [mangaDetalhe, setMangaDetalhe] = useState<Manga | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -58,12 +69,15 @@ export default function Home() {
   const [config, setConfig] = useState({ mostrar_busca: true, mostrar_stats: true, mostrar_backup: true });
   const [modoCinema, setModoCinema] = useState(false);
 
+  // -- Controles do Admin --
   const [novoHunter, setNovoHunter] = useState({ nome: '', avatar: '👤', pin: '', cor: 'verde' });
   const [editandoNomeOriginal, setEditandoNomeOriginal] = useState<string | null>(null);
   const [mostrandoFormHunter, setMostrandoFormHunter] = useState(false);
   const [pinAdminAberto, setPinAdminAberto] = useState(false);
 
-  // ✅ SISTEMA DE NOTIFICAÇÕES (STACKING TOASTS)
+  // ==========================================
+  // 🔔 [SESSÃO 4] - SISTEMA DE NOTIFICAÇÕES
+  // ==========================================
   interface ToastMessage {
     id: number;
     mensagem: string;
@@ -77,6 +91,9 @@ export default function Home() {
     setTimeout(() => { setToasts(prev => prev.filter(t => t.id !== id)); }, 4000);
   }
 
+  // ==========================================
+  // 🔄 [SESSÃO 5] - INICIALIZAÇÃO (USEEFFECTS)
+  // ==========================================
   useEffect(() => { 
     const mestre = sessionStorage.getItem("acesso_mestre");
     if (mestre === "true") {
@@ -103,10 +120,15 @@ export default function Home() {
       setIsAdmin(usuarioAtual === "Admin");
       buscarMangas();
       buscarAnimes();
-      buscarFilmes(); // ✅ FIX: Garante que os filmes carreguem ao abrir o app
+      buscarFilmes(); 
     }
   }, [usuarioAtual]);
 
+  // ==========================================
+  // 🛠️ [SESSÃO 6] - COMUNICAÇÃO COM O BANCO
+  // ==========================================
+
+  // --- Sub-sessão: Utilitários Visuais ---
   const toggleModoCinema = () => {
     const novoEstado = !modoCinema;
     setModoCinema(novoEstado);
@@ -119,6 +141,7 @@ export default function Home() {
     window.open(url, '_blank');
   }
 
+  // --- Sub-sessão: Consultas (Read) ---
   async function buscarMangas() {
     if (!usuarioAtual || usuarioAtual === "Admin") return;
     const { data } = await supabase.from("mangas").select("*").eq("usuario", usuarioAtual).order("ultima_leitura", { ascending: false });
@@ -142,6 +165,7 @@ export default function Home() {
     if (data) setPerfis(data);
   }
 
+  // --- Sub-sessão: Integração AniList ---
   async function sincronizarComAniList(titulo: string, capitulo: number, statusLocal: string, token: string, acao: "SALVAR" | "DELETAR" = "SALVAR", tipoObra: "MANGA" | "ANIME" | "FILME" = "MANGA") {
     if (tipoObra === "FILME") return; 
 
@@ -153,7 +177,7 @@ export default function Home() {
       });
       const data = await res.json();
       if (data.success) {
-         mostrarToast(`"${titulo}" sincronizado no AniList!`, "anilist"); // ✅ Passando a cor nova
+         mostrarToast(`"${titulo}" sincronizado no AniList!`, "anilist"); 
       }
     } catch (error) { console.error(error); }
   }
@@ -164,6 +188,7 @@ export default function Home() {
     mostrarToast(`📡 Sincronizando ${abaPrincipal}...`, "aviso");
   }
 
+  // --- Sub-sessão: Atualizações de Obras ---
   async function atualizarCapitulo(manga: Manga, novo: number) {
     if (novo < 0) return;
     let novoStatus = manga.status;
@@ -213,8 +238,8 @@ export default function Home() {
     }
   }
 
+  // --- Sub-sessão: Deleção de Obras ---
   async function deletarMangaDaEstante(id: number) {
-    // ✅ FIX: Garante a identificação do "filmes" na hora de apagar do banco
     const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : abaPrincipal === "ANIME" ? "animes" : "filmes";
     if(confirm(`Remover da estante?`)) {
       await supabase.from(tabelaDb).delete().eq("id", id);
@@ -225,6 +250,9 @@ export default function Home() {
     }
   }
 
+  // ==========================================
+  // 👥 [SESSÃO 7] - GESTÃO DE PERFIS (ADMIN)
+  // ==========================================
   async function salvarHunter() {
     if (!novoHunter.nome) return alert("Nome obrigatório!");
     const dados = { nome_exibicao: novoHunter.nome, avatar: novoHunter.avatar, pin: novoHunter.pin, cor_tema: novoHunter.cor };
@@ -249,30 +277,56 @@ export default function Home() {
     }
   }
 
+  // ==========================================
+  // 🔑 [SESSÃO 8] - LÓGICA DE LOGIN E PIN
+  // ==========================================
   async function confirmarPin() {
     if (!perfilAlvoParaBloqueio) return;
+
+    // 1. Verificação Exclusiva do Admin
+    if (perfilAlvoParaBloqueio === "Admin") {
+      const { data: adminDb } = await supabase.from("perfis").select("pin").eq("nome_original", "Admin").maybeSingle();
+      const pinCorreto = adminDb?.pin || "0000"; 
+
+      if (pinDigitado === pinCorreto) {
+        sessionStorage.setItem("hunter_ativo", "Admin");
+        setUsuarioAtual("Admin");
+        setPerfilAlvoParaBloqueio(null);
+      } else {
+        mostrarToast("Acesso Negado: PIN de Administrador Incorreto!", "erro");
+      }
+      return;
+    }
+
+    // 2. Verificação dos Usuários Normais
     const { data: perfil } = await supabase.from("perfis").select("pin, nome_exibicao").eq("nome_original", perfilAlvoParaBloqueio).single();
     if (perfil?.pin === pinDigitado) {
       sessionStorage.setItem("hunter_ativo", perfilAlvoParaBloqueio);
-      sessionStorage.setItem("acesso_mestre", "true");
       setUsuarioAtual(perfilAlvoParaBloqueio);
       setPerfilAlvoParaBloqueio(null);
     } else { mostrarToast("PIN Incorreto!", "erro"); }
   }
 
   function tentarMudarPerfil(nome: string) {
-    if (nome === "Admin") return setPinAdminAberto(true);
+    if (nome === "Admin") {
+      setPerfilAlvoParaBloqueio("Admin");
+      setPinDigitado("");
+      return;
+    }
     const info = perfis.find(p => p.nome_original === nome);
     if (info?.pin) { setPerfilAlvoParaBloqueio(nome); setPinDigitado(""); } 
     else { setUsuarioAtual(nome); sessionStorage.setItem('hunter_ativo', nome); }
   }
 
+  // ==========================================
+  // 🖥️ [SESSÃO 9] - RENDERIZAÇÃO E INTERFACE
+  // ==========================================
+  
+  // -- Bloqueios de Tela --
   if (!mestreAutorizado) return <AcessoMestre aoAutorizar={() => setMestreAutorizado(true)} />;
 
   if (!usuarioAtual) return <ProfileSelection perfis={perfis} temas={TEMAS} tentarMudarPerfil={tentarMudarPerfil} perfilAlvoParaBloqueio={perfilAlvoParaBloqueio} pinDigitado={pinDigitado} setPinDigitado={setPinDigitado} confirmarPin={confirmarPin} setPinAdminAberto={setPinAdminAberto} pinAdminAberto={pinAdminAberto} />;
 
-  // Painel do perfil administrador //
-  
   if (isAdmin) return (
     <AdminPanel 
       perfis={perfis} 
@@ -291,10 +345,10 @@ export default function Home() {
     />
   );
 
+  // -- Variáveis Globais de Renderização --
   const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual) || { nome_exibicao: usuarioAtual, avatar: "👤", cor_tema: "verde" };
   const aura = perfilAtivo.cor_tema?.startsWith('#') ? TEMAS.custom : (TEMAS[perfilAtivo.cor_tema as keyof typeof TEMAS] || TEMAS.verde);
   
-  // ✅ FIX: Lista inclui a tabela de filmes na exibição em tela
   const listaExibicao = abaPrincipal === "MANGA" ? mangas : abaPrincipal === "ANIME" ? animes : filmes;
   const filtrosAtuais = abaPrincipal === "MANGA" ? ["Todos", "Lendo", "Completos", "Planejo Ler", "Pausados", "Dropados"] : ["Todos", "Assistindo", "Completos", "Planejo Assistir", "Pausados", "Dropados"];
 
@@ -307,9 +361,11 @@ export default function Home() {
     return m.status === filtroAtivo;
   }).filter(m => m.titulo.toLowerCase().includes(pesquisaInterna.toLowerCase()));
 
+  // -- Retorno da Interface Principal --
   return (
     <main className="min-h-screen bg-[#080808] p-6 md:p-12 text-white relative overflow-x-hidden" style={perfilAtivo.cor_tema?.startsWith('#') ? { '--aura': perfilAtivo.cor_tema } as React.CSSProperties : {}}>
       
+      {/* CABEÇALHO */}
       <header className="flex flex-col md:flex-row justify-between items-center gap-6 mb-16 border-b border-zinc-800/50 pb-10 relative z-20">
         <div className="text-center md:text-left">
           <h1 className="text-5xl font-black italic tracking-tighter">Hunter<span className={aura.text}>.</span>Tracker</h1>
@@ -342,12 +398,14 @@ export default function Home() {
         </div>
       </header>
 
+      {/* ABAS DE ESTANTES */}
       <div className="flex gap-4 md:gap-8 mb-10 border-b border-zinc-800/50 pb-4 overflow-x-auto custom-scrollbar">
         <button onClick={() => { setAbaPrincipal("MANGA"); setFiltroAtivo("Lendo"); }} className={`text-xl md:text-2xl font-black uppercase tracking-widest transition-all whitespace-nowrap ${abaPrincipal === "MANGA" ? `${aura.text} drop-shadow-[0_0_15px_currentColor]` : "text-zinc-600 hover:text-white"}`}>📚 Estante de Mangás</button>
         <button onClick={() => { setAbaPrincipal("ANIME"); setFiltroAtivo("Assistindo"); }} className={`text-xl md:text-2xl font-black uppercase tracking-widest transition-all whitespace-nowrap ${abaPrincipal === "ANIME" ? `${aura.text} drop-shadow-[0_0_15px_currentColor]` : "text-zinc-600 hover:text-white"}`}>📺 Estante de Animes</button>
         <button onClick={() => { setAbaPrincipal("FILME"); setFiltroAtivo("Assistindo"); }} className={`text-xl md:text-2xl font-black uppercase tracking-widest transition-all whitespace-nowrap ${abaPrincipal === "FILME" ? `${aura.text} drop-shadow-[0_0_15px_currentColor]` : "text-zinc-600 hover:text-white"}`}>🎬 Estante de Filmes</button>
       </div>
 
+      {/* BARRA DE PESQUISA E FILTROS */}
       {config.mostrar_busca && (
         <section className="mb-12 flex flex-col md:flex-row gap-6 items-center justify-between">
           <div className="flex bg-zinc-900/50 p-1 rounded-2xl border border-zinc-800 w-full md:w-auto overflow-x-auto">
@@ -359,12 +417,14 @@ export default function Home() {
         </section>
       )}
 
+      {/* GRID DE OBRAS */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8">
         {obrasFiltradas.map(m => (
           <MangaCard key={m.id} manga={m} aura={aura} abaPrincipal={abaPrincipal} atualizarCapitulo={atualizarCapitulo} deletarManga={deletarMangaDaEstante} mudarStatusManual={(id, s) => atualizarDados(id, {status: s})} abrirDetalhes={(m) => setMangaDetalhe(m as Manga)} />
         ))}
       </div>
 
+      {/* MODAIS */}
       <AddMangaModal 
         estaAberto={estaAbertoAdd} 
         fechar={() => setEstaAbertoAdd(false)} 
@@ -373,7 +433,7 @@ export default function Home() {
         aoSalvar={() => { 
           if (abaPrincipal === "MANGA") buscarMangas();
           else if (abaPrincipal === "ANIME") buscarAnimes();
-          else buscarFilmes(); // ✅ FIX: Atualiza os filmes após salvar
+          else buscarFilmes(); 
           setEstaAbertoAdd(false); 
         }} 
       />
@@ -390,6 +450,7 @@ export default function Home() {
         />
       )} 
       
+      {/* EFEITOS ESPECIAIS */}
       {modoCinema && (
         <div className="fixed inset-0 pointer-events-none z-[200] overflow-hidden">
           <div className="absolute inset-0 opacity-[0.03]" style={{ background: 'linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06))', backgroundSize: '100% 4px, 3px 100%' }} />
@@ -397,7 +458,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* 🌟 SISTEMA DE NOTIFICAÇÕES EM PILHA */}
+      {/* RENDERIZAÇÃO DAS NOTIFICAÇÕES (TOASTS) */}
       <div className="fixed bottom-10 right-10 z-[300] flex flex-col gap-3 pointer-events-none">
         {toasts.map(toast => {
           let cores = "";
