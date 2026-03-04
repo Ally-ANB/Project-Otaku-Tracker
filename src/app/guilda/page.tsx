@@ -67,7 +67,7 @@ export default function GuildaPage() {
   // Estados das Figurinhas
   const [painelFigurinhas, setPainelFigurinhas] = useState(false);
   const [novaFigurinhaUrl, setNovaFigurinhaUrl] = useState("");
-  const [fazendoUploadFigurinha, setFazendoUploadFigurinha] = useState(false); // ✅ NOVO ESTADO
+  const [fazendoUploadFigurinha, setFazendoUploadFigurinha] = useState(false);
 
   useEffect(() => {
     const hunter = sessionStorage.getItem("hunter_ativo");
@@ -102,13 +102,17 @@ export default function GuildaPage() {
     if (data) setPerfis(data);
   }
 
+  // ✅ CORREÇÃO CIRÚRGICA: Limita a 50 mensagens e traz as mais recentes de forma correta
   async function buscarMensagens() {
     const { data } = await supabase
       .from("guilda_mensagens")
       .select("*")
-      .order("criado_em", { ascending: true })
-      .limit(100);
-    if (data) setMensagens(data);
+      .order("criado_em", { ascending: false }) // Pega as mais novas do banco
+      .limit(50); // Limita a 50 na tela
+      
+    if (data) {
+      setMensagens(data.reverse()); // Inverte para renderizar de cima para baixo
+    }
   }
 
   async function gerarRanking() {
@@ -199,7 +203,6 @@ export default function GuildaPage() {
     setNovaFigurinhaUrl("");
   }
 
-  // ✅ NOVO: MOTOR DE UPLOAD DE FIGURINHAS DO PC
   async function fazerUploadFigurinha(event: any) {
     try {
       setFazendoUploadFigurinha(true);
@@ -210,7 +213,6 @@ export default function GuildaPage() {
       const fileName = `sticker-${usuarioAtivo}-${Math.random()}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      // Usando o mesmo bucket 'avatars' para armazenar as imagens
       const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file);
       if (uploadError) throw uploadError;
 
@@ -350,7 +352,7 @@ export default function GuildaPage() {
                 )}
               </div>
 
-              {/* ✅ PAINEL DE FIGURINHAS (OCULTO POR PADRÃO) */}
+              {/* PAINEL DE FIGURINHAS */}
               {painelFigurinhas && (
                 <div className="px-6 py-4 bg-zinc-900 border-t border-zinc-800 flex flex-col gap-4 animate-in slide-in-from-bottom-2 shrink-0">
                   <div className="flex gap-2 items-center">
@@ -362,7 +364,6 @@ export default function GuildaPage() {
                     />
                     <button onClick={adicionarFigurinha} className="bg-green-600 text-white px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-500 transition-all">Salvar URL</button>
                     
-                    {/* ✅ NOVO BOTÃO DE UPLOAD DE PC */}
                     <label className={`flex items-center justify-center px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all border border-blue-500/30 ${fazendoUploadFigurinha ? 'bg-zinc-800 text-zinc-500' : 'bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white'}`}>
                       {fazendoUploadFigurinha ? "⏳..." : "⬆️ Upar PC"}
                       <input type="file" accept="image/*, image/gif" className="hidden" onChange={fazerUploadFigurinha} disabled={fazendoUploadFigurinha} />
