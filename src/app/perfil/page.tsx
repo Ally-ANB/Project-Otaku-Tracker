@@ -1,8 +1,5 @@
 "use client";
 
-// =============================================================================
-// [SESSÃO 1] - IMPORTAÇÕES E CONFIGURAÇÕES DE TEMAS
-// =============================================================================
 import { supabase } from "../supabase";
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -16,9 +13,6 @@ const TEMAS = {
   custom: { bg: "bg-[var(--aura)]", text: "text-[var(--aura)]", border: "border-[var(--aura)]", glow: "shadow-[var(--aura)]/20", btn: "bg-[var(--aura)]/10 border-[var(--aura)]/50 hover:bg-[var(--aura)] hover:text-black" }
 };
 
-// =============================================================================
-// [SESSÃO 2] - CATÁLOGO DA LOJA (VFX E COSMÉTICOS)
-// =============================================================================
 const LOJA_ITENS = [
   // --- VFX ELITE (VÍDEOS) ---
   { id: "particula_fogo_vfx", nome: "Chamas Infernais", tipo: "particula", preco: 1200, icone: "♨️", desc: "Fogo real gravado em alta definição (VFX)." },
@@ -26,7 +20,7 @@ const LOJA_ITENS = [
   { id: "particula_chuva_janela", nome: "Caçador Melancólico", tipo: "particula", preco: 1000, icone: "🌧️", desc: "Chuva real escorrendo pelo vidro (VFX)." },
   { id: "particula_fogo_cinematic", nome: "Fogueira Hunter", tipo: "particula", preco: 1800, icone: "🔥", desc: "Fogueira real cinematográfica (VFX)." },
 
-  // --- PARTÍCULAS CLÁSSICAS (RESTORED) ---
+  // --- PARTÍCULAS CLÁSSICAS ---
   { id: "particula_petalas", nome: "Chuva de Pétalas", tipo: "particula", preco: 300, icone: "🌸", desc: "Cerejeiras caindo com física de vento." },
   { id: "particula_neve", nome: "Neve Silenciosa", tipo: "particula", preco: 350, icone: "❄️", desc: "Flocos de neve cobrindo sua estante." },
   { id: "particula_estrelas", nome: "Céu Estrelado", tipo: "particula", preco: 450, icone: "✨", desc: "Fundo com estrelas cintilantes." },
@@ -39,7 +33,7 @@ const LOJA_ITENS = [
   { id: "particula_outono", nome: "Folhas de Outono", tipo: "particula", preco: 400, icone: "🍁", desc: "Folhas alaranjadas caindo calmamente." },
   { id: "particula_inverno", nome: "Inverno Rigoroso", tipo: "particula", preco: 450, icone: "⛄", desc: "Neve densa caindo sobre a tela." },
 
-  // --- MOLDURAS E TÍTULOS (RESTAURADOS) ---
+  // --- MOLDURAS E TÍTULOS ---
   { id: "moldura_ouro", nome: "Anel de Ouro", tipo: "moldura", preco: 150, icone: "👑", desc: "Moldura dourada brilhante." },
   { id: "moldura_neon", nome: "Glitch Neon", tipo: "moldura", preco: 250, icone: "👾", desc: "Pulso cibernético rosa." },
   { id: "moldura_choque", nome: "Raio Elétrico", tipo: "moldura", preco: 350, icone: "⚡", desc: "Borda animada com alta voltagem." },
@@ -53,6 +47,7 @@ export default function PerfilPage() {
   const [abaAtiva, setAbaAtiva] = useState("STATUS");
   const [telaCheia, setTelaCheia] = useState(false);
   const [carregando, setCarregando] = useState(true);
+  const [fazendoUpload, setFazendoUpload] = useState(false);
   const [esmolas, setEsmolas] = useState(0);
   const [missoesProgresso, setMissoesProgresso] = useState<boolean[]>([false, false, false, false, false]);
   const [condicoesMissoes, setCondicoesMissoes] = useState<boolean[]>([true, false, false, false, false]); 
@@ -82,12 +77,12 @@ export default function PerfilPage() {
 
     if (m || a || f || l) {
       const all = [...(m || []), ...(a || []), ...(f || []), ...(l || [])];
-      const eps = (a || []).reduce((acc, obj) => acc + (obj.capitulo_atual || 0), 0);
-      const fMin = (f || []).filter(o => o.status === "Completos").length * 120;
       setObrasUsuario(all);
+      const epsVistos = (a || []).reduce((acc, obj) => acc + (obj.capitulo_atual || 0), 0);
+      const minFilmes = (f || []).filter(obj => obj.status === "Completos").length * 120;
       setStats({
         obras: all.length, caps: all.reduce((acc, obj) => acc + (obj.capitulo_atual || 0), 0), finais: all.filter(obj => obj.status === "Completos").length,
-        horasVida: Math.floor(((eps * 23) + fMin) / 60), favs: all.filter(o => o.favorito).length, filmes: (f || []).length, livros: (l || []).length
+        horasVida: Math.floor(((epsVistos * 23) + minFilmes) / 60), favs: all.filter(o => o.favorito).length, filmes: (f || []).length, livros: (l || []).length
       });
       const t = all.length;
       if (t >= 1000) setElo({ tier: "DIVINDADE", cor: "from-white via-cyan-200 to-white", glow: "shadow-white/60 shadow-[0_0_40px_white]" });
@@ -108,6 +103,32 @@ export default function PerfilPage() {
       setMissoesProgresso(p.missoes_progresso || [false, false, false, false, false]);
     }
     setCarregando(false);
+  }
+
+  // ✅ [NOVO] - MOTOR DE UPLOAD PARA O SUPABASE STORAGE
+  async function fazerUploadAvatar(event: any) {
+    try {
+      setFazendoUpload(true);
+      const file = event.target.files[0];
+      if (!file) throw new Error("Nenhuma imagem selecionada.");
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${usuarioAtivo}-${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      // ATENÇÃO: Se o nome do seu bucket não for "avatars", troque aqui!
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file);
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      
+      setDadosPerfil({ ...dadosPerfil, avatar: data.publicUrl });
+      alert("✅ Imagem carregada! Não esqueça de clicar em 'Sincronizar Hunter' para salvar.");
+    } catch (error: any) {
+      alert("❌ Erro no upload: " + error.message);
+    } finally {
+      setFazendoUpload(false);
+    }
   }
 
   async function completarMissao(index: number, recompensa: number) {
@@ -137,9 +158,26 @@ export default function PerfilPage() {
     alert("✨ Hunter Sincronizado!");
   }
 
-  // ==========================================
-  // [SESSÃO 3] - TROFÉUS E MISSÕES (RESTAURADO)
-  // ==========================================
+  function exportarBiblioteca() {
+    const backup = { hunter: dadosPerfil.nome, stats: stats };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `backup_${usuarioAtivo}.json`; a.click();
+  }
+
+  async function importarJSON(e: any) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        alert(`Backup de ${json.hunter} detectado!`);
+      } catch { alert("Erro ao ler JSON."); }
+    };
+    reader.readAsText(file);
+  }
+
   const iconesTrofeus = [ "🌱","📖","🔥","🏃","⏳","💎","🦉","🧭","🏆","⚔️","☕","📚","📦","🌟","🖋️","⚡","❤️","🧘","💾","👑","🐦","🎯","🌐","🎨","🎖️","🏮","⛩️","🐉","🌋","🌌","🔮","🧿","🧸","🃏","🎭","🩰","🧶","🧵","🧹","🧺","🧷","🧼","🧽","🧴","🗝️","⚙️","🧪","🛰️","🔭","🔱","🎬","🍿","🎟️","📽","🎞️","📼","🎫","📺","🎥","🧛","🦸","🧙","🧟","👽","🕵️","🥷","🧑‍🚀","REX","🦈","🛸","📜","✒️","🕯️","🪶","📚","🔖","📓","📙","📗","📘","📔","📃","📰","🗺️","🏛️" ];
   const listaTrofeus = Array.from({ length: 85 }, (_, i) => {
     const id = i + 1; let check = false;
@@ -172,13 +210,18 @@ export default function PerfilPage() {
       <EfeitosVisuais particula={equipados.particula} />
 
       <div className="fixed top-0 left-0 w-full p-10 flex justify-between items-center z-[110] pointer-events-none">
-        <Link href="/" className="pointer-events-auto bg-black/50 px-6 py-3 rounded-2xl border border-white/5 text-[10px] font-black uppercase text-zinc-500">← Voltar</Link>
-        <div className="bg-black/80 px-6 py-3 rounded-2xl border border-yellow-500/30 flex items-center gap-3 shadow-xl"><span className="text-xl">🪙</span><span className="text-white font-black">{esmolas}</span></div>
-        <button onClick={() => setTelaCheia(!telaCheia)} className="pointer-events-auto text-[10px] font-black uppercase bg-zinc-900/90 px-4 py-2 rounded-xl border border-zinc-800 text-zinc-400">{telaCheia ? "⊙ Central" : "⛶ Tela Cheia"}</button>
+        <Link href="/" className="pointer-events-auto bg-black/50 px-6 py-3 rounded-2xl border border-white/5 text-[10px] font-black uppercase text-zinc-500 hover:text-white transition-all">← Voltar</Link>
+        <button onClick={() => setTelaCheia(!telaCheia)} className="pointer-events-auto text-[10px] font-black uppercase bg-zinc-900/90 px-4 py-2 rounded-xl border border-zinc-800 text-zinc-400 hover:text-white transition-all">{telaCheia ? "⊙ Central" : "⛶ Tela Cheia"}</button>
       </div>
 
-      <div className={`bg-[#0e0e11]/95 backdrop-blur-2xl rounded-[3.5rem] p-12 border border-white/5 relative flex flex-col items-center shadow-2xl transition-all duration-700 z-10 ${telaCheia ? 'w-full max-w-6xl' : 'w-full max-w-[550px]'}`}>
+      <div className={`bg-[#0e0e11]/95 backdrop-blur-2xl rounded-[3.5rem] p-12 mt-10 border border-white/5 relative flex flex-col items-center shadow-2xl transition-all duration-700 z-10 ${telaCheia ? 'w-full max-w-6xl' : 'w-full max-w-[550px]'}`}>
         
+        {/* ✅ [CORREÇÃO] - ESMOLAS ALINHADAS PERFEITAMENTE AO CENTRO */}
+        <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-black/90 px-6 py-2 rounded-2xl border border-yellow-500/30 flex items-center gap-3 shadow-xl z-50">
+          <span className="text-xl">🪙</span>
+          <span className="text-white font-black">{esmolas}</span>
+        </div>
+
         <div className={`w-28 h-28 bg-zinc-950 rounded-[2.5rem] overflow-hidden border-2 flex items-center justify-center relative z-10 ${aura.border} ${elo.glow} ${equipados.moldura}`}>
           {dadosPerfil.avatar?.startsWith('http') ? <img src={dadosPerfil.avatar} className="w-full h-full object-cover" /> : <span className="text-5xl">{dadosPerfil.avatar}</span>}
         </div>
@@ -201,12 +244,7 @@ export default function PerfilPage() {
               <div className="col-span-2 bg-gradient-to-r from-zinc-900 to-black p-6 rounded-3xl border border-white/5 flex flex-col items-center overflow-hidden">
                 <span className="text-2xl font-black text-white italic">{stats.horasVida} HORAS</span>
                 <p className="text-[7px] font-black text-zinc-500 uppercase tracking-widest italic mt-1">Tempo de Vida Consumido</p>
-                
-                {/* 🔥 ✅ [RESTAURADO] - BOTÃO CONECTAR ANILIST */}
-                <a 
-                  href={`/api/auth/anilist?hunter=${usuarioAtivo}`} 
-                  className="mt-6 w-full py-3 bg-blue-600/10 border border-blue-500/30 text-blue-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all text-center z-10"
-                >
+                <a href={`/api/auth/anilist?hunter=${usuarioAtivo}`} className="mt-6 w-full py-3 bg-blue-600/10 border border-blue-500/30 text-blue-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all text-center z-10">
                   {dadosPerfil.anilist_token ? "✅ AniList Conectado (Sincronizar)" : "🔗 Conectar com AniList"}
                 </a>
               </div>
@@ -253,7 +291,19 @@ export default function PerfilPage() {
           {abaAtiva === "CONFIG" && (
             <div className="space-y-6 pb-10">
               <button onClick={atualizarPerfil} className={`w-full py-5 rounded-xl font-black text-[12px] uppercase shadow-xl ${aura.btn}`}>💾 Sincronizar Hunter</button>
+              
               <input type="text" placeholder="Nome Hunter" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold outline-none" value={dadosPerfil.nome} onChange={e => setDadosPerfil({...dadosPerfil, nome: e.target.value})} />
+              
+              {/* ✅ [CORREÇÃO] - NOVO BOTÃO DE UPLOAD DO PC */}
+              <div className="flex gap-3">
+                <input type="text" placeholder="Avatar URL" className="flex-1 bg-black border border-white/5 p-4 rounded-xl text-white text-xs outline-none" value={dadosPerfil.avatar} onChange={e => setDadosPerfil({...dadosPerfil, avatar: e.target.value})} />
+                
+                <label className={`flex items-center justify-center px-4 rounded-xl font-black uppercase text-[9px] cursor-pointer transition-all border ${fazendoUpload ? 'bg-zinc-800 text-zinc-500 border-zinc-700' : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:text-white'}`}>
+                  {fazendoUpload ? "⏳..." : "⬆️ Upar do PC"}
+                  <input type="file" accept="image/*" className="hidden" onChange={fazerUploadAvatar} disabled={fazendoUpload} />
+                </label>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <select className="bg-black border border-white/5 p-4 rounded-xl text-white font-bold uppercase text-[10px]" value={dadosPerfil.tema} onChange={e => setDadosPerfil({...dadosPerfil, tema: e.target.value})}>
                    <option value="azul">Azul Néon</option><option value="verde">Verde Hacker</option><option value="roxo">Roxo Galático</option><option value="laranja">Laranja Fogo</option><option value="custom">Personalizada</option>
@@ -266,8 +316,8 @@ export default function PerfilPage() {
 
         <div className="w-full flex flex-col gap-3 mt-8 relative z-20">
           <div className="grid grid-cols-2 gap-3">
-             <button onClick={() => { const blob = new Blob([JSON.stringify({biblioteca: obrasUsuario})], {type: 'application/json'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'backup.json'; a.click(); }} className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase text-zinc-500 hover:text-white transition-all">💾 Exportar</button>
-             <label className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase text-zinc-500 flex items-center justify-center cursor-pointer hover:text-white">📥 Importar <input type="file" accept=".json" className="hidden" onChange={(e:any) => { const f = e.target.files[0]; if(f) alert("Backup detectado!"); }} /></label>
+             <button onClick={exportarBiblioteca} className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase text-zinc-500 hover:text-white transition-all">💾 Exportar</button>
+             <label className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase text-zinc-500 flex items-center justify-center cursor-pointer hover:text-white">📥 Importar <input type="file" accept=".json" className="hidden" onChange={importarJSON} /></label>
           </div>
           <button onClick={() => { sessionStorage.removeItem('hunter_ativo'); window.location.href = '/'; }} className="w-full py-3 text-[8px] font-black text-zinc-700 hover:text-red-500 uppercase tracking-[0.3em] transition-all">Encerrar Sessão</button>
         </div>
