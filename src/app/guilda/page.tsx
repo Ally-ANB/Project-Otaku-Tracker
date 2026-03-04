@@ -67,6 +67,7 @@ export default function GuildaPage() {
   // Estados das Figurinhas
   const [painelFigurinhas, setPainelFigurinhas] = useState(false);
   const [novaFigurinhaUrl, setNovaFigurinhaUrl] = useState("");
+  const [fazendoUploadFigurinha, setFazendoUploadFigurinha] = useState(false); // ✅ NOVO ESTADO
 
   useEffect(() => {
     const hunter = sessionStorage.getItem("hunter_ativo");
@@ -155,7 +156,6 @@ export default function GuildaPage() {
     setCarregandoRanking(false);
   }
 
-  // ✅ MOTOR DE ENVIO BLINDADO + FARM OCULTO
   async function enviarMensagem(e?: React.FormEvent, urlFigurinha?: string) {
     if (e) e.preventDefault();
     const msg = urlFigurinha || novaMensagem.trim();
@@ -165,14 +165,12 @@ export default function GuildaPage() {
     const tipoMsg = urlFigurinha ? "figurinha" : "chat";
     if (!urlFigurinha) setNovaMensagem(""); 
 
-    // --- SISTEMA DE FARM OCULTO ---
     const meuPerfil = perfis.find(p => p.nome_original === usuarioAtivo);
     if (meuPerfil) {
       const hoje = new Date().toISOString().split('T')[0];
       let farm = meuPerfil.chat_farm_diario || { data: hoje, ganhos: 0 };
       if (farm.data !== hoje) farm = { data: hoje, ganhos: 0 };
       
-      // Limite de 30 Esmolas por dia no Chat (6 mensagens de 5 moedas)
       if (farm.ganhos < 30) {
         farm.ganhos += 5;
         const novoSaldo = (meuPerfil.esmolas || 0) + 5;
@@ -190,7 +188,6 @@ export default function GuildaPage() {
     setEnviando(false);
   }
 
-  // ✅ SISTEMA DE SALVAR FIGURINHAS
   async function adicionarFigurinha() {
     if(!novaFigurinhaUrl) return;
     const meuPerfil = perfis.find(p => p.nome_original === usuarioAtivo);
@@ -200,6 +197,37 @@ export default function GuildaPage() {
     await supabase.from("perfis").update({ figurinhas: atualizadas }).eq("nome_original", usuarioAtivo);
     setPerfis(prev => prev.map(p => p.nome_original === usuarioAtivo ? { ...p, figurinhas: atualizadas } : p));
     setNovaFigurinhaUrl("");
+  }
+
+  // ✅ NOVO: MOTOR DE UPLOAD DE FIGURINHAS DO PC
+  async function fazerUploadFigurinha(event: any) {
+    try {
+      setFazendoUploadFigurinha(true);
+      const file = event.target.files[0];
+      if (!file) throw new Error("Nenhuma imagem selecionada.");
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `sticker-${usuarioAtivo}-${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      // Usando o mesmo bucket 'avatars' para armazenar as imagens
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file);
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      
+      const meuPerfil = perfis.find(p => p.nome_original === usuarioAtivo);
+      if(meuPerfil) {
+        const atualizadas = [...(meuPerfil.figurinhas || []), data.publicUrl];
+        await supabase.from("perfis").update({ figurinhas: atualizadas }).eq("nome_original", usuarioAtivo);
+        setPerfis(prev => prev.map(p => p.nome_original === usuarioAtivo ? { ...p, figurinhas: atualizadas } : p));
+      }
+
+    } catch (error: any) {
+      alert("❌ Erro no upload: " + error.message);
+    } finally {
+      setFazendoUploadFigurinha(false);
+    }
   }
 
   async function deletarFigurinha(url: string) {
@@ -279,7 +307,7 @@ export default function GuildaPage() {
 
           {/* ----------------- ABA 1: CHAT GLOBAL ----------------- */}
           {abaAtiva === "CHAT" && (
-            <>
+            <div className="flex flex-col h-full flex-1 min-h-0">
               <div ref={scrollRef} className="flex-1 p-8 overflow-y-auto custom-scrollbar flex flex-col gap-6">
                 {mensagens.length === 0 ? (
                   <div className="flex-1 flex items-center justify-center text-zinc-600 font-bold uppercase text-xs tracking-widest italic">O mural está silencioso...</div>
@@ -288,7 +316,6 @@ export default function GuildaPage() {
                     const isMe = msg.usuario === usuarioAtivo;
                     const autorPerfil = perfis.find(p => p.nome_original === msg.usuario);
                     
-                    // Lógica do Cosmético da Loja
                     const corAtiva = autorPerfil?.cosmeticos?.ativos?.chat_cor;
                     const balaoAtivo = autorPerfil?.cosmeticos?.ativos?.chat_balao;
                     
@@ -308,7 +335,6 @@ export default function GuildaPage() {
                             <span className="text-[8px] text-zinc-600 font-bold">{formatarHora(msg.criado_em)}</span>
                           </div>
                           
-                          {/* Renderiza Figurinha ou Texto */}
                           <div className={`p-4 rounded-2xl text-sm leading-relaxed border ${classeBalao}`}>
                             {msg.tipo === "figurinha" ? (
                               <img src={msg.mensagem} alt="Figurinha" className="max-w-[150px] max-h-[150px] rounded-lg object-contain" />
@@ -326,15 +352,21 @@ export default function GuildaPage() {
 
               {/* ✅ PAINEL DE FIGURINHAS (OCULTO POR PADRÃO) */}
               {painelFigurinhas && (
-                <div className="px-6 py-4 bg-zinc-900 border-t border-zinc-800 flex flex-col gap-4 animate-in slide-in-from-bottom-2">
-                  <div className="flex gap-2">
+                <div className="px-6 py-4 bg-zinc-900 border-t border-zinc-800 flex flex-col gap-4 animate-in slide-in-from-bottom-2 shrink-0">
+                  <div className="flex gap-2 items-center">
                     <input 
                       type="text" 
-                      placeholder="Cole a URL da Imagem/GIF para adicionar às suas figurinhas..." 
+                      placeholder="Cole a URL da imagem..." 
                       className="flex-1 bg-black border border-zinc-800 p-3 rounded-xl text-xs outline-none text-white"
                       value={novaFigurinhaUrl} onChange={(e) => setNovaFigurinhaUrl(e.target.value)}
                     />
-                    <button onClick={adicionarFigurinha} className="bg-green-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest">Salvar</button>
+                    <button onClick={adicionarFigurinha} className="bg-green-600 text-white px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-500 transition-all">Salvar URL</button>
+                    
+                    {/* ✅ NOVO BOTÃO DE UPLOAD DE PC */}
+                    <label className={`flex items-center justify-center px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer transition-all border border-blue-500/30 ${fazendoUploadFigurinha ? 'bg-zinc-800 text-zinc-500' : 'bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white'}`}>
+                      {fazendoUploadFigurinha ? "⏳..." : "⬆️ Upar PC"}
+                      <input type="file" accept="image/*, image/gif" className="hidden" onChange={fazerUploadFigurinha} disabled={fazendoUploadFigurinha} />
+                    </label>
                   </div>
                   
                   <div className="flex gap-4 overflow-x-auto pb-2 custom-scrollbar">
@@ -344,16 +376,16 @@ export default function GuildaPage() {
                         <img 
                           src={url} alt="Figurinha Salva" 
                           onClick={() => enviarMensagem(undefined, url)} 
-                          className="w-20 h-20 object-cover rounded-xl border border-zinc-800 cursor-pointer hover:border-blue-500 transition-all hover:scale-105" 
+                          className="w-20 h-20 object-cover rounded-xl border border-zinc-800 cursor-pointer hover:border-blue-500 transition-all hover:scale-105 bg-black" 
                         />
-                        <button onClick={() => deletarFigurinha(url)} className="absolute -top-2 -right-2 bg-red-600 text-white w-6 h-6 rounded-full text-xs opacity-0 group-hover:opacity-100 transition-all">✕</button>
+                        <button onClick={() => deletarFigurinha(url)} className="absolute -top-2 -right-2 bg-red-600 text-white w-6 h-6 rounded-full text-xs opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">✕</button>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              <div className="p-6 bg-black/40 border-t border-zinc-800">
+              <div className="p-6 bg-black/40 border-t border-zinc-800 shrink-0">
                 <form onSubmit={enviarMensagem} className="flex gap-3">
                   <button type="button" onClick={() => setPainelFigurinhas(!painelFigurinhas)} className={`p-4 rounded-2xl border transition-all text-xl ${painelFigurinhas ? 'bg-blue-600/20 border-blue-500' : 'bg-zinc-900 border-zinc-800 hover:bg-zinc-800'}`}>
                     🌠
@@ -368,7 +400,7 @@ export default function GuildaPage() {
                   </button>
                 </form>
               </div>
-            </>
+            </div>
           )}
 
           {/* ----------------- ABA 2: RANKING EXPANDIDO ----------------- */}
