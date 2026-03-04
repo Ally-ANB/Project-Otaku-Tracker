@@ -206,10 +206,13 @@ export default function PerfilPage() {
     "🔮","🧿","🧸","🃏","🎭","🩰","🧶","🧵","🧹","🧺",
     "🧷","🧼","🧽","🧴","🗝️","⚙️","🧪","🛰️","🔭","🔱",
     "🎬","🍿","🎟️","📽️","🎞️","📼","🎫","📺","🎥","🧛",
-    "🦸","🧙","🧟","👽","🕵️","🥷","🧑‍🚀","🦖","🦈","🛸"
+    "🦸","🧙","🧟","👽","🕵️","🥷","🧑‍🚀","🦖","🦈","🛸",
+    /* Novos 15 Ícones de Livros (71 ao 85) */
+    "📜","✒️","🕯️","🪶","📚","🔖","📓","📙","📗","📘",
+    "📔","📃","📰","🗺️","🏛️"
   ];
 
-  const listaTrofeus = Array.from({ length: 70 }, (_, i) => {
+  const listaTrofeus = Array.from({ length: 85 }, (_, i) => {
     const id = i + 1;
     let check = false; let nome = `Troféu Hunter ${id}`; let desc = `Bloqueado: Requer Nível ${id * 2} de progresso.`;
 
@@ -220,7 +223,7 @@ export default function PerfilPage() {
       else if (id === 4) { nome = "Sem Tempo"; desc = "10 Horas assistidas"; check = stats.horasVida >= 10; }
       else if (id === 5) { nome = "Curador"; desc = "Marcou 5 favoritos"; check = stats.favs >= 5; }
       else { check = stats.obras >= (id * 3); }
-    } else {
+    } else if (id <= 70) {
       const nivelFilme = id - 50; 
       nome = `Cineasta Nv. ${nivelFilme}`;
       desc = `Bloqueado: Requer ${nivelFilme * 5} filmes na estante.`;
@@ -231,7 +234,20 @@ export default function PerfilPage() {
       else if (id === 54) { nome = "Cinéfilo"; desc = "Adicionou 25 filmes"; check = stats.filmes >= 25; }
       else if (id === 55) { nome = "Diretor Mestre"; desc = "Adicionou 50 filmes"; check = stats.filmes >= 50; }
       else { check = stats.filmes >= (nivelFilme * 5); }
+    } else {
+      // 📚 NOVO SUBTÍTULO: TROFÉUS DA ESTANTE DE LIVROS (71 ao 85)
+      const nivelLivro = id - 70;
+      nome = `Letrado Nv. ${nivelLivro}`;
+      desc = `Bloqueado: Requer ${nivelLivro * 5} livros na estante.`;
+
+      if (id === 71) { nome = "Primeira Página"; desc = "Adicionou 1 livro"; check = stats.livros >= 1; }
+      else if (id === 72) { nome = "Traça de Livro"; desc = "Adicionou 5 livros"; check = stats.livros >= 5; }
+      else if (id === 73) { nome = "Rato de Biblioteca"; desc = "Adicionou 10 livros"; check = stats.livros >= 10; }
+      else if (id === 74) { nome = "Curador Literário"; desc = "Adicionou 25 livros"; check = stats.livros >= 25; }
+      else if (id === 75) { nome = "Bibliotecário Chefe"; desc = "Adicionou 50 livros"; check = stats.livros >= 50; }
+      else { check = stats.livros >= (nivelLivro * 5); }
     }
+    
     return { id, nome, desc, icone: iconesTrofeus[i], check };
   });
 
