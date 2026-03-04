@@ -1,8 +1,8 @@
 "use client";
 
-// ==========================================
-// 📦 [SESSÃO 1] - IMPORTAÇÕES E TEMAS
-// ==========================================
+// =============================================================================
+// [SESSÃO 1] - IMPORTAÇÕES E CONFIGURAÇÕES DE TEMAS
+// =============================================================================
 import { supabase } from "../supabase";
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -16,6 +16,9 @@ const TEMAS = {
   custom: { bg: "bg-[var(--aura)]", text: "text-[var(--aura)]", border: "border-[var(--aura)]", glow: "shadow-[var(--aura)]/20", btn: "bg-[var(--aura)]/10 border-[var(--aura)]/50 hover:bg-[var(--aura)] hover:text-black" }
 };
 
+// =============================================================================
+// [SESSÃO 2] - CATÁLOGO DA LOJA (COSMÉTICOS E EFEITOS)
+// =============================================================================
 const LOJA_ITENS = [
   // MOLDURAS
   { id: "moldura_ouro", nome: "Anel de Ouro", tipo: "moldura", preco: 150, icone: "👑", desc: "Moldura dourada brilhante." },
@@ -27,7 +30,7 @@ const LOJA_ITENS = [
   { id: "moldura_magma", nome: "Magma Escorrendo", tipo: "moldura", preco: 500, icone: "🌋", desc: "Animação de chamas correndo pela borda." },
   { id: "moldura_celestial", nome: "Anel Divino", tipo: "moldura", preco: 800, icone: "👼", desc: "Avatar flutuante com brilho purificador." },
   
-  // PARTÍCULAS (AGORA COM AS ESTAÇÕES DO ANO!)
+  // PARTÍCULAS
   { id: "particula_primavera", nome: "Brisas de Primavera", tipo: "particula", preco: 400, icone: "🍃", desc: "Folhas verdes flutuando com o vento." },
   { id: "particula_verao", nome: "Vagalumes de Verão", tipo: "particula", preco: 400, icone: "☀️", desc: "Orbes de luz flutuando preguiçosamente." },
   { id: "particula_outono", nome: "Folhas de Outono", tipo: "particula", preco: 400, icone: "🍁", desc: "Folhas alaranjadas caindo calmamente." },
@@ -53,6 +56,9 @@ const LOJA_ITENS = [
 ];
 
 export default function PerfilPage() {
+  // =============================================================================
+  // [SESSÃO 3] - ESTADOS GERAIS (AUTH, UI E DADOS)
+  // =============================================================================
   const [usuarioAtivo, setUsuarioAtivo] = useState<string | null>(null);
   const [abaAtiva, setAbaAtiva] = useState("STATUS");
   const [telaCheia, setTelaCheia] = useState(false);
@@ -73,6 +79,9 @@ export default function PerfilPage() {
   const [stats, setStats] = useState({ obras: 0, caps: 0, finais: 0, horasVida: 0, favs: 0, filmes: 0, livros: 0 });
   const [elo, setElo] = useState({ tier: "BRONZE", cor: "from-orange-800 to-orange-500", glow: "shadow-orange-900/40", efeito: "" });
 
+  // =============================================================================
+  // [SESSÃO 4] - LÓGICA CORE E SINCRONIZAÇÃO
+  // =============================================================================
   useEffect(() => {
     const hunter = sessionStorage.getItem("hunter_ativo");
     if (!hunter) { window.location.href = '/'; return; }
@@ -82,14 +91,13 @@ export default function PerfilPage() {
 
   useEffect(() => {
     if (!usuarioAtivo) return;
-
-    // LÓGICA DE SINCRONIZAÇÃO VIA URL (QUERY PARAMS) - Mais limpa que o Hash
+    
+    // --- SUB-SESSÃO 4.1: VERIFICAÇÃO DE RETORNO ANI-SYNC ---
     const params = new URLSearchParams(window.location.search);
     if (params.get("sync") === "success") {
-       alert("✅ Conta AniList vinculada com sucesso!");
+       alert("✅ Conta AniList conectada com sucesso!");
        window.history.replaceState(null, '', window.location.pathname);
     }
-
     carregarDados();
   }, [usuarioAtivo]);
 
@@ -150,6 +158,9 @@ export default function PerfilPage() {
     setCarregando(false);
   }
 
+  // =============================================================================
+  // [SESSÃO 5] - AÇÕES DE JOGO (MISSÕES, COMPRAS E EQUIPAMENTOS)
+  // =============================================================================
   async function completarMissao(index: number, recompensa: number) {
     if (missoesProgresso[index]) return; 
     const novoProgresso = [...missoesProgresso]; novoProgresso[index] = true; const novoSaldo = esmolas + recompensa;
@@ -198,6 +209,13 @@ export default function PerfilPage() {
     } catch (error: any) { alert('Erro no upload: ' + error.message); } finally { setFazendoUpload(false); }
   }
 
+  function toggleAnimacoes() {
+    const novo = !animacoesAtivas;
+    setAnimacoesAtivas(novo);
+    localStorage.setItem("hunter_animacoes", novo ? "true" : "false");
+    window.dispatchEvent(new Event("hunter_animacoes_toggle"));
+  }
+
   async function exportarBiblioteca() {
     try {
       const backup = { hunter: dadosPerfil.nome, biblioteca: { mangas: [], animes: [], filmes: [], livros: [] } };
@@ -207,20 +225,9 @@ export default function PerfilPage() {
     } catch { alert("Erro ao exportar."); }
   }
 
-  async function importarBiblioteca(e: React.ChangeEvent<HTMLInputElement>) {
-    alert("Função de importação em manutenção.");
-  }
-
-  function toggleAnimacoes() {
-    const novo = !animacoesAtivas;
-    setAnimacoesAtivas(novo);
-    localStorage.setItem("hunter_animacoes", novo ? "true" : "false");
-    window.dispatchEvent(new Event("hunter_animacoes_toggle"));
-  }
-
-  // ==========================================
-  // 🏆 [SESSÃO 4] - CSS DE MOLDURAS E RENDERIZAÇÃO
-  // ==========================================
+  // =============================================================================
+  // [SESSÃO 6] - CSS DE MOLDURAS E ESTILOS DINÂMICOS
+  // =============================================================================
   const aura = dadosPerfil.tema === "custom" ? TEMAS.custom : (TEMAS[dadosPerfil.tema as keyof typeof TEMAS] || TEMAS.azul);
 
   let molduraAvatar = aura.border; let sombraAvatar = elo.glow; let cssExtraMoldura = "";
@@ -248,8 +255,8 @@ export default function PerfilPage() {
     default: cssTitulo += "text-yellow-500"; break; 
   }
 
+  // --- SUB-SESSÃO 6.1: CONSTRUÇÃO DOS TROFÉUS (85 ITENS) ---
   const iconesTrofeus = [ "🌱","📖","🔥","🏃","⏳","💎","🦉","🧭","🏆","⚔️","☕","📚","📦","🌟","🖋️","⚡","❤️","🧘","💾","👑","🐦","🎯","🌐","🎨","🎖️","🏮","⛩️","🐉","🌋","🌌","🔮","🧿","🧸","🃏","🎭","🩰","🧶","🧵","🧹","🧺","🧷","🧼","🧽","🧴","🗝️","⚙️","🧪","🛰️","🔭","🔱","🎬","🍿","🎟️","📽️","🎞️","📼","🎫","📺","🎥","🧛","🦸","🧙","🧟","👽","🕵️","🥷","🧑‍🚀","REX","🦈","🛸","📜","✒️","🕯️","🪶","📚","🔖","📓","📙","📗","📘","📔","📃","📰","🗺️","🏛️" ];
-  
   const listaTrofeus = Array.from({ length: 85 }, (_, i) => {
     const id = i + 1; let check = false; let nome = `Troféu Hunter ${id}`; let desc = `Bloqueado: Requer Nível ${id * 2} de progresso.`;
     if (id <= 50) {
@@ -279,8 +286,9 @@ export default function PerfilPage() {
     { titulo: "Curador", desc: "Mantenha pelo menos 5 obras favoritas", recompensa: 15, icone: "✨" },
   ];
 
-  if (carregando) return <div className="min-h-screen bg-[#040405] flex items-center justify-center text-white font-black italic animate-pulse">CARREGANDO HUB...</div>;
-
+  // =============================================================================
+  // [SESSÃO 7] - ESTRUTURA DE RENDERIZAÇÃO (JSX)
+  // =============================================================================
   return (
     <main className="min-h-screen bg-[#040405] flex flex-col items-center justify-center p-6 transition-all duration-500 relative overflow-hidden" style={{ "--aura": dadosPerfil.custom_color } as any}>
       <EfeitosVisuais particula={equipados.particula} />
@@ -301,7 +309,7 @@ export default function PerfilPage() {
         .titulo-arcoiris { background: linear-gradient(270deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3); background-size: 400% 400%; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: arcoirisBg 4s ease infinite; } .titulo-glitch { animation: glitchTxt 1.5s infinite; } .titulo-sangue { animation: bloodPulse 2s infinite; } .titulo-fantasma { animation: ghostAnim 3s infinite; color: #cbd5e1; } .titulo-deus { color: #fbbf24; text-shadow: 0 0 10px #f59e0b, 0 0 20px #f59e0b; animation: piscarEstrela 2s infinite; } .titulo-sombra { color: #3f3f46; animation: sombraCaminha 4s infinite alternate; }
       `}</style>
 
-      {/* CABEÇALHO */}
+      {/* --- SUB-SESSÃO 7.1: BARRA SUPERIOR (HEADER FIXO) --- */}
       <div className="fixed top-0 left-0 w-full p-6 md:p-10 flex justify-between items-center z-[110] pointer-events-none">
         <div className="flex-1 flex justify-start"><Link href="/" className="pointer-events-auto text-[10px] font-black uppercase tracking-widest text-zinc-600 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-xl backdrop-blur-md border border-white/5">← Voltar</Link></div>
         <div className="pointer-events-auto bg-black/60 px-4 py-2 rounded-xl backdrop-blur-md border border-yellow-500/30 flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(234,179,8,0.1)] absolute left-1/2 -translate-x-1/2">
@@ -310,6 +318,7 @@ export default function PerfilPage() {
         <div className="flex-1 flex justify-end"><button onClick={() => setTelaCheia(!telaCheia)} className="pointer-events-auto text-[10px] font-black uppercase tracking-widest bg-zinc-900/90 backdrop-blur-md px-4 py-2 rounded-xl border border-zinc-800 text-zinc-400 hover:text-white transition-all shadow-xl">{telaCheia ? "⊙ Vista Central" : "⛶ Ecrã Inteiro"}</button></div>
       </div>
 
+      {/* --- SUB-SESSÃO 7.2: CONTAINER PRINCIPAL DO PERFIL --- */}
       <div className={`bg-[#0e0e11]/90 backdrop-blur-xl rounded-[3.5rem] p-12 mt-16 md:mt-0 border border-white/5 relative flex flex-col items-center shadow-2xl transition-all duration-700 ring-1 ring-white/10 z-10 ${telaCheia ? 'w-full max-w-6xl' : 'w-full max-w-[550px]'}`}>
         
         <div className={`w-28 h-28 bg-zinc-950 rounded-[2.5rem] overflow-hidden border-2 transition-all duration-500 flex items-center justify-center relative z-10 ${molduraAvatar} ${sombraAvatar} ${cssExtraMoldura}`}>
@@ -320,6 +329,7 @@ export default function PerfilPage() {
         {textoTitulo && <p className={cssTitulo}>« {textoTitulo} »</p>}
         <p className={`text-[10px] font-black bg-gradient-to-r ${elo.cor} bg-clip-text text-transparent uppercase tracking-[0.5em] mb-10 relative z-10`}>RANK: {elo.tier}</p>
 
+        {/* --- SUB-SESSÃO 7.3: MENU DE ABAS --- */}
         <div className="flex flex-wrap gap-4 md:gap-8 border-b border-white/5 w-full justify-center pb-6 mb-10 relative z-20">
           {["STATUS", "MISSÕES", "TROFÉUS", "LOJA", "CONFIG"].map(aba => (
             <button key={aba} onClick={() => setAbaAtiva(aba)} className={`text-[9px] font-black uppercase tracking-[0.2em] transition-all ${abaAtiva === aba ? aura.text + " scale-110 drop-shadow-[0_0_8px_currentColor]" : 'text-zinc-600 hover:text-zinc-400'}`}>
@@ -328,20 +338,19 @@ export default function PerfilPage() {
           ))}
         </div>
 
+        {/* --- SUB-SESSÃO 7.4: CONTEÚDO DINÂMICO --- */}
         <div className="w-full h-[320px] overflow-y-auto custom-scrollbar px-2 relative z-20">
           
+          {/* ABA STATUS */}
           {abaAtiva === "STATUS" && (
             <div className="grid grid-cols-2 gap-4 animate-in fade-in zoom-in-95">
               <div className="bg-black/40 border border-white/5 p-6 rounded-3xl flex flex-col items-center"><span className="text-3xl font-black text-white italic">{stats.obras}</span><span className="text-[7px] font-black text-zinc-600 uppercase mt-2">Obras Totais</span></div>
               <div className="bg-black/40 border border-white/5 p-6 rounded-3xl flex flex-col items-center"><span className="text-3xl font-black text-white italic">{stats.caps}</span><span className="text-[7px] font-black text-zinc-600 uppercase mt-2">Progresso</span></div>
-              
               <div className="col-span-2 bg-gradient-to-r from-zinc-900 to-black p-6 rounded-3xl border border-white/5 flex flex-col justify-between group mb-2 relative overflow-hidden">
                  <div className="flex justify-between items-center z-10">
                    <div><span className="text-2xl font-black text-white italic tracking-tighter">{stats.horasVida} HORAS</span><p className="text-[7px] font-black text-zinc-500 uppercase mt-1 tracking-widest italic">Vida gasta assistindo</p></div>
                    <span className="text-4xl opacity-20 group-hover:opacity-100 group-hover:scale-110 transition-all">⏳</span>
                  </div>
-                 
-                 {/* 🔥 VÍNCULO ANILIST REFEITO - AGORA APONTA PARA A ROTA DE API COM O HUNTER CORRETO */}
                  <a 
                    href={`/api/auth/anilist?hunter=${usuarioAtivo}`} 
                    className="mt-6 w-full py-3 bg-blue-600/10 border border-blue-500/30 text-blue-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all text-center z-10"
@@ -352,6 +361,7 @@ export default function PerfilPage() {
             </div>
           )}
 
+          {/* ABA MISSÕES */}
           {abaAtiva === "MISSÕES" && (
             <div className="space-y-4 animate-in fade-in slide-in-from-left-4 pb-10">
               {listaMissoes.map((m, i) => {
@@ -376,6 +386,7 @@ export default function PerfilPage() {
             </div>
           )}
 
+          {/* ABA TROFÉUS */}
           {abaAtiva === "TROFÉUS" && (
             <div className="grid grid-cols-5 gap-y-10 gap-x-2 justify-items-center animate-in fade-in slide-in-from-right-4 pb-10">
               {listaTrofeus.map(t => (
@@ -390,13 +401,13 @@ export default function PerfilPage() {
             </div>
           )}
 
+          {/* ABA LOJA */}
           {abaAtiva === "LOJA" && (
             <div className="space-y-4 animate-in fade-in zoom-in-95 pb-10">
               <div className="bg-yellow-500/10 border border-yellow-500/30 p-4 rounded-2xl text-center mb-6">
                 <p className="text-[10px] font-black text-yellow-500 uppercase tracking-widest">Loja de Frufru S+</p>
                 <p className="text-[8px] text-yellow-500/60 uppercase mt-1">Efeitos visuais renderizados no site inteiro.</p>
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {LOJA_ITENS.map(item => {
                   const comprado = inventario.includes(item.id); const equipado = equipados[item.tipo] === item.id;
@@ -416,16 +427,14 @@ export default function PerfilPage() {
             </div>
           )}
 
+          {/* ABA CONFIG */}
           {abaAtiva === "CONFIG" && (
             <div className="space-y-6 animate-in fade-in zoom-in-95 pb-10">
               <button onClick={atualizarPerfil} className={`w-full py-5 rounded-xl font-black text-[12px] uppercase tracking-widest shadow-xl sticky top-0 z-50 backdrop-blur-md ${aura.btn}`}>💾 Sincronizar Hunter</button>
-              
               <button onClick={toggleAnimacoes} className={`w-full py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border ${animacoesAtivas ? 'bg-green-500/10 text-green-500 border-green-500/30 hover:bg-green-500 hover:text-black' : 'bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500 hover:text-white'}`}>
                 {animacoesAtivas ? "✨ Efeitos Visuais: LIGADOS" : "❌ Efeitos Visuais: DESLIGADOS"}
               </button>
-
               <input type="text" placeholder="Nome Hunter" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold outline-none" value={dadosPerfil.nome} onChange={e => setDadosPerfil({...dadosPerfil, nome: e.target.value})} />
-              
               <div className="grid grid-cols-1 gap-2">
                 <label className="text-[8px] font-black text-zinc-500 uppercase tracking-widest ml-1">Avatar (URL ou Enviar do PC)</label>
                 <div className="flex gap-3 items-center">
@@ -435,7 +444,6 @@ export default function PerfilPage() {
                   </label>
                 </div>
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <select className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-[10px] font-bold uppercase outline-none" value={dadosPerfil.tema} onChange={e => setDadosPerfil({...dadosPerfil, tema: e.target.value})}>
                   <option value="azul">Azul Neon</option> <option value="verde">Verde Hacker</option> <option value="roxo">Roxo Galático</option> <option value="laranja">Laranja Fogo</option> <option value="custom">Personalizada</option>
@@ -446,16 +454,16 @@ export default function PerfilPage() {
           )}
         </div>
 
+        {/* --- SUB-SESSÃO 7.5: BACKUP E LOGOUT --- */}
         <div className="w-full flex flex-col gap-3 mt-8 relative z-20">
           <div className="grid grid-cols-2 gap-3">
             <button onClick={exportarBiblioteca} className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-all">💾 Exportar</button>
             <label className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-all flex items-center justify-center gap-2 cursor-pointer">
-              📥 Importar <input type="file" accept=".json" onChange={importarBiblioteca} className="hidden" />
+              📥 Importar <input type="file" accept=".json" className="hidden" />
             </label>
           </div>
           <button onClick={() => { sessionStorage.removeItem('hunter_ativo'); window.location.href = '/'; }} className="w-full py-3 text-[8px] font-black text-zinc-700 hover:text-red-500 uppercase tracking-[0.3em] transition-all">Encerrar Sessão</button>
         </div>
-
       </div>
     </main>
   );
