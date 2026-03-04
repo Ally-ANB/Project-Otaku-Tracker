@@ -20,6 +20,12 @@ const LOJA_ITENS = [
   { id: "particula_chuva_janela", nome: "Caçador Melancólico", tipo: "particula", preco: 1000, icone: "🌧️", desc: "Chuva real escorrendo pelo vidro (VFX)." },
   { id: "particula_fogo_cinematic", nome: "Fogueira Hunter", tipo: "particula", preco: 1800, icone: "🔥", desc: "Fogueira real cinematográfica (VFX)." },
 
+  // --- NOVAS PARTÍCULAS (MÍSTICAS / SOMBRIAS) ---
+  { id: "particula_corvos", nome: "Corvos Espectrais", tipo: "particula", preco: 700, icone: "🦅", desc: "Silhuetas escuras voando ao fundo." },
+  { id: "particula_areia", nome: "Tempestade de Areia", tipo: "particula", preco: 600, icone: "🌪️", desc: "Poeira dourada cobrindo a tela." },
+  { id: "particula_sangue", nome: "Aura de Sangue", tipo: "particula", preco: 850, icone: "🩸", desc: "Gotas carmesim levitando lentamente." },
+  { id: "particula_abissal", nome: "Fumaça Abissal", tipo: "particula", preco: 900, icone: "🌫️", desc: "Névoa roxa escura rastejando pela tela." },
+
   // --- PARTÍCULAS CLÁSSICAS ---
   { id: "particula_petalas", nome: "Chuva de Pétalas", tipo: "particula", preco: 300, icone: "🌸", desc: "Cerejeiras caindo com física de vento." },
   { id: "particula_neve", nome: "Neve Silenciosa", tipo: "particula", preco: 350, icone: "❄️", desc: "Flocos de neve cobrindo sua estante." },
@@ -33,13 +39,35 @@ const LOJA_ITENS = [
   { id: "particula_outono", nome: "Folhas de Outono", tipo: "particula", preco: 400, icone: "🍁", desc: "Folhas alaranjadas caindo calmamente." },
   { id: "particula_inverno", nome: "Inverno Rigoroso", tipo: "particula", preco: 450, icone: "⛄", desc: "Neve densa caindo sobre a tela." },
 
-  // --- MOLDURAS E TÍTULOS ---
+  // --- MOLDURAS ---
   { id: "moldura_ouro", nome: "Anel de Ouro", tipo: "moldura", preco: 150, icone: "👑", desc: "Moldura dourada brilhante." },
   { id: "moldura_neon", nome: "Glitch Neon", tipo: "moldura", preco: 250, icone: "👾", desc: "Pulso cibernético rosa." },
   { id: "moldura_choque", nome: "Raio Elétrico", tipo: "moldura", preco: 350, icone: "⚡", desc: "Borda animada com alta voltagem." },
+  { id: "moldura_corrompida", nome: "Ouro Corrompido", tipo: "moldura", preco: 400, icone: "🪦", desc: "Ouro escurecido escorrendo." },
+  { id: "moldura_vidro", nome: "Vidro Estilhaçado", tipo: "moldura", preco: 300, icone: "🪞", desc: "Bordas quebradas refletindo luz." },
+  { id: "moldura_chamas", nome: "Chamas Negras", tipo: "moldura", preco: 500, icone: "🌘", desc: "Fogo escuro consumindo a foto." },
+
+  // --- TÍTULOS ---
   { id: "titulo_deus", nome: "Divindade Ancestral", tipo: "titulo", preco: 1000, icone: "🔱", desc: "Texto brilhando como o sol." },
   { id: "titulo_hacker", nome: "Cyber Hunter", tipo: "titulo", preco: 800, icone: "💻", desc: "Efeito de texto glitch." },
-  { id: "titulo_arcoiris", nome: "Mestre das Cores", tipo: "titulo", preco: 900, icone: "🌈", desc: "Texto gradiente animado." }
+  { id: "titulo_arcoiris", nome: "Mestre das Cores", tipo: "titulo", preco: 900, icone: "🌈", desc: "Texto gradiente animado." },
+  { id: "titulo_abismo", nome: "Senhor do Abismo", tipo: "titulo", preco: 1100, icone: "🕳️", desc: "Texto sombrio e pulsante." },
+  { id: "titulo_anomalia", nome: "Anomalia do Sistema", tipo: "titulo", preco: 950, icone: "⚠️", desc: "Texto trêmulo em vermelho." },
+  { id: "titulo_reliquias", nome: "Colecionador de Relíquias", tipo: "titulo", preco: 750, icone: "🏺", desc: "Texto em ouro envelhecido." },
+
+  // --- CORES DE CHAT (GUILDA) ---
+  { id: "chat_cor_dourada", nome: "Texto Ouro Real", tipo: "chat_cor", preco: 400, icone: "📝", desc: "Sua fonte no chat fica dourada." },
+  { id: "chat_cor_glitch", nome: "Texto Degradê Glitch", tipo: "chat_cor", preco: 550, icone: "📝", desc: "Fonte com gradiente animado." },
+  { id: "chat_cor_sangue", nome: "Texto Sangrento", tipo: "chat_cor", preco: 450, icone: "📝", desc: "Sua fonte fica em um tom carmesim." },
+  { id: "chat_cor_neon", nome: "Texto Neon Cyber", tipo: "chat_cor", preco: 500, icone: "📝", desc: "Fonte brilhante e cibernética." },
+  { id: "chat_cor_fantasma", nome: "Texto Espectral", tipo: "chat_cor", preco: 350, icone: "📝", desc: "Texto cinza claro levemente transparente." },
+
+  // --- BALÕES DE CHAT (GUILDA) ---
+  { id: "chat_balao_cyber", nome: "Balão Cibernético", tipo: "chat_balao", preco: 600, icone: "💬", desc: "Fundo tecnológico para mensagens." },
+  { id: "chat_balao_rpg", nome: "Balão Pergaminho", tipo: "chat_balao", preco: 500, icone: "💬", desc: "Estilo rústico de RPG de mesa." },
+  { id: "chat_balao_vidro", nome: "Balão Translúcido", tipo: "chat_balao", preco: 400, icone: "💬", desc: "Vidro fumê refinado." },
+  { id: "chat_balao_toxico", nome: "Balão Tóxico", tipo: "chat_balao", preco: 700, icone: "💬", desc: "Bordas verdes animadas." },
+  { id: "chat_balao_void", nome: "Balão do Vazio", tipo: "chat_balao", preco: 800, icone: "💬", desc: "Fundo negro como o abismo." }
 ];
 
 export default function PerfilPage() {
@@ -49,10 +77,12 @@ export default function PerfilPage() {
   const [carregando, setCarregando] = useState(true);
   const [fazendoUpload, setFazendoUpload] = useState(false);
   const [esmolas, setEsmolas] = useState(0);
-  const [missoesProgresso, setMissoesProgresso] = useState<boolean[]>([false, false, false, false, false]);
-  const [condicoesMissoes, setCondicoesMissoes] = useState<boolean[]>([true, false, false, false, false]); 
+  // ✅ Expandido para 6 missões (adicionado o Socializador)
+  const [missoesProgresso, setMissoesProgresso] = useState<boolean[]>([false, false, false, false, false, false]);
+  const [condicoesMissoes, setCondicoesMissoes] = useState<boolean[]>([true, false, false, false, false, false]); 
   const [inventario, setInventario] = useState<string[]>([]);
-  const [equipados, setEquipados] = useState<Record<string, string>>({ moldura: "", particula: "", titulo: "" });
+  // ✅ Incluídos os novos slots para o chat
+  const [equipados, setEquipados] = useState<Record<string, string>>({ moldura: "", particula: "", titulo: "", chat_cor: "", chat_balao: "" });
   const [dadosPerfil, setDadosPerfil] = useState({ nome: "", avatar: "", bio: "", tema: "azul", custom_color: "#3b82f6", pin: "", anilist_token: "" });
   const [obrasUsuario, setObrasUsuario] = useState<any[]>([]);
   const [stats, setStats] = useState({ obras: 0, caps: 0, finais: 0, horasVida: 0, favs: 0, filmes: 0, livros: 0 });
@@ -92,20 +122,33 @@ export default function PerfilPage() {
       else setElo({ tier: "BRONZE", cor: "from-orange-800 to-orange-500", glow: "shadow-orange-900/20" });
 
       const hoje = new Date().toISOString().split('T')[0];
-      setCondicoesMissoes([true, all.some(o => o.ultima_leitura?.startsWith(hoje)), (a || []).some(o => o.ultima_leitura?.startsWith(hoje)), all.filter(o => o.ultima_leitura?.startsWith(hoje)).length >= 3, all.filter(o => o.favorito).length >= 5]);
+      
+      // Checa se o usuário farmou esmolas no chat hoje
+      const chatFarm = p?.chat_farm_diario || { data: "", ganhos: 0 };
+      const interagiuGuilda = chatFarm.data === hoje && chatFarm.ganhos > 0;
+
+      setCondicoesMissoes([
+        true, 
+        all.some(o => o.ultima_leitura?.startsWith(hoje)), 
+        (a || []).some(o => o.ultima_leitura?.startsWith(hoje)), 
+        all.filter(o => o.ultima_leitura?.startsWith(hoje)).length >= 3, 
+        all.filter(o => o.favorito).length >= 5,
+        interagiuGuilda // ✅ Nova Condição da Missão
+      ]);
     }
 
     if (p) {
       setDadosPerfil({ nome: p.nome_exibicao || usuarioAtivo!, avatar: p.avatar || "👤", bio: p.bio || "", tema: p.cor_tema || "azul", custom_color: p.custom_color || "#3b82f6", pin: p.pin || "", anilist_token: p.anilist_token || "" });
       setEsmolas(p.esmolas || 0);
       setInventario(p.cosmeticos?.comprados || []);
-      setEquipados(p.cosmeticos?.ativos || { moldura: "", particula: "", titulo: "" });
-      setMissoesProgresso(p.missoes_progresso || [false, false, false, false, false]);
+      // ✅ Atualiza estado para garantir que as keys novas existam no objeto
+      setEquipados(p.cosmeticos?.ativos || { moldura: "", particula: "", titulo: "", chat_cor: "", chat_balao: "" });
+      setMissoesProgresso(p.missoes_progresso || [false, false, false, false, false, false]);
     }
     setCarregando(false);
   }
 
-  // ✅ [NOVO] - MOTOR DE UPLOAD PARA O SUPABASE STORAGE
+  // ✅ MOTOR DE UPLOAD PARA O SUPABASE STORAGE
   async function fazerUploadAvatar(event: any) {
     try {
       setFazendoUpload(true);
@@ -116,7 +159,6 @@ export default function PerfilPage() {
       const fileName = `${usuarioAtivo}-${Math.random()}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      // ATENÇÃO: Se o nome do seu bucket não for "avatars", troque aqui!
       const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file);
       if (uploadError) throw uploadError;
 
@@ -199,6 +241,8 @@ export default function PerfilPage() {
     { titulo: "Sétima Arte", desc: "Assista/Atualize 1 anime ou filme hoje", recompensa: 20, icone: "🎬" },
     { titulo: "Caçador Ativo", desc: "Interaja com 3 obras diferentes hoje", recompensa: 25, icone: "🎯" },
     { titulo: "Curador", desc: "Mantenha pelo menos 5 obras favoritas", recompensa: 15, icone: "✨" },
+    // ✅ MISSÃO NOVA INSERIDA
+    { titulo: "Socializador", desc: "Interaja e envie mensagens no chat da Guilda hoje", recompensa: 15, icone: "🌍" },
   ];
 
   const aura = dadosPerfil.tema === "custom" ? TEMAS.custom : (TEMAS[dadosPerfil.tema as keyof typeof TEMAS] || TEMAS.azul);
@@ -216,7 +260,6 @@ export default function PerfilPage() {
 
       <div className={`bg-[#0e0e11]/95 backdrop-blur-2xl rounded-[3.5rem] p-12 mt-10 border border-white/5 relative flex flex-col items-center shadow-2xl transition-all duration-700 z-10 ${telaCheia ? 'w-full max-w-6xl' : 'w-full max-w-[550px]'}`}>
         
-        {/* ✅ [CORREÇÃO] - ESMOLAS ALINHADAS PERFEITAMENTE AO CENTRO */}
         <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-black/90 px-6 py-2 rounded-2xl border border-yellow-500/30 flex items-center gap-3 shadow-xl z-50">
           <span className="text-xl">🪙</span>
           <span className="text-white font-black">{esmolas}</span>
@@ -294,7 +337,6 @@ export default function PerfilPage() {
               
               <input type="text" placeholder="Nome Hunter" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold outline-none" value={dadosPerfil.nome} onChange={e => setDadosPerfil({...dadosPerfil, nome: e.target.value})} />
               
-              {/* ✅ [CORREÇÃO] - NOVO BOTÃO DE UPLOAD DO PC */}
               <div className="flex gap-3">
                 <input type="text" placeholder="Avatar URL" className="flex-1 bg-black border border-white/5 p-4 rounded-xl text-white text-xs outline-none" value={dadosPerfil.avatar} onChange={e => setDadosPerfil({...dadosPerfil, avatar: e.target.value})} />
                 
