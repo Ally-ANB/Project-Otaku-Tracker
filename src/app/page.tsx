@@ -401,6 +401,16 @@ export default function Home() {
         ))}
       </div>
 
+      {/* ✅ [FIX] - MODO CINEMA / PROTEÇÃO VISUAL ATIVADO */}
+      {modoCinema && (
+        <div className="fixed inset-0 pointer-events-none z-[200] overflow-hidden">
+          {/* Overlay de Scanlines e Filtro CRT */}
+          <div className="absolute inset-0 opacity-[0.04]" style={{ background: 'linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06))', backgroundSize: '100% 4px, 3px 100%' }} />
+          {/* Filtro de Descanso Ocular (Sépia/Âmbar) */}
+          <div className="absolute inset-0 bg-orange-950/10 mix-blend-multiply" />
+        </div>
+      )}
+
       <AddMangaModal estaAberto={estaAbertoAdd} fechar={() => setEstaAbertoAdd(false)} usuarioAtual={usuarioAtual} abaPrincipal={abaPrincipal} aoSalvar={() => { buscarMangas(); buscarAnimes(); buscarFilmes(); buscarLivros(); setEstaAbertoAdd(false); }} />
       
       {mangaDetalhe && (
