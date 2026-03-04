@@ -63,6 +63,7 @@ export default function Home() {
   const [estaAbertoAdd, setEstaAbertoAdd] = useState(false);
   const [mangaDetalhe, setMangaDetalhe] = useState<Manga | null>(null);
   const [carregando, setCarregando] = useState(true);
+  const [sincronizando, setSincronizando] = useState(false); // Novo estado para o feedback do botão
   const [filtroAtivo, setFiltroAtivo] = useState("Lendo");
   const [pesquisaInterna, setPesquisaInterna] = useState("");
   const [config, setConfig] = useState({ mostrar_busca: true, mostrar_stats: true, mostrar_backup: true });
@@ -179,15 +180,41 @@ export default function Home() {
       });
       const data = await res.json();
       if (data.success) {
-         mostrarToast(`"${titulo}" sincronizado no AniList!`, "anilist"); 
+          mostrarToast(`"${titulo}" sincronizado no AniList!`, "anilist"); 
       }
     } catch (error) { console.error(error); }
   }
 
+  // 🔥 IMPLEMENTAÇÃO DO PULL (ANILIST -> ESTANTE)
   async function puxarProgressoDoAniList() {
     const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual);
     if (!perfilAtivo?.anilist_token) return mostrarToast("Conecte o AniList primeiro.", "erro");
+    
+    setSincronizando(true);
     mostrarToast(`📡 Sincronizando ${abaPrincipal}...`, "aviso");
+
+    try {
+      const res = await fetch('/api/anilist/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token: perfilAtivo.anilist_token,
+          usuario: usuarioAtual,
+          tipoObra: abaPrincipal,
+          acao: "PULL"
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        mostrarToast(`Sucesso! ${data.count} obras sincronizadas.`, "sucesso");
+        if (abaPrincipal === "MANGA") buscarMangas();
+        else if (abaPrincipal === "ANIME") buscarAnimes();
+      }
+    } catch (err) {
+      mostrarToast("Erro ao sincronizar dados.", "erro");
+    } finally {
+      setSincronizando(false);
+    }
   }
 
   async function atualizarCapitulo(manga: Manga, novo: number) {
@@ -342,19 +369,16 @@ export default function Home() {
   const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual) || { nome_exibicao: usuarioAtual, avatar: "👤", cor_tema: "verde" };
   const aura = perfilAtivo.cor_tema?.startsWith('#') ? TEMAS.custom : (TEMAS[perfilAtivo.cor_tema as keyof typeof TEMAS] || TEMAS.verde);
   
-  // ✨ PUXANDO TODOS OS COSMÉTICOS DO BANCO DE DADOS
   const particulaEquipada = perfilAtivo.cosmeticos?.ativos?.particula || "";
   const molduraEquipada = perfilAtivo.cosmeticos?.ativos?.moldura || "";
   const tituloEquipadoId = perfilAtivo.cosmeticos?.ativos?.titulo || "";
 
-  // Dicionário de Títulos (para não precisar carregar o array inteiro da loja aqui)
   const NOMES_TITULOS: Record<string, string> = { 
     titulo_sabio: "O Sábio", titulo_lenda: "A Lenda Viva", titulo_deus: "Divindade Ancestral", 
     titulo_sombra: "A Sombra que Caminha", titulo_hacker: "Cyber Hunter", titulo_arcoiris: "Mestre das Cores", 
     titulo_sangue: "Ceifador Carmesim", titulo_fantasma: "Espectro Inominável" 
   };
   
-  // ✅ RENDERIZANDO A LISTA DE LIVROS E AJUSTANDO FILTROS
   const listaExibicao = abaPrincipal === "MANGA" ? mangas : abaPrincipal === "ANIME" ? animes : abaPrincipal === "FILME" ? filmes : livros;
   const filtrosAtuais = (abaPrincipal === "MANGA" || abaPrincipal === "LIVRO") ? ["Todos", "Lendo", "Completos", "Planejo Ler", "Pausados", "Dropados"] : ["Todos", "Assistindo", "Completos", "Planejo Assistir", "Pausados", "Dropados"];
 
@@ -370,14 +394,12 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#080808] p-6 md:p-12 text-white relative overflow-x-hidden" style={perfilAtivo.cor_tema?.startsWith('#') ? { '--aura': perfilAtivo.cor_tema } as React.CSSProperties : {}}>
       
-      {/* 🚀 INJEÇÃO DOS EFEITOS VISUAIS NA ESTANTE (TELA CHEIA) */}
-      <EfeitosVisuais particula={particulaEquipada} />
+      <EfeitosVisuais particula={perfilAtivo?.cosmeticos?.ativos?.particula || ""} />
 
       <header className="flex flex-col md:flex-row justify-between items-center gap-6 mb-16 border-b border-zinc-800/50 pb-10 relative z-20">
         <div className="text-center md:text-left">
           <h1 className="text-5xl font-black italic tracking-tighter">Hunter<span className={aura.text}>.</span>Tracker</h1>
           <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-zinc-500 mt-2">Sincronizado como: {perfilAtivo.nome_exibicao}</p>
-          {/* ✨ RENDERIZAÇÃO GLOBAL DO TÍTULO */}
           {tituloEquipadoId && <p className={`mt-2 text-[10px] font-black uppercase tracking-[0.3em] drop-shadow-md ${tituloEquipadoId}`}>« {NOMES_TITULOS[tituloEquipadoId]} »</p>}
         </div>
 
@@ -386,8 +408,15 @@ export default function Home() {
             {modoCinema ? "📺" : "👓"}
           </button>
 
-          {perfilAtivo.anilist_token && (
-            <button onClick={puxarProgressoDoAniList} className="w-14 h-14 bg-zinc-900 border border-blue-500/30 rounded-[1.2rem] flex items-center justify-center text-xl hover:scale-105 active:scale-95 transition-all shadow-lg text-blue-500">🔄</button>
+          {/* 🔥 BOTÃO DE SINCRONIZAÇÃO 🔄 ATIVADO */}
+          {perfilAtivo.anilist_token && (abaPrincipal === "MANGA" || abaPrincipal === "ANIME") && (
+            <button 
+              onClick={puxarProgressoDoAniList} 
+              disabled={sincronizando}
+              className={`w-14 h-14 bg-zinc-900 border-2 border-blue-500/30 rounded-[1.2rem] flex items-center justify-center text-xl transition-all shadow-lg text-blue-500 ${sincronizando ? 'animate-spin opacity-50' : 'hover:scale-105 active:scale-95'}`}
+            >
+              🔄
+            </button>
           )}
 
           <button onClick={() => setEstaAbertoAdd(true)} className={`px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all hover:scale-105 active:scale-95 bg-zinc-900 border-2 ${aura.border} ${aura.shadow} text-white hover:${aura.text}`}>
@@ -395,7 +424,6 @@ export default function Home() {
           </button>
 
           <div onClick={() => window.location.href = '/perfil'} className="group cursor-pointer flex flex-col items-center gap-2">
-            {/* ✨ RENDERIZAÇÃO GLOBAL DA MOLDURA NO CABEÇALHO */}
             <div className={`w-14 h-14 bg-zinc-900 rounded-[1.2rem] flex items-center justify-center overflow-hidden border-2 ${aura.border} group-hover:scale-110 transition-all shadow-lg ${molduraEquipada}`}>
               {perfilAtivo.avatar?.startsWith('http') ? (
                 <img src={perfilAtivo.avatar} className="w-full h-full object-cover" alt="" />
@@ -408,7 +436,6 @@ export default function Home() {
         </div>
       </header>
 
-      {/* ✅ NOVA ABA DA ESTANTE DE LIVROS */}
       <div className="flex gap-4 md:gap-8 mb-10 border-b border-zinc-800/50 pb-4 overflow-x-auto custom-scrollbar relative z-20">
         <button onClick={() => { setAbaPrincipal("MANGA"); setFiltroAtivo("Lendo"); }} className={`text-xl md:text-2xl font-black uppercase tracking-widest transition-all whitespace-nowrap ${abaPrincipal === "MANGA" ? `${aura.text} drop-shadow-[0_0_15px_currentColor]` : "text-zinc-600 hover:text-white"}`}>📚 Mangás</button>
         <button onClick={() => { setAbaPrincipal("ANIME"); setFiltroAtivo("Assistindo"); }} className={`text-xl md:text-2xl font-black uppercase tracking-widest transition-all whitespace-nowrap ${abaPrincipal === "ANIME" ? `${aura.text} drop-shadow-[0_0_15px_currentColor]` : "text-zinc-600 hover:text-white"}`}>📺 Animes</button>
@@ -442,7 +469,7 @@ export default function Home() {
           if (abaPrincipal === "MANGA") buscarMangas();
           else if (abaPrincipal === "ANIME") buscarAnimes();
           else if (abaPrincipal === "FILME") buscarFilmes(); 
-          else buscarLivros(); // ✅ Atualiza a lista de livros após salvar
+          else buscarLivros(); 
           setEstaAbertoAdd(false); 
         }} 
       />
