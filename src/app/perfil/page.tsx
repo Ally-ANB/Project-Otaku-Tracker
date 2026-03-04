@@ -53,9 +53,6 @@ const LOJA_ITENS = [
 ];
 
 export default function PerfilPage() {
-  // ==========================================
-  // 🔐 [SESSÃO 2] - ESTADOS
-  // ==========================================
   const [usuarioAtivo, setUsuarioAtivo] = useState<string | null>(null);
   const [abaAtiva, setAbaAtiva] = useState("STATUS");
   const [telaCheia, setTelaCheia] = useState(false);
@@ -76,9 +73,6 @@ export default function PerfilPage() {
   const [stats, setStats] = useState({ obras: 0, caps: 0, finais: 0, horasVida: 0, favs: 0, filmes: 0, livros: 0 });
   const [elo, setElo] = useState({ tier: "BRONZE", cor: "from-orange-800 to-orange-500", glow: "shadow-orange-900/40", efeito: "" });
 
-  // ==========================================
-  // 🧠 [SESSÃO 3] - LÓGICA CORE E AUTOMAÇÃO
-  // ==========================================
   useEffect(() => {
     const hunter = sessionStorage.getItem("hunter_ativo");
     if (!hunter) { window.location.href = '/'; return; }
@@ -88,24 +82,14 @@ export default function PerfilPage() {
 
   useEffect(() => {
     if (!usuarioAtivo) return;
-    const hash = window.location.hash;
-    if (hash.includes("access_token")) {
-      const params = new URLSearchParams(hash.substring(1));
-      const token = params.get("access_token");
-      if (token) {
-        const salvarTokenAuto = async () => {
-          setSalvando(true);
-          const { error } = await supabase.from("perfis").update({ anilist_token: token }).eq("nome_original", usuarioAtivo);
-          if (!error) {
-            setDadosPerfil(prev => ({ ...prev, anilist_token: token }));
-            alert("✅ Conta AniList conectada com sucesso!");
-            window.history.replaceState(null, '', window.location.pathname);
-          }
-          setSalvando(false);
-        };
-        salvarTokenAuto();
-      }
+
+    // LÓGICA DE SINCRONIZAÇÃO VIA URL (QUERY PARAMS) - Mais limpa que o Hash
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("sync") === "success") {
+       alert("✅ Conta AniList vinculada com sucesso!");
+       window.history.replaceState(null, '', window.location.pathname);
     }
+
     carregarDados();
   }, [usuarioAtivo]);
 
@@ -193,11 +177,10 @@ export default function PerfilPage() {
     setSalvando(true);
     try {
       const { error } = await supabase.from("perfis").update({
-        nome_exibicao: dadosPerfil.nome, avatar: dadosPerfil.avatar, cor_tema: dadosPerfil.tema, custom_color: dadosPerfil.custom_color, pin: dadosPerfil.pin, anilist_token: dadosPerfil.anilist_token 
+        nome_exibicao: dadosPerfil.nome, avatar: dadosPerfil.avatar, bio: dadosPerfil.bio, cor_tema: dadosPerfil.tema, custom_color: dadosPerfil.custom_color, pin: dadosPerfil.pin, anilist_token: dadosPerfil.anilist_token 
       }).eq("nome_original", usuarioAtivo);
       if (error) throw error;
       alert("✨ Hunter Sincronizado!");
-      window.location.reload(); 
     } catch (err: any) { alert("Erro: " + err.message); } finally { setSalvando(false); }
   }
 
@@ -265,7 +248,8 @@ export default function PerfilPage() {
     default: cssTitulo += "text-yellow-500"; break; 
   }
 
-  const iconesTrofeus = [ "🌱","📖","🔥","🏃","⏳","💎","🦉","🧭","🏆","⚔️","☕","📚","📦","🌟","🖋️","⚡","❤️","🧘","💾","👑","🐦","🎯","🌐","🎨","🎖️","🏮","⛩️","🐉","🌋","🌌","🔮","🧿","🧸","🃏","🎭","🩰","🧶","🧵","🧹","🧺","🧷","🧼","🧽","🧴","🗝️","⚙️","🧪","🛰️","🔭","🔱","🎬","🍿","🎟️","📽️","🎞️","📼","🎫","📺","🎥","🧛","🦸","🧙","🧟","👽","🕵️","🥷","🧑‍🚀","🦖","🦈","🛸","📜","✒️","🕯️","🪶","📚","🔖","📓","📙","📗","📘","📔","📃","📰","🗺️","🏛️" ];
+  const iconesTrofeus = [ "🌱","📖","🔥","🏃","⏳","💎","🦉","🧭","🏆","⚔️","☕","📚","📦","🌟","🖋️","⚡","❤️","🧘","💾","👑","🐦","🎯","🌐","🎨","🎖️","🏮","⛩️","🐉","🌋","🌌","🔮","🧿","🧸","🃏","🎭","🩰","🧶","🧵","🧹","🧺","🧷","🧼","🧽","🧴","🗝️","⚙️","🧪","🛰️","🔭","🔱","🎬","🍿","🎟️","📽️","🎞️","📼","🎫","📺","🎥","🧛","🦸","🧙","🧟","👽","🕵️","🥷","🧑‍🚀","REX","🦈","🛸","📜","✒️","🕯️","🪶","📚","🔖","📓","📙","📗","📘","📔","📃","📰","🗺️","🏛️" ];
+  
   const listaTrofeus = Array.from({ length: 85 }, (_, i) => {
     const id = i + 1; let check = false; let nome = `Troféu Hunter ${id}`; let desc = `Bloqueado: Requer Nível ${id * 2} de progresso.`;
     if (id <= 50) {
@@ -299,11 +283,8 @@ export default function PerfilPage() {
 
   return (
     <main className="min-h-screen bg-[#040405] flex flex-col items-center justify-center p-6 transition-all duration-500 relative overflow-hidden" style={{ "--aura": dadosPerfil.custom_color } as any}>
-      
-      {/* 🚀 O COMPONENTE GLOBAL DE PARTÍCULAS EM TELA CHEIA */}
       <EfeitosVisuais particula={equipados.particula} />
 
-      {/* CSS ESPECÍFICO DE TEXTOS E MOLDURAS (Mantido no perfil) */}
       <style>{`
         @keyframes raioEletrico { 0%, 100% { box-shadow: 0 0 10px #3b82f6, inset 0 0 10px #3b82f6; border-color: #60a5fa; } 50% { box-shadow: 0 0 30px #60a5fa, inset 0 0 20px #60a5fa; border-color: #fff; } }
         @keyframes pulsoEsmeralda { 0%, 100% { box-shadow: 0 0 15px #10b981; border-color: #059669; } 50% { box-shadow: 0 0 40px #34d399, inset 0 0 15px #34d399; border-color: #a7f3d0; } }
@@ -353,12 +334,18 @@ export default function PerfilPage() {
             <div className="grid grid-cols-2 gap-4 animate-in fade-in zoom-in-95">
               <div className="bg-black/40 border border-white/5 p-6 rounded-3xl flex flex-col items-center"><span className="text-3xl font-black text-white italic">{stats.obras}</span><span className="text-[7px] font-black text-zinc-600 uppercase mt-2">Obras Totais</span></div>
               <div className="bg-black/40 border border-white/5 p-6 rounded-3xl flex flex-col items-center"><span className="text-3xl font-black text-white italic">{stats.caps}</span><span className="text-[7px] font-black text-zinc-600 uppercase mt-2">Progresso</span></div>
+              
               <div className="col-span-2 bg-gradient-to-r from-zinc-900 to-black p-6 rounded-3xl border border-white/5 flex flex-col justify-between group mb-2 relative overflow-hidden">
                  <div className="flex justify-between items-center z-10">
                    <div><span className="text-2xl font-black text-white italic tracking-tighter">{stats.horasVida} HORAS</span><p className="text-[7px] font-black text-zinc-500 uppercase mt-1 tracking-widest italic">Vida gasta assistindo</p></div>
                    <span className="text-4xl opacity-20 group-hover:opacity-100 group-hover:scale-110 transition-all">⏳</span>
                  </div>
-                 <a href={`https://anilist.co/api/v2/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_ANILIST_CLIENT_ID}&response_type=token`} className="mt-6 w-full py-3 bg-blue-600/10 border border-blue-500/30 text-blue-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all text-center z-10">
+                 
+                 {/* 🔥 VÍNCULO ANILIST REFEITO - AGORA APONTA PARA A ROTA DE API COM O HUNTER CORRETO */}
+                 <a 
+                   href={`/api/auth/anilist?hunter=${usuarioAtivo}`} 
+                   className="mt-6 w-full py-3 bg-blue-600/10 border border-blue-500/30 text-blue-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all text-center z-10"
+                 >
                    {dadosPerfil.anilist_token ? "✅ AniList Conectado (Sincronizar Novamente)" : "🔗 Conectar com AniList"}
                  </a>
               </div>
@@ -459,7 +446,6 @@ export default function PerfilPage() {
           )}
         </div>
 
-        {/* BACKUP E LOGOUT */}
         <div className="w-full flex flex-col gap-3 mt-8 relative z-20">
           <div className="grid grid-cols-2 gap-3">
             <button onClick={exportarBiblioteca} className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-all">💾 Exportar</button>
