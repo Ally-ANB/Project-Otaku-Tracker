@@ -20,25 +20,32 @@ const TEMAS = {
 // [SESSÃO 2] - CATÁLOGO DA LOJA (VFX E COSMÉTICOS)
 // =============================================================================
 const LOJA_ITENS = [
+  // --- VFX ELITE (VÍDEOS) ---
   { id: "particula_fogo_vfx", nome: "Chamas Infernais", tipo: "particula", preco: 1200, icone: "♨️", desc: "Fogo real gravado em alta definição (VFX)." },
-  { id: "particula_dispersao_dark", nome: "Desintegração S+", tipo: "particula", preco: 1500, icone: "🫠", desc: "Partículas reais se dissipando no ar negro (VFX)." },
+  { id: "particula_dispersao_dark", nome: "Desintegração S+", tipo: "particula", preco: 1500, icone: "🫠", desc: "Partículas reais se dissipando (VFX)." },
   { id: "particula_chuva_janela", nome: "Caçador Melancólico", tipo: "particula", preco: 1000, icone: "🌧️", desc: "Chuva real escorrendo pelo vidro (VFX)." },
-  { id: "particula_areia_deserto", nome: "Tempestade de Areia", tipo: "particula", preco: 1100, icone: "🏜️", desc: "Areia real cruzando o ecrã (VFX)." },
-  { id: "particula_fogo_cinematic", nome: "Ta pegando fogo", tipo: "particula", preco: 1800, icone: "🔥", desc: "Fogueira real cinematográfica (VFX)." },
+  { id: "particula_fogo_cinematic", nome: "Fogueira Hunter", tipo: "particula", preco: 1800, icone: "🔥", desc: "Fogueira real cinematográfica (VFX)." },
+
+  // --- PARTÍCULAS CLÁSSICAS (RESTORED) ---
+  { id: "particula_petalas", nome: "Chuva de Pétalas", tipo: "particula", preco: 300, icone: "🌸", desc: "Cerejeiras caindo com física de vento." },
+  { id: "particula_neve", nome: "Neve Silenciosa", tipo: "particula", preco: 350, icone: "❄️", desc: "Flocos de neve cobrindo sua estante." },
+  { id: "particula_estrelas", nome: "Céu Estrelado", tipo: "particula", preco: 450, icone: "✨", desc: "Fundo com estrelas cintilantes." },
+  { id: "particula_matrix", nome: "Código Matrix", tipo: "particula", preco: 600, icone: "📟", desc: "Dados verdes caindo pela tela." },
+  { id: "particula_bolhas", nome: "Abismo Subaquático", tipo: "particula", preco: 350, icone: "🫧", desc: "Bolhas translúcidas subindo devagar." },
+  
+  // --- ESTAÇÕES DO ANO ---
+  { id: "particula_primavera", nome: "Brisas de Primavera", tipo: "particula", preco: 400, icone: "🍃", desc: "Folhas verdes flutuando com o vento." },
+  { id: "particula_verao", nome: "Vagalumes de Verão", tipo: "particula", preco: 400, icone: "☀️", desc: "Orbes de luz flutuando preguiçosamente." },
+  { id: "particula_outono", nome: "Folhas de Outono", tipo: "particula", preco: 400, icone: "🍁", desc: "Folhas alaranjadas caindo calmamente." },
+  { id: "particula_inverno", nome: "Inverno Rigoroso", tipo: "particula", preco: 450, icone: "⛄", desc: "Neve densa caindo sobre a tela." },
+
+  // --- MOLDURAS E TÍTULOS (RESTAURADOS) ---
   { id: "moldura_ouro", nome: "Anel de Ouro", tipo: "moldura", preco: 150, icone: "👑", desc: "Moldura dourada brilhante." },
   { id: "moldura_neon", nome: "Glitch Neon", tipo: "moldura", preco: 250, icone: "👾", desc: "Pulso cibernético rosa." },
-  { id: "moldura_choque", nome: "Raio Elétrico", tipo: "moldura", preco: 350, icone: "⚡", desc: "Borda animada com alta voltagem azul." },
-  { id: "moldura_esmeralda", nome: "Pulso Esmeralda", tipo: "moldura", preco: 300, icone: "💎", desc: "Respiração radiante verde." },
-  { id: "moldura_sombria", nome: "Fumaça Sombria", tipo: "moldura", preco: 400, icone: "🌑", desc: "Aura negra vazando do avatar." },
-  { id: "moldura_magma", nome: "Magma Escorrendo", tipo: "moldura", preco: 500, icone: "🌋", desc: "Animação de chamas correndo." },
-  { id: "moldura_celestial", nome: "Anel Divino", tipo: "moldura", preco: 800, icone: "👼", desc: "Avatar flutuante purificador." },
-  { id: "titulo_sabio", nome: "Título: O Sábio", tipo: "titulo", preco: 400, icone: "🦉", desc: "Clássico título dourado." },
-  { id: "titulo_lenda", nome: "Título: A Lenda Viva", tipo: "titulo", preco: 500, icone: "📜", desc: "Clássico título dourado." },
+  { id: "moldura_choque", nome: "Raio Elétrico", tipo: "moldura", preco: 350, icone: "⚡", desc: "Borda animada com alta voltagem." },
   { id: "titulo_deus", nome: "Divindade Ancestral", tipo: "titulo", preco: 1000, icone: "🔱", desc: "Texto brilhando como o sol." },
-  { id: "titulo_sombra", nome: "A Sombra que Caminha", tipo: "titulo", preco: 600, icone: "🥷", desc: "Texto com sombra fantasmagórica." },
   { id: "titulo_hacker", nome: "Cyber Hunter", tipo: "titulo", preco: 800, icone: "💻", desc: "Efeito de texto glitch." },
-  { id: "titulo_arcoiris", nome: "Mestre das Cores", tipo: "titulo", preco: 900, icone: "🌈", desc: "Texto gradiente animado." },
-  { id: "titulo_sangue", nome: "Ceifador Carmesim", tipo: "titulo", preco: 750, icone: "🩸", desc: "Texto pulsando em vermelho." }
+  { id: "titulo_arcoiris", nome: "Mestre das Cores", tipo: "titulo", preco: 900, icone: "🌈", desc: "Texto gradiente animado." }
 ];
 
 export default function PerfilPage() {
