@@ -12,7 +12,8 @@ import AddMangaModal from "./components/AddMangaModal";
 import MangaDetailsModal from "./components/MangaDetailsModal";
 import AdminPanel from "./components/AdminPanel";
 import ProfileSelection from "./components/ProfileSelection";
-import EfeitosVisuais from "./components/EfeitosVisuais";
+// ✅ ADICIONADO: Componente de Identidade Universal
+import HunterAvatar from "./components/HunterAvatar";
 
 interface Manga { 
   id: number; 
@@ -59,6 +60,9 @@ export default function Home() {
   const [livros, setLivros] = useState<Manga[]>([]); 
   const [perfis, setPerfis] = useState<any[]>([]); 
   
+  // ✅ NOVO ESTADO: Para carregar as URLs das molduras PNG da loja
+  const [lojaItens, setLojaItens] = useState<any[]>([]);
+
   const [estaAbertoAdd, setEstaAbertoAdd] = useState(false);
   const [mangaDetalhe, setMangaDetalhe] = useState<Manga | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -110,6 +114,7 @@ export default function Home() {
     };
 
     buscarConfigs();
+    buscarLoja(); // ✅ Busca as informações de itens para os cosméticos funcionarem
     buscarPerfis().then(() => setCarregando(false));
   }, []);
 
@@ -123,6 +128,11 @@ export default function Home() {
   // ==========================================
   // 🛠️ [SESSÃO 6] - FUNÇÕES DE BUSCA E BANCO
   // ==========================================
+  async function buscarLoja() {
+    const { data } = await supabase.from("loja_itens").select("id, imagem_url");
+    if (data) setLojaItens(data);
+  }
+
   const toggleModoCinema = () => {
     const novoEstado = !modoCinema;
     setModoCinema(novoEstado);
@@ -174,13 +184,11 @@ export default function Home() {
     } catch (error) { console.error(error); }
   }
 
-  // 🔥 [FIX] - SINCRONIZAÇÃO RESILIENTE (ANTI-FALSO POSITIVO)
   async function puxarProgressoDoAniList() {
     const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual);
     if (!perfilAtivo?.anilist_token) return mostrarToast("Conecte o AniList primeiro.", "erro");
     
     setSincronizando(true);
-    // Toast no estilo do seu print (Verde e Caps)
     mostrarToast(`SINCRONIZANDO ${abaPrincipal}...`, "aviso");
 
     try {
@@ -189,7 +197,7 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           token: perfilAtivo.anilist_token,
-          usuario: usuarioAtual, // Mantém o nome_original consistente
+          usuario: usuarioAtual,
           tipoObra: abaPrincipal,
           acao: "PULL"
         })
@@ -198,13 +206,12 @@ export default function Home() {
       const data = await res.json();
 
       if (data.success) {
-        // ✅ Buffer de 1.5s para o banco respirar após 600+ inserções
         setTimeout(async () => {
           if (abaPrincipal === "MANGA") {
-            setMangas([]); // Limpa cache local
+            setMangas([]); 
             await buscarMangas();
           } else if (abaPrincipal === "ANIME") {
-            setAnimes([]); // Limpa cache local
+            setAnimes([]); 
             await buscarAnimes();
           }
           
@@ -233,7 +240,6 @@ export default function Home() {
     const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : abaPrincipal === "ANIME" ? "animes" : abaPrincipal === "FILME" ? "filmes" : "livros";
     const setLista = abaPrincipal === "MANGA" ? setMangas : abaPrincipal === "ANIME" ? setAnimes : abaPrincipal === "FILME" ? setFilmes : setLivros;
     
-    // Injeção da data para Missões Diárias
     const agora = new Date().toISOString();
 
     setLista((prev: Manga[]) => prev.map(m => m.id === manga.id ? { ...m, capitulo_atual: novo, status: novoStatus, ultima_leitura: agora } : m));
@@ -255,7 +261,6 @@ export default function Home() {
     const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : abaPrincipal === "ANIME" ? "animes" : abaPrincipal === "FILME" ? "filmes" : "livros";
     const setLista = abaPrincipal === "MANGA" ? setMangas : abaPrincipal === "ANIME" ? setAnimes : abaPrincipal === "FILME" ? setFilmes : setLivros;
     
-    // Injeção da data para Missão "Caçador Ativo"
     const agora = new Date().toISOString();
     const dadosAtualizados = { ...campos, ultima_leitura: agora };
 
@@ -373,7 +378,7 @@ export default function Home() {
     />
   );
 
-  const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual) || { nome_exibicao: usuarioAtual, avatar: "👤", cor_tema: "verde" };
+  const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual) || { nome_exibicao: usuarioAtual, avatar: "👤", cor_tema: "verde", custom_color: "#22c55e" };
   const aura = perfilAtivo.cor_tema?.startsWith('#') ? TEMAS.custom : (TEMAS[perfilAtivo.cor_tema as keyof typeof TEMAS] || TEMAS.verde);
   const listaExibicao = abaPrincipal === "MANGA" ? mangas : abaPrincipal === "ANIME" ? animes : abaPrincipal === "FILME" ? filmes : livros;
   const filtrosAtuais = (abaPrincipal === "MANGA" || abaPrincipal === "LIVRO") ? ["Todos", "Lendo", "Completos", "Planejo Ler", "Pausados", "Dropados"] : ["Todos", "Assistindo", "Completos", "Planejo Assistir", "Pausados", "Dropados"];
@@ -387,9 +392,14 @@ export default function Home() {
     return m.status === filtroAtivo;
   }).filter(m => m.titulo.toLowerCase().includes(pesquisaInterna.toLowerCase()));
 
+  // Lógica para moldura PNG no header
+  const molduraHeader = lojaItens.find(i => i.id === perfilAtivo.cosmeticos?.ativos?.moldura);
+
   return (
-    <main className="min-h-screen bg-[#080808] p-6 md:p-12 text-white relative overflow-x-hidden" style={perfilAtivo.cor_tema?.startsWith('#') ? { '--aura': perfilAtivo.cor_tema } as any : {}}>
-      <EfeitosVisuais particula={perfilAtivo?.cosmeticos?.ativos?.particula || ""} />
+    // ✅ PASSO 1: BG TRANSPARENT PARA MOSTRAR O VFX GLOBAL
+    <main className="min-h-screen bg-transparent p-6 md:p-12 text-white relative overflow-x-hidden" style={perfilAtivo.cor_tema?.startsWith('#') ? { '--aura': perfilAtivo.cor_tema } as any : {}}>
+      
+      {/* ⚠️ PASSO 2: REMOVIDO <EfeitosVisuais /> LOCAL DAQUI */}
 
       <header className="flex flex-col md:flex-row justify-between items-center gap-6 mb-16 border-b border-zinc-800/50 pb-10 relative z-20">
         <div className="text-center md:text-left">
@@ -404,13 +414,19 @@ export default function Home() {
           )}
           <button onClick={() => setEstaAbertoAdd(true)} className={`px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all bg-zinc-900 border-2 ${aura.border} ${aura.shadow} text-white`}>+ Adicionar Obra</button>
           
-          {/* ✅ NOVO BOTÃO DA GUILDA AQUI */}
           <Link href="/guilda" className="w-14 h-14 bg-zinc-900 border-2 border-zinc-800 hover:border-zinc-500 rounded-2xl flex items-center justify-center text-2xl transition-all" title="A Guilda">
             🌍
           </Link>
 
-          <Link href="/perfil" className={`w-14 h-14 bg-zinc-900 rounded-2xl flex items-center justify-center overflow-hidden border-2 ${aura.border} ${perfilAtivo.cosmeticos?.ativos?.moldura}`}>
-            {perfilAtivo.avatar?.startsWith('http') ? <img src={perfilAtivo.avatar} className="w-full h-full object-cover" /> : <span className="text-3xl">{perfilAtivo.avatar || "👤"}</span>}
+          {/* ✅ PASSO 3: USANDO O NOVO HunterAvatar NO HEADER */}
+          <Link href="/perfil" className="hover:scale-105 transition-transform">
+            <HunterAvatar 
+              avatarUrl={perfilAtivo.avatar} 
+              idMoldura={perfilAtivo.cosmeticos?.ativos?.moldura} 
+              imagemMolduraUrl={molduraHeader?.imagem_url}
+              temaCor={perfilAtivo.custom_color}
+              tamanho="md"
+            />
           </Link>
         </div>
       </header>
@@ -434,12 +450,9 @@ export default function Home() {
         ))}
       </div>
 
-      {/* ✅ [FIX] - MODO CINEMA / PROTEÇÃO VISUAL ATIVADO */}
       {modoCinema && (
         <div className="fixed inset-0 pointer-events-none z-[200] overflow-hidden">
-          {/* Overlay de Scanlines e Filtro CRT */}
           <div className="absolute inset-0 opacity-[0.04]" style={{ background: 'linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06))', backgroundSize: '100% 4px, 3px 100%' }} />
-          {/* Filtro de Descanso Ocular (Sépia/Âmbar) */}
           <div className="absolute inset-0 bg-orange-950/10 mix-blend-multiply" />
         </div>
       )}

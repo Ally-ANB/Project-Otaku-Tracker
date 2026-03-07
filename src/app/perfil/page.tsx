@@ -3,7 +3,6 @@
 import { supabase } from "../supabase";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import EfeitosVisuais from "../components/EfeitosVisuais";
 
 const TEMAS = {
   verde: { bg: "bg-green-500", text: "text-green-500", border: "border-green-500", glow: "shadow-green-500/20", btn: "bg-green-500/10 border-green-500/50 hover:bg-green-500 hover:text-black" },
@@ -13,7 +12,6 @@ const TEMAS = {
   custom: { bg: "bg-[var(--aura)]", text: "text-[var(--aura)]", border: "border-[var(--aura)]", glow: "shadow-[var(--aura)]/20", btn: "bg-[var(--aura)]/10 border-[var(--aura)]/50 hover:bg-[var(--aura)] hover:text-black" }
 };
 
-// ✅ Classes CSS Complexas para as Molduras "Discord Style"
 export const MOLDURAS_DISCORD: any = {
   moldura_aries: "ring-4 ring-orange-500 shadow-[0_0_30px_rgba(249,115,22,0.8)] after:content-[''] after:absolute after:-inset-3 after:border-[4px] after:border-t-red-500 after:border-b-orange-500 after:border-transparent after:rounded-[2.5rem] after:animate-spin-slow",
   moldura_touro: "ring-4 ring-green-400 shadow-[0_0_20px_rgba(74,222,128,0.6)] after:content-[''] after:absolute after:-inset-2 after:border-2 after:border-green-300 after:rounded-[2.5rem] after:rotate-45",
@@ -21,67 +19,11 @@ export const MOLDURAS_DISCORD: any = {
   moldura_choque: "ring-2 ring-yellow-400 border-dashed animate-pulse shadow-[0_0_15px_rgba(250,204,21,0.5)]"
 };
 
-// ✅ LOJA_ITENS AGORA É APENAS UM FALLBACK (Se o banco falhar, carrega esses)
 const LOJA_ITENS_FALLBACK = [
-  // --- VFX ELITE (VÍDEOS) ---
   { id: "particula_fogo_vfx", nome: "Chamas Infernais", tipo: "particula", preco: 1200, icone: "♨️", desc_texto: "Fogo real gravado em alta definição (VFX)." },
   { id: "particula_dispersao_dark", nome: "Desintegração S+", tipo: "particula", preco: 1500, icone: "🫠", desc_texto: "Partículas reais se dissipando (VFX)." },
   { id: "particula_chuva_janela", nome: "Caçador Melancólico", tipo: "particula", preco: 1000, icone: "🌧️", desc_texto: "Chuva real escorrendo pelo vidro (VFX)." },
-  { id: "particula_fogo_cinematic", nome: "Fogueira Hunter", tipo: "particula", preco: 1800, icone: "🔥", desc_texto: "Fogueira real cinematográfica (VFX)." },
-
-  // --- NOVAS PARTÍCULAS (MÍSTICAS / SOMBRIAS) ---
-  { id: "particula_corvos", nome: "Corvos Espectrais", tipo: "particula", preco: 700, icone: "🦅", desc_texto: "Silhuetas escuras voando ao fundo." },
-  { id: "particula_areia", nome: "Tempestade de Areia", tipo: "particula", preco: 600, icone: "🌪️", desc_texto: "Poeira dourada cobrindo a tela." },
-  { id: "particula_sangue", nome: "Aura de Sangue", tipo: "particula", preco: 850, icone: "🩸", desc_texto: "Gotas carmesim levitando lentamente." },
-  { id: "particula_abissal", nome: "Fumaça Abissal", tipo: "particula", preco: 900, icone: "🌫️", desc_texto: "Névoa roxa escura rastejando pela tela." },
-
-  // --- PARTÍCULAS CLÁSSICAS ---
-  { id: "particula_petalas", nome: "Chuva de Pétalas", tipo: "particula", preco: 300, icone: "🌸", desc_texto: "Cerejeiras caindo com física de vento." },
-  { id: "particula_neve", nome: "Neve Silenciosa", tipo: "particula", preco: 350, icone: "❄️", desc_texto: "Flocos de neve cobrindo sua estante." },
-  { id: "particula_estrelas", nome: "Céu Estrelado", tipo: "particula", preco: 450, icone: "✨", desc_texto: "Fundo com estrelas cintilantes." },
-  { id: "particula_matrix", nome: "Código Matrix", tipo: "particula", preco: 600, icone: "📟", desc_texto: "Dados verdes caindo pela tela." },
-  { id: "particula_bolhas", nome: "Abismo Subaquático", tipo: "particula", preco: 350, icone: "🫧", desc_texto: "Bolhas translúcidas subindo devagar." },
-  
-  // --- ESTAÇÕES DO ANO ---
-  { id: "particula_primavera", nome: "Brisas de Primavera", tipo: "particula", preco: 400, icone: "🍃", desc_texto: "Folhas verdes flutuando com o vento." },
-  { id: "particula_verao", nome: "Vagalumes de Verão", tipo: "particula", preco: 400, icone: "☀️", desc_texto: "Orbes de luz flutuando preguiçosamente." },
-  { id: "particula_outono", nome: "Folhas de Outono", tipo: "particula", preco: 400, icone: "🍁", desc_texto: "Folhas alaranjadas caindo calmamente." },
-  { id: "particula_inverno", nome: "Inverno Rigoroso", tipo: "particula", preco: 450, icone: "⛄", desc_texto: "Neve densa caindo sobre a tela." },
-
-  // --- MOLDURAS PREMIUM (ESTILO DISCORD) ---
-  { id: "moldura_aries", nome: "Avatar: Áries (Fogo)", tipo: "moldura", preco: 800, icone: "♈", desc_texto: "Moldura de chamas ardentes e chifres flamejantes." },
-  { id: "moldura_touro", nome: "Avatar: Touro (Natureza)", tipo: "moldura", preco: 800, icone: "♉", desc_texto: "Coroa de flores e vinhas esmeraldas." },
-  { id: "moldura_gemeos", nome: "Avatar: Gêmeos (Místico)", tipo: "moldura", preco: 800, icone: "♊", desc_texto: "Serpentes etéreas em tons de roxo e ciano." },
-  
-  // --- MOLDURAS CLÁSSICAS ---
-  { id: "moldura_ouro", nome: "Anel de Ouro", tipo: "moldura", preco: 150, icone: "👑", desc_texto: "Moldura dourada brilhante." },
-  { id: "moldura_neon", nome: "Glitch Neon", tipo: "moldura", preco: 250, icone: "👾", desc_texto: "Pulso cibernético rosa." },
-  { id: "moldura_choque", nome: "Raio Elétrico", tipo: "moldura", preco: 350, icone: "⚡", desc_texto: "Borda animada com alta voltagem." },
-  { id: "moldura_corrompida", nome: "Ouro Corrompido", tipo: "moldura", preco: 400, icone: "🪦", desc_texto: "Ouro escurecido escorrendo." },
-  { id: "moldura_vidro", nome: "Vidro Estilhaçado", tipo: "moldura", preco: 300, icone: "🪞", desc_texto: "Bordas quebradas refletindo luz." },
-  { id: "moldura_chamas", nome: "Chamas Negras", tipo: "moldura", preco: 500, icone: "🌘", desc_texto: "Fogo escuro consumindo a foto." },
-
-  // --- TÍTULOS ---
-  { id: "titulo_deus", nome: "Divindade Ancestral", tipo: "titulo", preco: 1000, icone: "🔱", desc_texto: "Texto brilhando como o sol." },
-  { id: "titulo_hacker", nome: "Cyber Hunter", tipo: "titulo", preco: 800, icone: "💻", desc_texto: "Efeito de texto glitch." },
-  { id: "titulo_arcoiris", nome: "Mestre das Cores", tipo: "titulo", preco: 900, icone: "🌈", desc_texto: "Texto gradiente animado." },
-  { id: "titulo_abismo", nome: "Senhor do Abismo", tipo: "titulo", preco: 1100, icone: "🕳️", desc_texto: "Texto sombrio e pulsante." },
-  { id: "titulo_anomalia", nome: "Anomalia do Sistema", tipo: "titulo", preco: 950, icone: "⚠️", desc_texto: "Texto trêmulo em vermelho." },
-  { id: "titulo_reliquias", nome: "Colecionador de Relíquias", tipo: "titulo", preco: 750, icone: "🏺", desc_texto: "Texto em ouro envelhecido." },
-
-  // --- CORES DE CHAT (GUILDA) ---
-  { id: "chat_cor_dourada", nome: "Texto Ouro Real", tipo: "chat_cor", preco: 400, icone: "📝", desc_texto: "Sua fonte no chat fica dourada." },
-  { id: "chat_cor_glitch", nome: "Texto Degradê Glitch", tipo: "chat_cor", preco: 550, icone: "📝", desc_texto: "Fonte com gradiente animado." },
-  { id: "chat_cor_sangue", nome: "Texto Sangrento", tipo: "chat_cor", preco: 450, icone: "📝", desc_texto: "Sua fonte fica em um tom carmesim." },
-  { id: "chat_cor_neon", nome: "Texto Neon Cyber", tipo: "chat_cor", preco: 500, icone: "📝", desc_texto: "Fonte brilhante e cibernética." },
-  { id: "chat_cor_fantasma", nome: "Texto Espectral", tipo: "chat_cor", preco: 350, icone: "📝", desc_texto: "Texto cinza claro levemente transparente." },
-
-  // --- BALÕES DE CHAT (GUILDA) ---
-  { id: "chat_balao_cyber", nome: "Balão Cibernético", tipo: "chat_balao", preco: 600, icone: "💬", desc_texto: "Fundo tecnológico para mensagens." },
-  { id: "chat_balao_rpg", nome: "Balão Pergaminho", tipo: "chat_balao", preco: 500, icone: "💬", desc_texto: "Estilo rústico de RPG de mesa." },
-  { id: "chat_balao_vidro", nome: "Balão Translúcido", tipo: "chat_balao", preco: 400, icone: "💬", desc_texto: "Vidro fumê refinado." },
-  { id: "chat_balao_toxico", nome: "Balão Tóxico", tipo: "chat_balao", preco: 700, icone: "💬", desc_texto: "Bordas verdes animadas." },
-  { id: "chat_balao_void", nome: "Balão do Vazio", tipo: "chat_balao", preco: 800, icone: "💬", desc_texto: "Fundo negro como o abismo." }
+  { id: "particula_fogo_cinematic", nome: "Fogueira Hunter", tipo: "particula", preco: 1800, icone: "🔥", desc_texto: "Fogueira real cinematográfica (VFX)." }
 ];
 
 export default function PerfilPage() {
@@ -92,7 +34,6 @@ export default function PerfilPage() {
   const [fazendoUpload, setFazendoUpload] = useState(false);
   const [esmolas, setEsmolas] = useState(0);
   
-  // Expandido para 6 missões (adicionado o Socializador)
   const [missoesProgresso, setMissoesProgresso] = useState<boolean[]>([false, false, false, false, false, false]);
   const [condicoesMissoes, setCondicoesMissoes] = useState<boolean[]>([true, false, false, false, false, false]); 
   
@@ -103,7 +44,6 @@ export default function PerfilPage() {
   const [stats, setStats] = useState({ obras: 0, caps: 0, finais: 0, horasVida: 0, favs: 0, filmes: 0, livros: 0 });
   const [elo, setElo] = useState({ tier: "BRONZE", cor: "from-orange-800 to-orange-500", glow: "shadow-orange-900/40" });
 
-  // ✅ NOVO ESTADO DA LOJA DINÂMICA
   const [lojaItens, setLojaItens] = useState<any[]>(LOJA_ITENS_FALLBACK);
 
   useEffect(() => {
@@ -113,14 +53,13 @@ export default function PerfilPage() {
       return; 
     }
     setUsuarioAtivo(hunter);
-    buscarItensLoja(); // ✅ Busca os itens assim que a página carrega
+    buscarItensLoja();
   }, []);
 
   useEffect(() => {
     if (usuarioAtivo) carregarDados();
   }, [usuarioAtivo]);
 
-  // ✅ FUNÇÃO PARA BUSCAR A LOJA DO BANCO DE DADOS
   async function buscarItensLoja() {
     try {
       const { data, error } = await supabase.from('loja_itens').select('*');
@@ -164,8 +103,6 @@ export default function PerfilPage() {
       else setElo({ tier: "BRONZE", cor: "from-orange-800 to-orange-500", glow: "shadow-orange-900/20" });
 
       const hoje = new Date().toISOString().split('T')[0];
-      
-      // Checa se o usuário farmou esmolas no chat hoje
       const chatFarm = p?.chat_farm_diario || { data: "", ganhos: 0 };
       const interagiuGuilda = chatFarm.data === hoje && chatFarm.ganhos > 0;
 
@@ -175,7 +112,7 @@ export default function PerfilPage() {
         (a || []).some(o => o.ultima_leitura?.startsWith(hoje)), 
         all.filter(o => o.ultima_leitura?.startsWith(hoje)).length >= 3, 
         all.filter(o => o.favorito).length >= 5,
-        interagiuGuilda // Condição da Missão
+        interagiuGuilda 
       ]);
     }
 
@@ -193,12 +130,10 @@ export default function PerfilPage() {
       setInventario(p.cosmeticos?.comprados || []);
       setEquipados(p.cosmeticos?.ativos || { moldura: "", particula: "", titulo: "", chat_cor: "", chat_balao: "" });
       
-      // ✅ RESET AUTOMÁTICO DAS MISSÕES DIÁRIAS
       const hoje = new Date().toISOString().split('T')[0];
       if (p.ultima_missao_data !== hoje) {
         const resetProgress = [false, false, false, false, false, false];
         setMissoesProgresso(resetProgress);
-        // Atualiza no banco silenciosamente
         supabase.from("perfis").update({ 
           missoes_progresso: resetProgress, 
           ultima_missao_data: hoje 
@@ -210,22 +145,17 @@ export default function PerfilPage() {
     setCarregando(false);
   }
 
-  // MOTOR DE UPLOAD PARA O SUPABASE STORAGE
   async function fazerUploadAvatar(event: any) {
     try {
       setFazendoUpload(true);
       const file = event.target.files[0];
       if (!file) throw new Error("Nenhuma imagem selecionada.");
-
       const fileExt = file.name.split('.').pop();
       const fileName = `${usuarioAtivo}-${Math.random()}.${fileExt}`;
       const filePath = `${fileName}`;
-
       const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file);
       if (uploadError) throw uploadError;
-
       const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
-      
       setDadosPerfil({ ...dadosPerfil, avatar: data.publicUrl });
       alert("✅ Imagem carregada! Não esqueça de clicar em 'Sincronizar Hunter' para salvar.");
     } catch (error: any) {
@@ -237,14 +167,11 @@ export default function PerfilPage() {
 
   async function completarMissao(index: number, recompensa: number) {
     if (missoesProgresso[index]) return; 
-    
     const nProg = [...missoesProgresso]; 
     nProg[index] = true; 
     const nSaldo = esmolas + recompensa;
-    
     setMissoesProgresso(nProg); 
     setEsmolas(nSaldo);
-    
     const hoje = new Date().toISOString().split('T')[0];
     await supabase.from("perfis").update({ 
       missoes_progresso: nProg, 
@@ -255,16 +182,13 @@ export default function PerfilPage() {
 
   async function comprarCosmetico(item: any) {
     if (esmolas < item.preco) return alert("❌ Esmolas insuficientes!");
-    
     if (confirm(`Comprar ${item.nome}?`)) {
       const nSaldo = esmolas - item.preco; 
       const nInv = [...inventario, item.id];
-      
       await supabase.from("perfis").update({ 
         esmolas: nSaldo, 
         cosmeticos: { comprados: nInv, ativos: equipados } 
       }).eq("nome_original", usuarioAtivo);
-      
       setEsmolas(nSaldo); 
       setInventario(nInv);
     }
@@ -272,12 +196,13 @@ export default function PerfilPage() {
 
   async function equiparCosmetico(item: any) {
     const nEquip = { ...equipados, [item.tipo]: equipados[item.tipo] === item.id ? "" : item.id };
-    
     await supabase.from("perfis").update({ 
       cosmeticos: { comprados: inventario, ativos: nEquip } 
     }).eq("nome_original", usuarioAtivo);
-    
     setEquipados(nEquip);
+
+    // ✅ DISPARA SINAL GLOBAL PARA O LAYOUT ATUALIZAR O FUNDO
+    window.dispatchEvent(new Event("hunter_cosmeticos_update"));
   }
 
   async function atualizarPerfil() {
@@ -288,7 +213,6 @@ export default function PerfilPage() {
       custom_color: dadosPerfil.custom_color, 
       pin: dadosPerfil.pin 
     }).eq("nome_original", usuarioAtivo);
-    
     alert("✨ Hunter Sincronizado!");
   }
 
@@ -297,23 +221,18 @@ export default function PerfilPage() {
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); 
-    a.href = url; 
-    a.download = `backup_${usuarioAtivo}.json`; 
-    a.click();
+    a.href = url; a.download = `backup_${usuarioAtivo}.json`; a.click();
   }
 
   async function importarJSON(e: any) {
     const file = e.target.files[0];
     if (!file) return;
-    
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
         const json = JSON.parse(event.target?.result as string);
         alert(`Backup de ${json.hunter} detectado!`);
-      } catch { 
-        alert("Erro ao ler JSON."); 
-      }
+      } catch { alert("Erro ao ler JSON."); }
     };
     reader.readAsText(file);
   }
@@ -323,7 +242,6 @@ export default function PerfilPage() {
   const listaTrofeus = Array.from({ length: 85 }, (_, i) => {
     const id = i + 1; 
     let check = false;
-    
     if (id <= 50) {
       if (id === 1) check = stats.obras >= 1;
       else if (id === 2) check = stats.obras >= 10;
@@ -336,7 +254,6 @@ export default function PerfilPage() {
     } else {
       check = stats.livros >= ((id - 70) * 5);
     }
-    
     return { id, nome: `Hunter ${id}`, icone: iconesTrofeus[i], check };
   });
 
@@ -350,23 +267,14 @@ export default function PerfilPage() {
   ];
 
   const aura = dadosPerfil.tema === "custom" ? TEMAS.custom : (TEMAS[dadosPerfil.tema as keyof typeof TEMAS] || TEMAS.azul);
-
-  // ✅ PREPARATIVOS PARA AS IMAGENS E VÍDEOS PERSONALIZADOS
   const molduraEquipadaItem = lojaItens.find(item => item.id === equipados.moldura);
   const imagemMolduraUrl = molduraEquipadaItem?.imagem_url && !molduraEquipadaItem.imagem_url.includes('.mp4') && !molduraEquipadaItem.imagem_url.includes('.webm') ? molduraEquipadaItem.imagem_url : null;
-
-  const particulaEquipadaItem = lojaItens.find(item => item.id === equipados.particula);
-  const vfxUrlPersonalizado = particulaEquipadaItem?.imagem_url && (particulaEquipadaItem.imagem_url.includes('.mp4') || particulaEquipadaItem.imagem_url.includes('.webm')|| 
-    particulaEquipadaItem.imagem_url.includes('.gif')) ? particulaEquipadaItem.imagem_url : undefined;
 
   if (carregando) return <div className="min-h-screen bg-[#040405] flex items-center justify-center text-white italic animate-pulse">SINCRONIZANDO HUB...</div>;
 
   return (
-    <main className="min-h-screen bg-[#040405] flex flex-col items-center justify-center p-6 relative overflow-hidden" style={{ "--aura": dadosPerfil.custom_color } as any}>
+    <main className="min-h-screen bg-transparent flex flex-col items-center justify-center p-6 relative overflow-hidden" style={{ "--aura": dadosPerfil.custom_color } as any}>
       
-      {/* ✅ INJETANDO O VFX URL SE FOR DO BANCO DE DADOS */}
-      <EfeitosVisuais particula={equipados.particula} urlVfx={vfxUrlPersonalizado} />
-
       <div className="fixed top-0 left-0 w-full p-10 flex justify-between items-center z-[110] pointer-events-none">
         <Link href="/" className="pointer-events-auto bg-black/50 px-6 py-3 rounded-2xl border border-white/5 text-[10px] font-black uppercase text-zinc-500 hover:text-white transition-all">← Voltar</Link>
         <button onClick={() => setTelaCheia(!telaCheia)} className="pointer-events-auto text-[10px] font-black uppercase bg-zinc-900/90 px-4 py-2 rounded-xl border border-zinc-800 text-zinc-400 hover:text-white transition-all">{telaCheia ? "⊙ Central" : "⛶ Tela Cheia"}</button>
@@ -379,13 +287,10 @@ export default function PerfilPage() {
           <span className="text-white font-black">{esmolas}</span>
         </div>
 
-        {/* ✅ FIX 1: AVATAR MOLDURA COM REDIMENSIONAMENTO AUTOMÁTICO `w-[140%]` e `max-w-none` evitam o esmagamento! */}
         <div className="relative mt-4 mb-2 flex items-center justify-center w-28 h-28 shrink-0">
-          
           {imagemMolduraUrl && (
             <img src={imagemMolduraUrl} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-[140%] h-[140%] max-w-none object-contain pointer-events-none" alt="Moldura PNG" />
           )}
-          
           <div className={`w-28 h-28 bg-zinc-950 rounded-[2.5rem] overflow-hidden flex items-center justify-center relative z-10 
             ${!MOLDURAS_DISCORD[equipados.moldura] && !imagemMolduraUrl ? 'border-2 ' + aura.border + ' ' + elo.glow : ''} 
             ${MOLDURAS_DISCORD[equipados.moldura] || (!imagemMolduraUrl ? equipados.moldura : '')}
@@ -396,7 +301,6 @@ export default function PerfilPage() {
 
         <h1 className="text-3xl font-black text-white uppercase italic mt-6 mb-1">{dadosPerfil.nome}</h1>
         
-        {/* ✅ FIX 3: TÍTULOS COM ANIMAÇÕES SALVAS NO BANCO */}
         {equipados.titulo && (
           <p className={`text-[10px] font-black uppercase tracking-[0.3em] mb-2 drop-shadow-md ${lojaItens.find(i => i.id === equipados.titulo)?.imagem_url || equipados.titulo}`}>
             « {lojaItens.find(i => i.id === equipados.titulo)?.nome.replace("Título: ", "")} »
@@ -475,12 +379,9 @@ export default function PerfilPage() {
               {lojaItens.map(item => {
                 const comprado = inventario.includes(item.id); 
                 const equipado = equipados[item.tipo] === item.id;
-                
                 return (
                   <div key={item.id} className={`p-4 rounded-3xl border flex flex-col gap-4 ${comprado ? 'bg-zinc-900 border-zinc-700' : 'bg-black/50 border-zinc-800'}`}>
                     <div className="flex items-center gap-4">
-                      
-                      {/* Se for imagem PNG exibe normal. Ignora MP4/WEBM e Títulos aqui na foto */}
                       {item.imagem_url && !item.imagem_url.includes('.mp4') && !item.imagem_url.includes('.webm') && item.tipo !== 'titulo' ? (
                         <div className="w-14 h-14 bg-zinc-950 p-2 rounded-2xl border border-white/5 flex items-center justify-center">
                           <img src={item.imagem_url} alt={item.nome} className="w-full h-full object-contain" />
@@ -488,14 +389,11 @@ export default function PerfilPage() {
                       ) : (
                         <span className="text-3xl bg-zinc-950 p-4 rounded-2xl border border-white/5">{item.icone}</span>
                       )}
-
                       <div>
-                        {/* Se for título, renderiza a classe dinâmica para preview */}
                         <p className={`font-black uppercase text-[10px] ${item.tipo === 'titulo' && item.imagem_url ? item.imagem_url : 'text-white'}`}>{item.nome}</p>
                         <p className="text-[7px] text-zinc-500 uppercase">{item.tipo}</p>
                       </div>
                     </div>
-                    
                     {!comprado ? (
                       <button onClick={() => comprarCosmetico(item)} className="w-full py-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 font-black text-[9px] uppercase">
                         Comprar ({item.preco} 🪙)
@@ -516,25 +414,17 @@ export default function PerfilPage() {
               <button onClick={atualizarPerfil} className={`w-full py-5 rounded-xl font-black text-[12px] uppercase shadow-xl ${aura.btn}`}>
                 💾 Sincronizar Hunter
               </button>
-              
               <input type="text" placeholder="Nome Hunter" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold outline-none" value={dadosPerfil.nome} onChange={e => setDadosPerfil({...dadosPerfil, nome: e.target.value})} />
-              
               <div className="flex gap-3">
                 <input type="text" placeholder="Avatar URL" className="flex-1 bg-black border border-white/5 p-4 rounded-xl text-white text-xs outline-none" value={dadosPerfil.avatar} onChange={e => setDadosPerfil({...dadosPerfil, avatar: e.target.value})} />
-                
                 <label className={`flex items-center justify-center px-4 rounded-xl font-black uppercase text-[9px] cursor-pointer transition-all border ${fazendoUpload ? 'bg-zinc-800 text-zinc-500 border-zinc-700' : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:text-white'}`}>
                   {fazendoUpload ? "⏳..." : "⬆️ Upar do PC"}
                   <input type="file" accept="image/*" className="hidden" onChange={fazerUploadAvatar} disabled={fazendoUpload} />
                 </label>
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <select className="bg-black border border-white/5 p-4 rounded-xl text-white font-bold uppercase text-[10px]" value={dadosPerfil.tema} onChange={e => setDadosPerfil({...dadosPerfil, tema: e.target.value})}>
-                   <option value="azul">Azul Néon</option>
-                   <option value="verde">Verde Hacker</option>
-                   <option value="roxo">Roxo Galático</option>
-                   <option value="laranja">Laranja Fogo</option>
-                   <option value="custom">Personalizada</option>
+                   <option value="azul">Azul Néon</option><option value="verde">Verde Hacker</option><option value="roxo">Roxo Galático</option><option value="laranja">Laranja Fogo</option><option value="custom">Personalizada</option>
                 </select>
                 <input type="password" placeholder="PIN Hunter (4 dígitos)" maxLength={4} className="bg-black border border-white/5 p-4 rounded-xl text-white font-bold text-center tracking-[0.5em]" value={dadosPerfil.pin} onChange={e => setDadosPerfil({...dadosPerfil, pin: e.target.value})} />
               </div>
@@ -544,16 +434,10 @@ export default function PerfilPage() {
 
         <div className="w-full flex flex-col gap-3 mt-8 relative z-20">
           <div className="grid grid-cols-2 gap-3">
-             <button onClick={exportarBiblioteca} className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase text-zinc-500 hover:text-white transition-all">
-               💾 Exportar
-             </button>
-             <label className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase text-zinc-500 flex items-center justify-center cursor-pointer hover:text-white">
-               📥 Importar <input type="file" accept=".json" className="hidden" onChange={importarJSON} />
-             </label>
+             <button onClick={exportarBiblioteca} className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase text-zinc-500 hover:text-white transition-all">💾 Exportar</button>
+             <label className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase text-zinc-500 flex items-center justify-center cursor-pointer hover:text-white">📥 Importar <input type="file" accept=".json" className="hidden" onChange={importarJSON} /></label>
           </div>
-          <button onClick={() => { sessionStorage.removeItem('hunter_ativo'); window.location.href = '/'; }} className="w-full py-3 text-[8px] font-black text-zinc-700 hover:text-red-500 uppercase tracking-[0.3em] transition-all">
-            Encerrar Sessão
-          </button>
+          <button onClick={() => { sessionStorage.removeItem('hunter_ativo'); window.location.href = '/'; }} className="w-full py-3 text-[8px] font-black text-zinc-700 hover:text-red-500 uppercase tracking-[0.3em] transition-all">Encerrar Sessão</button>
         </div>
       </div>
     </main>
