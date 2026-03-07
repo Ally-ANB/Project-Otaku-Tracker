@@ -206,14 +206,16 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
       const fileName = `item-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      // ⚠️ ASSUMIMOS QUE EXISTE UM BUCKET 'cosmeticos'. SE NÃO EXISTIR, MUDE AQUI PARA 'avatars'
-      const { error: uploadError } = await supabase.storage.from('cosmeticos').upload(filePath, file);
+      // ✅ ROTEAMENTO INTELIGENTE DE BUCKET (Se for partícula, vai pro 'vfx'. Senão, 'cosmeticos')
+      const bucketAlvo = formLoja.tipo === 'particula' ? 'vfx' : 'cosmeticos';
+      
+      const { error: uploadError } = await supabase.storage.from(bucketAlvo).upload(filePath, file);
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage.from('cosmeticos').getPublicUrl(filePath);
+      const { data } = supabase.storage.from(bucketAlvo).getPublicUrl(filePath);
       
       setFormLoja({ ...formLoja, imagem_url: data.publicUrl });
-      alert("✅ Arquivo enviado! Salve o item para confirmar.");
+      alert(`✅ Arquivo enviado com sucesso para o bucket [${bucketAlvo}]! Salve o item para confirmar.`);
     } catch (error: any) {
       alert("❌ Erro no upload: " + error.message);
     } finally {
@@ -549,8 +551,8 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
                     
                     <label className={`flex items-center justify-center px-4 rounded-xl font-black uppercase text-[9px] cursor-pointer transition-all border ${fazendoUploadLoja ? 'bg-zinc-800 text-zinc-500 border-zinc-700' : 'bg-purple-600/20 text-purple-400 border-purple-500/30 hover:bg-purple-600 hover:text-white'}`}>
                       {fazendoUploadLoja ? "⏳..." : "⬆️ Upar do PC"}
-                      {/* ✅ ACEITANDO ARQUIVOS DE VÍDEO AGORA */}
-                      <input type="file" accept="image/*, video/mp4, video/webm" className="hidden" onChange={uploadImagemLoja} disabled={fazendoUploadLoja} />
+                      {/* ✅ MUDANÇA: ACEITANDO ARQUIVOS DE VÍDEO E GIF AGORA */}
+                      <input type="file" accept="image/*, image/gif, video/mp4, video/webm" className="hidden" onChange={uploadImagemLoja} disabled={fazendoUploadLoja} />
                     </label>
                   </div>
                   {!formLoja.imagem_url && (
