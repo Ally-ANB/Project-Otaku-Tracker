@@ -3,6 +3,8 @@
 import { supabase } from "../supabase";
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+// ✅ IMPORTANDO AS MOLDURAS DIRETAMENTE DO PERFIL PARA USAR NA GUILDA
+import { MOLDURAS_DISCORD } from "../perfil/page";
 
 // ==========================================
 // 🎨 DICIONÁRIO DE COSMÉTICOS DO CHAT
@@ -288,8 +290,11 @@ export default function GuildaPage() {
             <div className="space-y-4 overflow-y-auto custom-scrollbar max-h-[60vh] pr-2">
               {perfis.map(p => (
                 <div key={p.nome_original} className="flex items-center gap-4 bg-black/40 p-3 rounded-2xl border border-white/5">
-                  <div className="w-10 h-10 rounded-xl overflow-hidden bg-zinc-900 flex items-center justify-center text-xl shrink-0 border border-white/10">
-                    {p.avatar?.startsWith('http') ? <img src={p.avatar} className="w-full h-full object-cover" /> : <span>{p.avatar}</span>}
+                  {/* ✅ AVATARES DA LISTA DE HUNTERS COM MOLDURAS */}
+                  <div className="relative shrink-0">
+                    <div className={`w-10 h-10 rounded-[1rem] overflow-hidden bg-zinc-900 flex items-center justify-center text-xl relative z-10 ${!MOLDURAS_DISCORD[p.cosmeticos?.ativos?.moldura || ""] ? "border border-white/10" : ""} ${MOLDURAS_DISCORD[p.cosmeticos?.ativos?.moldura || ""] || ""}`}>
+                      {p.avatar?.startsWith('http') ? <img src={p.avatar} className="w-full h-full object-cover" /> : <span>{p.avatar}</span>}
+                    </div>
                   </div>
                   <div className="overflow-hidden">
                     <p className={`font-black text-xs truncate ${p.cor_tema?.startsWith('#') ? '' : getCor(p.nome_original)}`} style={p.cor_tema?.startsWith('#') ? { color: p.cor_tema } : {}}>{p.nome_exibicao}</p>
@@ -310,42 +315,71 @@ export default function GuildaPage() {
           {/* ----------------- ABA 1: CHAT GLOBAL ----------------- */}
           {abaAtiva === "CHAT" && (
             <div className="flex flex-col h-full flex-1 min-h-0">
-              <div ref={scrollRef} className="flex-1 p-8 overflow-y-auto custom-scrollbar flex flex-col gap-6">
+              <div ref={scrollRef} className="flex-1 p-8 overflow-y-auto custom-scrollbar flex flex-col gap-1">
                 {mensagens.length === 0 ? (
                   <div className="flex-1 flex items-center justify-center text-zinc-600 font-bold uppercase text-xs tracking-widest italic">O mural está silencioso...</div>
                 ) : (
-                  mensagens.map(msg => {
-                    const isMe = msg.usuario === usuarioAtivo;
+                  mensagens.map((msg, index) => {
                     const autorPerfil = perfis.find(p => p.nome_original === msg.usuario);
                     
                     const corAtiva = autorPerfil?.cosmeticos?.ativos?.chat_cor;
                     const balaoAtivo = autorPerfil?.cosmeticos?.ativos?.chat_balao;
                     
                     const classeTexto = corAtiva && CORES_CHAT[corAtiva] ? CORES_CHAT[corAtiva] : "text-zinc-300";
-                    const classeBalao = balaoAtivo && BALOES_CHAT[balaoAtivo] 
-                      ? BALOES_CHAT[balaoAtivo] 
-                      : (isMe ? 'bg-blue-600/10 border-blue-500/20 rounded-tr-sm' : 'bg-zinc-900 border-zinc-800 rounded-tl-sm');
+                    // ✅ O Chat base ganha estilo invisível (bg-transparent) como no Discord
+                    const classeBalao = balaoAtivo && BALOES_CHAT[balaoAtivo] ? BALOES_CHAT[balaoAtivo] : "hover:bg-white/5 bg-transparent";
+
+                    // ✅ LÓGICA DE AGRUPAMENTO DE MENSAGENS (ESTILO DISCORD)
+                    let mostrarCabecalho = true;
+                    if (index > 0) {
+                      const prevMsg = mensagens[index - 1];
+                      const diffTime = new Date(msg.criado_em).getTime() - new Date(prevMsg.criado_em).getTime();
+                      
+                      // Se for o mesmo usuário e a mensagem anterior foi a menos de 5 minutos, agrupa
+                      if (prevMsg.usuario === msg.usuario && diffTime < 300000) {
+                        mostrarCabecalho = false;
+                      }
+                    }
 
                     return (
-                      <div key={msg.id} className={`flex gap-4 max-w-[80%] ${isMe ? 'self-end flex-row-reverse' : 'self-start'}`}>
-                        <div className="w-8 h-8 rounded-lg overflow-hidden bg-zinc-900 shrink-0 flex items-center justify-center text-sm border border-zinc-800 mt-1">
-                          {getAvatar(msg.usuario)?.startsWith('http') ? <img src={getAvatar(msg.usuario)} className="w-full h-full object-cover" /> : <span>{getAvatar(msg.usuario)}</span>}
+                      <div key={msg.id} className={`flex gap-4 items-start w-full px-4 py-1 transition-all rounded-lg ${mostrarCabecalho ? 'mt-4' : 'mt-0'} ${classeBalao.includes('bg-transparent') ? classeBalao : 'p-3 ' + classeBalao}`}>
+                        
+                        {/* Avatar com Moldura */}
+                        <div className="w-10 shrink-0 flex justify-center mt-1">
+                          {mostrarCabecalho ? (
+                            <div className="relative">
+                              <div className={`w-10 h-10 rounded-[1rem] overflow-hidden bg-zinc-900 flex items-center justify-center text-sm relative z-10 ${MOLDURAS_DISCORD[autorPerfil?.cosmeticos?.ativos?.moldura || ""] || ""}`}>
+                                {getAvatar(msg.usuario)?.startsWith('http') ? <img src={getAvatar(msg.usuario)} className="w-full h-full object-cover" /> : <span>{getAvatar(msg.usuario)}</span>}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="w-10" /> // Espaçador invisível para manter as mensagens alinhadas
+                          )}
                         </div>
-                        <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                          <div className="flex items-baseline gap-2 mb-1">
-                            <span className={`text-[10px] font-black uppercase ${getCor(msg.usuario)}`}>{msg.usuario}</span>
-                            <span className="text-[8px] text-zinc-600 font-bold">{formatarHora(msg.criado_em)}</span>
-                          </div>
+
+                        <div className="flex flex-col w-full">
+                          {/* Nome e Hora (Só exibe se não for agrupada) */}
+                          {mostrarCabecalho && (
+                            <div className="flex items-baseline gap-2 mb-1">
+                              <span className={`text-[12px] font-black uppercase ${getCor(msg.usuario)}`}>
+                                {autorPerfil?.nome_exibicao || msg.usuario}
+                              </span>
+                              <span className="text-[10px] text-zinc-600 font-bold">
+                                {formatarHora(msg.criado_em)}
+                              </span>
+                            </div>
+                          )}
                           
-                          <div className={`p-4 rounded-2xl text-sm leading-relaxed border ${classeBalao}`}>
+                          {/* Mensagem ou Figurinha */}
+                          <div className="text-sm leading-relaxed">
                             {msg.tipo === "figurinha" ? (
-                              <img src={msg.mensagem} alt="Figurinha" className="max-w-[150px] max-h-[150px] rounded-lg object-contain" />
+                              <img src={msg.mensagem} alt="Figurinha" className="max-w-[150px] max-h-[150px] rounded-lg object-contain mt-1" />
                             ) : (
                               <span className={classeTexto}>{msg.mensagem}</span>
                             )}
                           </div>
-                          
                         </div>
+
                       </div>
                     );
                   })
@@ -392,7 +426,7 @@ export default function GuildaPage() {
                     🌠
                   </button>
                   <input 
-                    type="text" placeholder="Deixe uma mensagem..." 
+                    type="text" placeholder="Conversar na Guilda..." 
                     className="flex-1 bg-zinc-950 border border-zinc-800 p-5 rounded-2xl outline-none text-white text-sm focus:border-blue-500/50 transition-all"
                     value={novaMensagem} onChange={e => setNovaMensagem(e.target.value)} maxLength={250}
                   />
@@ -433,9 +467,12 @@ export default function GuildaPage() {
                       <div key={hunter.nome_original} className={`flex items-center justify-between p-5 rounded-3xl border transition-all ${isTop1 ? 'bg-yellow-900/10 border-yellow-500/50 shadow-[0_0_30px_rgba(234,179,8,0.1)]' : isTop2 ? 'bg-zinc-800/20 border-zinc-400/50' : isTop3 ? 'bg-orange-900/10 border-orange-700/50' : 'bg-zinc-900/30 border-zinc-800'}`}>
                         <div className="flex items-center gap-6">
                           <span className={`text-3xl font-black italic w-10 text-center ${isTop1 ? 'text-yellow-500 drop-shadow-md' : isTop2 ? 'text-zinc-300' : isTop3 ? 'text-orange-500' : 'text-zinc-600'}`}>#{index + 1}</span>
-                          <div className="w-14 h-14 rounded-2xl overflow-hidden bg-zinc-950 flex items-center justify-center text-2xl border border-white/10 shrink-0">
+                          
+                          {/* ✅ AVATARES DO RANKING COM MOLDURAS */}
+                          <div className={`w-14 h-14 rounded-[1.5rem] overflow-hidden bg-zinc-950 flex items-center justify-center text-2xl relative z-10 ${!MOLDURAS_DISCORD[hunter.cosmeticos?.ativos?.moldura || ""] ? "border border-white/10" : ""} ${MOLDURAS_DISCORD[hunter.cosmeticos?.ativos?.moldura || ""] || ""}`}>
                             {hunter.avatar?.startsWith('http') ? <img src={hunter.avatar} className="w-full h-full object-cover" /> : <span>{hunter.avatar}</span>}
                           </div>
+
                           <div>
                             <p className="font-black text-lg uppercase flex items-center gap-2">{hunter.nome_exibicao} {isTop1 || isTop2 || isTop3 ? <span className="text-xl">{medalha}</span> : ""}</p>
                             <p className="text-[9px] text-zinc-500 uppercase tracking-widest mt-1">RANK: <span className="text-white">{hunter.elo}</span></p>

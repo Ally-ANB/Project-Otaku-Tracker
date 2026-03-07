@@ -13,6 +13,14 @@ const TEMAS = {
   custom: { bg: "bg-[var(--aura)]", text: "text-[var(--aura)]", border: "border-[var(--aura)]", glow: "shadow-[var(--aura)]/20", btn: "bg-[var(--aura)]/10 border-[var(--aura)]/50 hover:bg-[var(--aura)] hover:text-black" }
 };
 
+// ✅ Classes CSS Complexas para as Molduras "Discord Style"
+export const MOLDURAS_DISCORD: any = {
+  moldura_aries: "ring-4 ring-orange-500 shadow-[0_0_30px_rgba(249,115,22,0.8)] after:content-[''] after:absolute after:-inset-3 after:border-[4px] after:border-t-red-500 after:border-b-orange-500 after:border-transparent after:rounded-[2.5rem] after:animate-spin-slow",
+  moldura_touro: "ring-4 ring-green-400 shadow-[0_0_20px_rgba(74,222,128,0.6)] after:content-[''] after:absolute after:-inset-2 after:border-2 after:border-green-300 after:rounded-[2.5rem] after:rotate-45",
+  moldura_gemeos: "ring-4 ring-purple-500 shadow-[0_0_25px_rgba(168,85,247,0.7)] after:content-[''] after:absolute after:-inset-4 after:bg-gradient-to-r after:from-cyan-400/20 after:to-purple-500/20 after:rounded-[2.5rem] after:animate-pulse",
+  moldura_choque: "ring-2 ring-yellow-400 border-dashed animate-pulse shadow-[0_0_15px_rgba(250,204,21,0.5)]"
+};
+
 const LOJA_ITENS = [
   // --- VFX ELITE (VÍDEOS) ---
   { id: "particula_fogo_vfx", nome: "Chamas Infernais", tipo: "particula", preco: 1200, icone: "♨️", desc: "Fogo real gravado em alta definição (VFX)." },
@@ -39,7 +47,12 @@ const LOJA_ITENS = [
   { id: "particula_outono", nome: "Folhas de Outono", tipo: "particula", preco: 400, icone: "🍁", desc: "Folhas alaranjadas caindo calmamente." },
   { id: "particula_inverno", nome: "Inverno Rigoroso", tipo: "particula", preco: 450, icone: "⛄", desc: "Neve densa caindo sobre a tela." },
 
-  // --- MOLDURAS ---
+  // --- MOLDURAS PREMIUM (ESTILO DISCORD) ---
+  { id: "moldura_aries", nome: "Avatar: Áries (Fogo)", tipo: "moldura", preco: 800, icone: "♈", desc: "Moldura de chamas ardentes e chifres flamejantes." },
+  { id: "moldura_touro", nome: "Avatar: Touro (Natureza)", tipo: "moldura", preco: 800, icone: "♉", desc: "Coroa de flores e vinhas esmeraldas." },
+  { id: "moldura_gemeos", nome: "Avatar: Gêmeos (Místico)", tipo: "moldura", preco: 800, icone: "♊", desc: "Serpentes etéreas em tons de roxo e ciano." },
+  
+  // --- MOLDURAS CLÁSSICAS ---
   { id: "moldura_ouro", nome: "Anel de Ouro", tipo: "moldura", preco: 150, icone: "👑", desc: "Moldura dourada brilhante." },
   { id: "moldura_neon", nome: "Glitch Neon", tipo: "moldura", preco: 250, icone: "👾", desc: "Pulso cibernético rosa." },
   { id: "moldura_choque", nome: "Raio Elétrico", tipo: "moldura", preco: 350, icone: "⚡", desc: "Borda animada com alta voltagem." },
@@ -77,11 +90,12 @@ export default function PerfilPage() {
   const [carregando, setCarregando] = useState(true);
   const [fazendoUpload, setFazendoUpload] = useState(false);
   const [esmolas, setEsmolas] = useState(0);
-  // ✅ Expandido para 6 missões (adicionado o Socializador)
+  
+  // Expandido para 6 missões (adicionado o Socializador)
   const [missoesProgresso, setMissoesProgresso] = useState<boolean[]>([false, false, false, false, false, false]);
   const [condicoesMissoes, setCondicoesMissoes] = useState<boolean[]>([true, false, false, false, false, false]); 
+  
   const [inventario, setInventario] = useState<string[]>([]);
-  // ✅ Incluídos os novos slots para o chat
   const [equipados, setEquipados] = useState<Record<string, string>>({ moldura: "", particula: "", titulo: "", chat_cor: "", chat_balao: "" });
   const [dadosPerfil, setDadosPerfil] = useState({ nome: "", avatar: "", bio: "", tema: "azul", custom_color: "#3b82f6", pin: "", anilist_token: "" });
   const [obrasUsuario, setObrasUsuario] = useState<any[]>([]);
@@ -90,7 +104,10 @@ export default function PerfilPage() {
 
   useEffect(() => {
     const hunter = sessionStorage.getItem("hunter_ativo");
-    if (!hunter) { window.location.href = '/'; return; }
+    if (!hunter) { 
+      window.location.href = '/'; 
+      return; 
+    }
     setUsuarioAtivo(hunter);
   }, []);
 
@@ -108,12 +125,20 @@ export default function PerfilPage() {
     if (m || a || f || l) {
       const all = [...(m || []), ...(a || []), ...(f || []), ...(l || [])];
       setObrasUsuario(all);
+      
       const epsVistos = (a || []).reduce((acc, obj) => acc + (obj.capitulo_atual || 0), 0);
       const minFilmes = (f || []).filter(obj => obj.status === "Completos").length * 120;
+      
       setStats({
-        obras: all.length, caps: all.reduce((acc, obj) => acc + (obj.capitulo_atual || 0), 0), finais: all.filter(obj => obj.status === "Completos").length,
-        horasVida: Math.floor(((epsVistos * 23) + minFilmes) / 60), favs: all.filter(o => o.favorito).length, filmes: (f || []).length, livros: (l || []).length
+        obras: all.length, 
+        caps: all.reduce((acc, obj) => acc + (obj.capitulo_atual || 0), 0), 
+        finais: all.filter(obj => obj.status === "Completos").length,
+        horasVida: Math.floor(((epsVistos * 23) + minFilmes) / 60), 
+        favs: all.filter(o => o.favorito).length, 
+        filmes: (f || []).length, 
+        livros: (l || []).length
       });
+      
       const t = all.length;
       if (t >= 1000) setElo({ tier: "DIVINDADE", cor: "from-white via-cyan-200 to-white", glow: "shadow-white/60 shadow-[0_0_40px_white]" });
       else if (t >= 500) setElo({ tier: "DESAFIANTE", cor: "from-red-600 via-purple-600 to-blue-600", glow: "shadow-purple-500/40" });
@@ -133,22 +158,42 @@ export default function PerfilPage() {
         (a || []).some(o => o.ultima_leitura?.startsWith(hoje)), 
         all.filter(o => o.ultima_leitura?.startsWith(hoje)).length >= 3, 
         all.filter(o => o.favorito).length >= 5,
-        interagiuGuilda // ✅ Nova Condição da Missão
+        interagiuGuilda // Condição da Missão
       ]);
     }
 
     if (p) {
-      setDadosPerfil({ nome: p.nome_exibicao || usuarioAtivo!, avatar: p.avatar || "👤", bio: p.bio || "", tema: p.cor_tema || "azul", custom_color: p.custom_color || "#3b82f6", pin: p.pin || "", anilist_token: p.anilist_token || "" });
+      setDadosPerfil({ 
+        nome: p.nome_exibicao || usuarioAtivo!, 
+        avatar: p.avatar || "👤", 
+        bio: p.bio || "", 
+        tema: p.cor_tema || "azul", 
+        custom_color: p.custom_color || "#3b82f6", 
+        pin: p.pin || "", 
+        anilist_token: p.anilist_token || "" 
+      });
       setEsmolas(p.esmolas || 0);
       setInventario(p.cosmeticos?.comprados || []);
-      // ✅ Atualiza estado para garantir que as keys novas existam no objeto
       setEquipados(p.cosmeticos?.ativos || { moldura: "", particula: "", titulo: "", chat_cor: "", chat_balao: "" });
-      setMissoesProgresso(p.missoes_progresso || [false, false, false, false, false, false]);
+      
+      // ✅ RESET AUTOMÁTICO DAS MISSÕES DIÁRIAS
+      const hoje = new Date().toISOString().split('T')[0];
+      if (p.ultima_missao_data !== hoje) {
+        const resetProgress = [false, false, false, false, false, false];
+        setMissoesProgresso(resetProgress);
+        // Atualiza no banco silenciosamente
+        supabase.from("perfis").update({ 
+          missoes_progresso: resetProgress, 
+          ultima_missao_data: hoje 
+        }).eq("nome_original", usuarioAtivo);
+      } else {
+        setMissoesProgresso(p.missoes_progresso || [false, false, false, false, false, false]);
+      }
     }
     setCarregando(false);
   }
 
-  // ✅ MOTOR DE UPLOAD PARA O SUPABASE STORAGE
+  // MOTOR DE UPLOAD PARA O SUPABASE STORAGE
   async function fazerUploadAvatar(event: any) {
     try {
       setFazendoUpload(true);
@@ -175,28 +220,58 @@ export default function PerfilPage() {
 
   async function completarMissao(index: number, recompensa: number) {
     if (missoesProgresso[index]) return; 
-    const nProg = [...missoesProgresso]; nProg[index] = true; const nSaldo = esmolas + recompensa;
-    setMissoesProgresso(nProg); setEsmolas(nSaldo);
-    await supabase.from("perfis").update({ missoes_progresso: nProg, esmolas: nSaldo }).eq("nome_original", usuarioAtivo);
+    
+    const nProg = [...missoesProgresso]; 
+    nProg[index] = true; 
+    const nSaldo = esmolas + recompensa;
+    
+    setMissoesProgresso(nProg); 
+    setEsmolas(nSaldo);
+    
+    const hoje = new Date().toISOString().split('T')[0];
+    await supabase.from("perfis").update({ 
+      missoes_progresso: nProg, 
+      esmolas: nSaldo,
+      ultima_missao_data: hoje
+    }).eq("nome_original", usuarioAtivo);
   }
 
   async function comprarCosmetico(item: any) {
     if (esmolas < item.preco) return alert("❌ Esmolas insuficientes!");
+    
     if (confirm(`Comprar ${item.nome}?`)) {
-      const nSaldo = esmolas - item.preco; const nInv = [...inventario, item.id];
-      await supabase.from("perfis").update({ esmolas: nSaldo, cosmeticos: { comprados: nInv, ativos: equipados } }).eq("nome_original", usuarioAtivo);
-      setEsmolas(nSaldo); setInventario(nInv);
+      const nSaldo = esmolas - item.preco; 
+      const nInv = [...inventario, item.id];
+      
+      await supabase.from("perfis").update({ 
+        esmolas: nSaldo, 
+        cosmeticos: { comprados: nInv, ativos: equipados } 
+      }).eq("nome_original", usuarioAtivo);
+      
+      setEsmolas(nSaldo); 
+      setInventario(nInv);
     }
   }
 
   async function equiparCosmetico(item: any) {
     const nEquip = { ...equipados, [item.tipo]: equipados[item.tipo] === item.id ? "" : item.id };
-    await supabase.from("perfis").update({ cosmeticos: { comprados: inventario, ativos: nEquip } }).eq("nome_original", usuarioAtivo);
+    
+    await supabase.from("perfis").update({ 
+      cosmeticos: { comprados: inventario, ativos: nEquip } 
+    }).eq("nome_original", usuarioAtivo);
+    
     setEquipados(nEquip);
   }
 
   async function atualizarPerfil() {
-    await supabase.from("perfis").update({ nome_exibicao: dadosPerfil.nome, avatar: dadosPerfil.avatar, cor_tema: dadosPerfil.tema, custom_color: dadosPerfil.custom_color, pin: dadosPerfil.pin }).eq("nome_original", usuarioAtivo);
+    await supabase.from("perfis").update({ 
+      nome_exibicao: dadosPerfil.nome, 
+      avatar: dadosPerfil.avatar, 
+      cor_tema: dadosPerfil.tema, 
+      custom_color: dadosPerfil.custom_color, 
+      pin: dadosPerfil.pin 
+    }).eq("nome_original", usuarioAtivo);
+    
     alert("✨ Hunter Sincronizado!");
   }
 
@@ -204,25 +279,34 @@ export default function PerfilPage() {
     const backup = { hunter: dadosPerfil.nome, stats: stats };
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `backup_${usuarioAtivo}.json`; a.click();
+    const a = document.createElement('a'); 
+    a.href = url; 
+    a.download = `backup_${usuarioAtivo}.json`; 
+    a.click();
   }
 
   async function importarJSON(e: any) {
     const file = e.target.files[0];
     if (!file) return;
+    
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
         const json = JSON.parse(event.target?.result as string);
         alert(`Backup de ${json.hunter} detectado!`);
-      } catch { alert("Erro ao ler JSON."); }
+      } catch { 
+        alert("Erro ao ler JSON."); 
+      }
     };
     reader.readAsText(file);
   }
 
   const iconesTrofeus = [ "🌱","📖","🔥","🏃","⏳","💎","🦉","🧭","🏆","⚔️","☕","📚","📦","🌟","🖋️","⚡","❤️","🧘","💾","👑","🐦","🎯","🌐","🎨","🎖️","🏮","⛩️","🐉","🌋","🌌","🔮","🧿","🧸","🃏","🎭","🩰","🧶","🧵","🧹","🧺","🧷","🧼","🧽","🧴","🗝️","⚙️","🧪","🛰️","🔭","🔱","🎬","🍿","🎟️","📽","🎞️","📼","🎫","📺","🎥","🧛","🦸","🧙","🧟","👽","🕵️","🥷","🧑‍🚀","REX","🦈","🛸","📜","✒️","🕯️","🪶","📚","🔖","📓","📙","📗","📘","📔","📃","📰","🗺️","🏛️" ];
+  
   const listaTrofeus = Array.from({ length: 85 }, (_, i) => {
-    const id = i + 1; let check = false;
+    const id = i + 1; 
+    let check = false;
+    
     if (id <= 50) {
       if (id === 1) check = stats.obras >= 1;
       else if (id === 2) check = stats.obras >= 10;
@@ -230,8 +314,12 @@ export default function PerfilPage() {
       else if (id === 4) check = stats.horasVida >= 10;
       else if (id === 5) check = stats.favs >= 5;
       else check = stats.obras >= (id * 3);
-    } else if (id <= 70) check = stats.filmes >= ((id - 50) * 5);
-    else check = stats.livros >= ((id - 70) * 5);
+    } else if (id <= 70) {
+      check = stats.filmes >= ((id - 50) * 5);
+    } else {
+      check = stats.livros >= ((id - 70) * 5);
+    }
+    
     return { id, nome: `Hunter ${id}`, icone: iconesTrofeus[i], check };
   });
 
@@ -241,7 +329,6 @@ export default function PerfilPage() {
     { titulo: "Sétima Arte", desc: "Assista/Atualize 1 anime ou filme hoje", recompensa: 20, icone: "🎬" },
     { titulo: "Caçador Ativo", desc: "Interaja com 3 obras diferentes hoje", recompensa: 25, icone: "🎯" },
     { titulo: "Curador", desc: "Mantenha pelo menos 5 obras favoritas", recompensa: 15, icone: "✨" },
-    // ✅ MISSÃO NOVA INSERIDA
     { titulo: "Socializador", desc: "Interaja e envie mensagens no chat da Guilda hoje", recompensa: 15, icone: "🌍" },
   ];
 
@@ -265,25 +352,44 @@ export default function PerfilPage() {
           <span className="text-white font-black">{esmolas}</span>
         </div>
 
-        <div className={`w-28 h-28 bg-zinc-950 rounded-[2.5rem] overflow-hidden border-2 flex items-center justify-center relative z-10 ${aura.border} ${elo.glow} ${equipados.moldura}`}>
-          {dadosPerfil.avatar?.startsWith('http') ? <img src={dadosPerfil.avatar} className="w-full h-full object-cover" /> : <span className="text-5xl">{dadosPerfil.avatar}</span>}
+        {/* ✅ MOLDURA DISCORD STYLE APLICADA AQUI COM CUIDADO PARA NÃO QUEBRAR O ESTILO ANTIGO */}
+        <div className="relative mt-4 mb-2">
+          <div className={`w-28 h-28 bg-zinc-950 rounded-[2.5rem] overflow-hidden flex items-center justify-center relative z-10 ${!MOLDURAS_DISCORD[equipados.moldura] ? 'border-2 ' + aura.border + ' ' + elo.glow : ''} ${MOLDURAS_DISCORD[equipados.moldura] || equipados.moldura}`}>
+            {dadosPerfil.avatar?.startsWith('http') ? <img src={dadosPerfil.avatar} className="w-full h-full object-cover rounded-[2.5rem]" /> : <span className="text-5xl">{dadosPerfil.avatar}</span>}
+          </div>
         </div>
 
         <h1 className="text-3xl font-black text-white uppercase italic mt-6 mb-1">{dadosPerfil.nome}</h1>
-        {equipados.titulo && <p className={`text-[10px] font-black uppercase tracking-[0.3em] mb-2 drop-shadow-md ${equipados.titulo}`}>« {LOJA_ITENS.find(i => i.id === equipados.titulo)?.nome.replace("Título: ", "")} »</p>}
-        <p className={`text-[10px] font-black bg-gradient-to-r ${elo.cor} bg-clip-text text-transparent uppercase tracking-[0.5em] mb-10`}>RANK: {elo.tier}</p>
+        
+        {equipados.titulo && (
+          <p className={`text-[10px] font-black uppercase tracking-[0.3em] mb-2 drop-shadow-md ${equipados.titulo}`}>
+            « {LOJA_ITENS.find(i => i.id === equipados.titulo)?.nome.replace("Título: ", "")} »
+          </p>
+        )}
+        
+        <p className={`text-[10px] font-black bg-gradient-to-r ${elo.cor} bg-clip-text text-transparent uppercase tracking-[0.5em] mb-10`}>
+          RANK: {elo.tier}
+        </p>
 
         <div className="flex gap-4 md:gap-8 border-b border-white/5 w-full justify-center pb-6 mb-10">
           {["STATUS", "MISSÕES", "TROFÉUS", "LOJA", "CONFIG"].map(aba => (
-            <button key={aba} onClick={() => setAbaAtiva(aba)} className={`text-[9px] font-black uppercase tracking-widest ${abaAtiva === aba ? aura.text : 'text-zinc-600'}`}>{aba}</button>
+            <button key={aba} onClick={() => setAbaAtiva(aba)} className={`text-[9px] font-black uppercase tracking-widest ${abaAtiva === aba ? aura.text : 'text-zinc-600'}`}>
+              {aba}
+            </button>
           ))}
         </div>
 
         <div className="w-full h-[320px] overflow-y-auto custom-scrollbar px-2">
           {abaAtiva === "STATUS" && (
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-black/40 border border-white/5 p-6 rounded-3xl flex flex-col items-center"><span className="text-3xl font-black text-white italic">{stats.obras}</span><span className="text-[7px] font-black text-zinc-600 uppercase mt-2">Obras Totais</span></div>
-              <div className="bg-black/40 border border-white/5 p-6 rounded-3xl flex flex-col items-center"><span className="text-3xl font-black text-white italic">{stats.caps}</span><span className="text-[7px] font-black text-zinc-600 uppercase mt-2">Capítulos</span></div>
+              <div className="bg-black/40 border border-white/5 p-6 rounded-3xl flex flex-col items-center">
+                <span className="text-3xl font-black text-white italic">{stats.obras}</span>
+                <span className="text-[7px] font-black text-zinc-600 uppercase mt-2">Obras Totais</span>
+              </div>
+              <div className="bg-black/40 border border-white/5 p-6 rounded-3xl flex flex-col items-center">
+                <span className="text-3xl font-black text-white italic">{stats.caps}</span>
+                <span className="text-[7px] font-black text-zinc-600 uppercase mt-2">Capítulos</span>
+              </div>
               <div className="col-span-2 bg-gradient-to-r from-zinc-900 to-black p-6 rounded-3xl border border-white/5 flex flex-col items-center overflow-hidden">
                 <span className="text-2xl font-black text-white italic">{stats.horasVida} HORAS</span>
                 <p className="text-[7px] font-black text-zinc-500 uppercase tracking-widest italic mt-1">Tempo de Vida Consumido</p>
@@ -298,8 +404,16 @@ export default function PerfilPage() {
             <div className="space-y-4 pb-10">
               {listaMissoes.map((m, i) => (
                 <div key={i} className={`p-5 rounded-3xl border flex items-center justify-between transition-all ${missoesProgresso[i] ? 'bg-black/40 border-green-500/20' : condicoesMissoes[i] ? 'bg-zinc-900 border-yellow-500/40' : 'bg-zinc-900/50 border-zinc-800'}`}>
-                  <div className="flex items-center gap-4"><span className="text-3xl">{m.icone}</span><div><p className={`font-bold uppercase text-[10px] ${missoesProgresso[i] ? 'text-green-500' : 'text-white'}`}>{m.titulo}</p><p className="text-[8px] text-zinc-500 uppercase">+{m.recompensa} Esmolas</p></div></div>
-                  <button onClick={() => completarMissao(i, m.recompensa)} disabled={missoesProgresso[i] || !condicoesMissoes[i]} className="px-4 py-2 rounded-xl text-[9px] font-black border border-white/10">{missoesProgresso[i] ? "Feito" : "💰"}</button>
+                  <div className="flex items-center gap-4">
+                    <span className="text-3xl">{m.icone}</span>
+                    <div>
+                      <p className={`font-bold uppercase text-[10px] ${missoesProgresso[i] ? 'text-green-500' : 'text-white'}`}>{m.titulo}</p>
+                      <p className="text-[8px] text-zinc-500 uppercase">+{m.recompensa} Esmolas</p>
+                    </div>
+                  </div>
+                  <button onClick={() => completarMissao(i, m.recompensa)} disabled={missoesProgresso[i] || !condicoesMissoes[i]} className="px-4 py-2 rounded-xl text-[9px] font-black border border-white/10">
+                    {missoesProgresso[i] ? "Feito" : "💰"}
+                  </button>
                 </div>
               ))}
             </div>
@@ -309,8 +423,12 @@ export default function PerfilPage() {
             <div className="grid grid-cols-5 gap-y-10 pb-10">
               {listaTrofeus.map(t => (
                 <div key={t.id} className="flex flex-col items-center group relative">
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl border-2 transition-all ${t.check ? aura.border + " bg-black/40" : "border-zinc-800 opacity-10 grayscale"}`}>{t.icone}</div>
-                  <div className="absolute -top-12 bg-black border border-white/10 px-3 py-2 rounded-xl text-[8px] font-bold text-white opacity-0 group-hover:opacity-100 z-50 whitespace-nowrap">{t.nome}</div>
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl border-2 transition-all ${t.check ? aura.border + " bg-black/40" : "border-zinc-800 opacity-10 grayscale"}`}>
+                    {t.icone}
+                  </div>
+                  <div className="absolute -top-12 bg-black border border-white/10 px-3 py-2 rounded-xl text-[8px] font-bold text-white opacity-0 group-hover:opacity-100 z-50 whitespace-nowrap">
+                    {t.nome}
+                  </div>
                 </div>
               ))}
             </div>
@@ -319,12 +437,27 @@ export default function PerfilPage() {
           {abaAtiva === "LOJA" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-10">
               {LOJA_ITENS.map(item => {
-                const comprado = inventario.includes(item.id); const equipado = equipados[item.tipo] === item.id;
+                const comprado = inventario.includes(item.id); 
+                const equipado = equipados[item.tipo] === item.id;
+                
                 return (
                   <div key={item.id} className={`p-4 rounded-3xl border flex flex-col gap-4 ${comprado ? 'bg-zinc-900 border-zinc-700' : 'bg-black/50 border-zinc-800'}`}>
-                    <div className="flex items-center gap-4"><span className="text-3xl bg-zinc-950 p-4 rounded-2xl border border-white/5">{item.icone}</span><div><p className="font-black uppercase text-[10px] text-white">{item.nome}</p><p className="text-[7px] text-zinc-500 uppercase">{item.tipo}</p></div></div>
-                    {!comprado ? <button onClick={() => comprarCosmetico(item)} className="w-full py-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 font-black text-[9px] uppercase">Comprar ({item.preco} 🪙)</button>
-                    : <button onClick={() => equiparCosmetico(item)} className={`w-full py-3 rounded-xl font-black text-[9px] border ${equipado ? 'bg-green-500/20 text-green-500 border-green-500' : 'bg-zinc-800 text-zinc-400'}`}>{equipado ? "Equipado" : "Equipar"}</button>}
+                    <div className="flex items-center gap-4">
+                      <span className="text-3xl bg-zinc-950 p-4 rounded-2xl border border-white/5">{item.icone}</span>
+                      <div>
+                        <p className="font-black uppercase text-[10px] text-white">{item.nome}</p>
+                        <p className="text-[7px] text-zinc-500 uppercase">{item.tipo}</p>
+                      </div>
+                    </div>
+                    {!comprado ? (
+                      <button onClick={() => comprarCosmetico(item)} className="w-full py-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 font-black text-[9px] uppercase">
+                        Comprar ({item.preco} 🪙)
+                      </button>
+                    ) : (
+                      <button onClick={() => equiparCosmetico(item)} className={`w-full py-3 rounded-xl font-black text-[9px] border ${equipado ? 'bg-green-500/20 text-green-500 border-green-500' : 'bg-zinc-800 text-zinc-400'}`}>
+                        {equipado ? "Equipado" : "Equipar"}
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -333,7 +466,9 @@ export default function PerfilPage() {
 
           {abaAtiva === "CONFIG" && (
             <div className="space-y-6 pb-10">
-              <button onClick={atualizarPerfil} className={`w-full py-5 rounded-xl font-black text-[12px] uppercase shadow-xl ${aura.btn}`}>💾 Sincronizar Hunter</button>
+              <button onClick={atualizarPerfil} className={`w-full py-5 rounded-xl font-black text-[12px] uppercase shadow-xl ${aura.btn}`}>
+                💾 Sincronizar Hunter
+              </button>
               
               <input type="text" placeholder="Nome Hunter" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold outline-none" value={dadosPerfil.nome} onChange={e => setDadosPerfil({...dadosPerfil, nome: e.target.value})} />
               
@@ -348,7 +483,11 @@ export default function PerfilPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <select className="bg-black border border-white/5 p-4 rounded-xl text-white font-bold uppercase text-[10px]" value={dadosPerfil.tema} onChange={e => setDadosPerfil({...dadosPerfil, tema: e.target.value})}>
-                   <option value="azul">Azul Néon</option><option value="verde">Verde Hacker</option><option value="roxo">Roxo Galático</option><option value="laranja">Laranja Fogo</option><option value="custom">Personalizada</option>
+                   <option value="azul">Azul Néon</option>
+                   <option value="verde">Verde Hacker</option>
+                   <option value="roxo">Roxo Galático</option>
+                   <option value="laranja">Laranja Fogo</option>
+                   <option value="custom">Personalizada</option>
                 </select>
                 <input type="password" placeholder="PIN Hunter (4 dígitos)" maxLength={4} className="bg-black border border-white/5 p-4 rounded-xl text-white font-bold text-center tracking-[0.5em]" value={dadosPerfil.pin} onChange={e => setDadosPerfil({...dadosPerfil, pin: e.target.value})} />
               </div>
@@ -358,10 +497,16 @@ export default function PerfilPage() {
 
         <div className="w-full flex flex-col gap-3 mt-8 relative z-20">
           <div className="grid grid-cols-2 gap-3">
-             <button onClick={exportarBiblioteca} className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase text-zinc-500 hover:text-white transition-all">💾 Exportar</button>
-             <label className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase text-zinc-500 flex items-center justify-center cursor-pointer hover:text-white">📥 Importar <input type="file" accept=".json" className="hidden" onChange={importarJSON} /></label>
+             <button onClick={exportarBiblioteca} className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase text-zinc-500 hover:text-white transition-all">
+               💾 Exportar
+             </button>
+             <label className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase text-zinc-500 flex items-center justify-center cursor-pointer hover:text-white">
+               📥 Importar <input type="file" accept=".json" className="hidden" onChange={importarJSON} />
+             </label>
           </div>
-          <button onClick={() => { sessionStorage.removeItem('hunter_ativo'); window.location.href = '/'; }} className="w-full py-3 text-[8px] font-black text-zinc-700 hover:text-red-500 uppercase tracking-[0.3em] transition-all">Encerrar Sessão</button>
+          <button onClick={() => { sessionStorage.removeItem('hunter_ativo'); window.location.href = '/'; }} className="w-full py-3 text-[8px] font-black text-zinc-700 hover:text-red-500 uppercase tracking-[0.3em] transition-all">
+            Encerrar Sessão
+          </button>
         </div>
       </div>
     </main>
