@@ -51,12 +51,11 @@ export default function ProfileSelection({
         <p className="text-[10px] md:text-xs font-bold uppercase tracking-[0.5em] text-zinc-500 mt-4">Selecione o seu perfil de Caçador</p>
       </div>
 
-      {/* LISTA DE PERFIS */}
-      <div className="flex flex-wrap justify-center gap-8 md:gap-12 max-w-5xl relative z-10">
+      {/* LISTA DE PERFIS - CALIBRADA PARA ALINHAMENTO S+ */}
+      <div className="flex flex-wrap justify-center items-end gap-8 md:gap-12 max-w-5xl relative z-10">
         {perfis.filter(p => p.nome_original !== "Admin").map((perfil, i) => {
           const aura = perfil.cor_tema?.startsWith('#') ? temas.custom : (temas[perfil.cor_tema as keyof typeof temas] || temas.verde);
           
-          // ✨ LOCALIZA OS DADOS DA MOLDURA EQUIPADA (PNG OU CLASSE)
           const idMolduraAtiva = perfil.cosmeticos?.ativos?.moldura || "";
           const dadosMoldura = lojaItens?.find(item => item.id === idMolduraAtiva);
 
@@ -67,41 +66,44 @@ export default function ProfileSelection({
               onClick={() => tentarMudarPerfil(perfil.nome_original)} 
               style={perfil.cor_tema?.startsWith('#') ? { '--aura': perfil.cor_tema } as React.CSSProperties : {}}
             >
-              {/* ✅ SUBSTITUÍDO: Agora usa o HunterAvatar para renderizar molduras corretamente */}
-              <div className="mb-4 transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-2 relative">
+              {/* CONTAINER COM TAMANHO FIXO PARA ALINHAMENTO COM ADMIN */}
+              <div className="w-24 h-24 mb-4 transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-2 relative flex items-center justify-center">
                 <HunterAvatar 
                   avatarUrl={perfil.avatar}
                   idMoldura={idMolduraAtiva}
                   imagemMolduraUrl={dadosMoldura?.imagem_url}
                   temaCor={perfil.cor_tema?.startsWith('#') ? perfil.cor_tema : perfil.custom_color}
-                  tamanho="md"
+                  tamanho="lg" // ✅ Aumentado para preencher os 96px (w-24)
                 />
                 
-                {/* INDICADOR DE BLOQUEIO SOBRE O AVATAR */}
                 {perfil.pin && (
-                  <div className="absolute -bottom-1 -right-1 bg-black/80 p-1.5 rounded-lg border border-white/10 z-[30] shadow-lg">
+                  <div className="absolute -bottom-1 -right-1 bg-black/90 p-1.5 rounded-lg border border-white/10 z-[30] shadow-xl">
                     <span className="text-[10px]">🔒</span>
                   </div>
                 )}
               </div>
 
-              <p className="text-white font-black uppercase tracking-widest text-sm group-hover:text-yellow-500 transition-colors text-center">
-                {perfil.nome_exibicao || perfil.nome_original}
-              </p>
-              <p className="text-[8px] text-zinc-600 uppercase font-black tracking-widest mt-1">
-                {perfil.pin ? "Acesso Restrito" : "Hunter"}
-              </p>
+              <div className="h-10 flex flex-col items-center justify-start">
+                <p className="text-white font-black uppercase tracking-widest text-sm group-hover:text-yellow-500 transition-colors text-center leading-tight">
+                  {perfil.nome_exibicao || perfil.nome_original}
+                </p>
+                <p className="text-[8px] text-zinc-600 uppercase font-black tracking-widest mt-1">
+                  {perfil.pin ? "Acesso Restrito" : "Hunter"}
+                </p>
+              </div>
             </div>
           );
         })}
 
-        {/* ADMIN CARD */}
+        {/* ADMIN CARD - SINCRONIZADO EM TAMANHO */}
         <div className="flex flex-col items-center cursor-pointer group" onClick={() => setPinAdminAberto(true)}>
           <div className="w-24 h-24 mx-auto bg-zinc-950 rounded-3xl border-2 border-yellow-500/30 flex items-center justify-center text-4xl mb-4 transition-all duration-300 group-hover:scale-110 group-hover:-translate-y-2 group-hover:border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.1)] group-hover:shadow-[0_0_30px_rgba(234,179,8,0.4)] relative overflow-hidden">
             👑
           </div>
-          <p className="text-zinc-500 font-black uppercase tracking-widest text-sm group-hover:text-yellow-500 transition-colors text-center">Admin</p>
-          <p className="text-[8px] text-zinc-600 uppercase font-black tracking-widest mt-1">S+ Rank</p>
+          <div className="h-10 flex flex-col items-center justify-start">
+            <p className="text-zinc-500 font-black uppercase tracking-widest text-sm group-hover:text-yellow-500 transition-colors text-center leading-tight">Admin</p>
+            <p className="text-[8px] text-zinc-600 uppercase font-black tracking-widest mt-1">S+ Rank</p>
+          </div>
         </div>
       </div>
 
