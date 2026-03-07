@@ -206,8 +206,8 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
       const fileName = `item-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      // ✅ ROTEAMENTO INTELIGENTE DE BUCKET (Se for partícula, vai pro 'vfx'. Senão, 'cosmeticos')
-      const bucketAlvo = formLoja.tipo === 'particula' ? 'vfx' : 'cosmeticos';
+      // ✅ CALIBRAÇÃO: Roteia itens de animação (particula E vfx) para o bucket de VFX.
+      const bucketAlvo = (formLoja.tipo === 'particula' || formLoja.tipo === 'vfx') ? 'vfx' : 'cosmeticos';
       
       const { error: uploadError } = await supabase.storage.from(bucketAlvo).upload(filePath, file);
       if (uploadError) throw uploadError;
@@ -516,7 +516,8 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
                   <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">Tipo de Equipamento</label>
                   <select className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-[10px] font-bold uppercase outline-none mt-1" value={formLoja.tipo} onChange={e => setFormLoja({...formLoja, tipo: e.target.value})}>
                     <option value="moldura">Moldura de Avatar</option>
-                    <option value="particula">Partículas de Fundo / VFX</option>
+                    <option value="particula">Partículas de Fundo (Foreground)</option>
+                    <option value="vfx">VÍDEO DE FUNDO (VFX - Background)</option>
                     <option value="titulo">Título Honroso</option>
                     <option value="chat_cor">Cor de Chat</option>
                     <option value="chat_balao">Balão de Chat</option>
