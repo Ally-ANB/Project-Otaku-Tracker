@@ -338,8 +338,9 @@ export default function Home() {
       if (pinDigitado === pinCorreto) {
         sessionStorage.setItem("hunter_ativo", "Admin");
         setUsuarioAtual("Admin"); setPerfilAlvoParaBloqueio(null);
-        // Isso avisa o Layout que um novo Hunter entrou e os VFX devem ser carregados.
-    window.dispatchEvent(new Event("hunter_cosmeticos_update"));
+        
+        // ✅ GATILHO S+: Sincroniza o VFX Global no Login de Admin
+        window.dispatchEvent(new CustomEvent("hunter_cosmeticos_update", { detail: { nome: "Admin" } }));
       } else {
         mostrarToast("Acesso Negado: PIN de Administrador Incorreto!", "erro");
       }
@@ -350,13 +351,21 @@ export default function Home() {
     if (perfil?.pin === pinDigitado) {
       sessionStorage.setItem("hunter_ativo", perfilAlvoParaBloqueio);
       setUsuarioAtual(perfilAlvoParaBloqueio); setPerfilAlvoParaBloqueio(null);
+
+      // ✅ GATILHO S+: Sincroniza o VFX Global no Login de Usuário
+      window.dispatchEvent(new CustomEvent("hunter_cosmeticos_update", { detail: { nome: perfilAlvoParaBloqueio } }));
     } else { mostrarToast("PIN Incorreto!", "erro"); }
   }
 
   function tentarMudarPerfil(nome: string) {
     const info = perfis.find(p => p.nome_original === nome);
     if (info?.pin || nome === "Admin") { setPerfilAlvoParaBloqueio(nome); setPinDigitado(""); } 
-    else { setUsuarioAtual(nome); sessionStorage.setItem('hunter_ativo', nome); }
+    else { 
+      setUsuarioAtual(nome); 
+      sessionStorage.setItem('hunter_ativo', nome); 
+      // ✅ GATILHO S+: Sincroniza o VFX Global quando não há PIN
+      window.dispatchEvent(new CustomEvent("hunter_cosmeticos_update", { detail: { nome } }));
+    }
   }
 
   // ==========================================
