@@ -11,7 +11,6 @@ export default function GlobalVFXManager() {
   const carregarCosmeticosGlobais = async () => {
     const hunterAtivo = sessionStorage.getItem("hunter_ativo");
     
-    // ✅ RESET SEGURO: Se não houver ninguém logado, limpa o visual
     if (!hunterAtivo) {
       setBackgroundUrl(null);
       setParticulaId("");
@@ -26,19 +25,26 @@ export default function GlobalVFXManager() {
 
     if (perfil?.cosmeticos?.ativos) {
       const ativos = perfil.cosmeticos.ativos;
+      
+      // ✅ Slot 1: Partículas (Repassa para o EfeitosVisuais)
       setParticulaId(ativos.particula || "");
 
-      if (ativos.moldura) {
+      // ✅ Slot 2: VFX (Background Imersivo)
+      // Agora buscamos pelo ID guardado em 'vfx', não mais em 'moldura'
+      if (ativos.vfx) {
         const { data: item } = await supabase
           .from("loja_itens")
           .select("imagem_url")
-          .eq("id", ativos.moldura)
+          .eq("id", ativos.vfx)
           .single();
         
-        if (item?.imagem_url && (item.imagem_url.includes('.mp4') || item.imagem_url.includes('.webm') || item.imagem_url.includes('.gif'))) {
-          setBackgroundUrl(item.imagem_url);
-        } else {
-          setBackgroundUrl(null);
+        if (item?.imagem_url) {
+          const urlBase = item.imagem_url.split('?')[0].toLowerCase();
+          if (urlBase.endsWith('.mp4') || urlBase.endsWith('.webm') || urlBase.endsWith('.gif')) {
+            setBackgroundUrl(item.imagem_url);
+          } else {
+            setBackgroundUrl(null);
+          }
         }
       } else {
         setBackgroundUrl(null);
@@ -48,28 +54,42 @@ export default function GlobalVFXManager() {
 
   useEffect(() => {
     carregarCosmeticosGlobais();
-
-    // Ouve o evento de atualização (que agora disparas no login e no perfil)
     window.addEventListener("hunter_cosmeticos_update", carregarCosmeticosGlobais);
-    
-    return () => {
-      window.removeEventListener("hunter_cosmeticos_update", carregarCosmeticosGlobais);
-    };
+    return () => window.removeEventListener("hunter_cosmeticos_update", carregarCosmeticosGlobais);
   }, []);
 
-  // O restante do retorno (JSX) permanece igual...
   return (
     <>
+      {/* 🎬 CAMADA DE BACKGROUND (VFX) */}
       {backgroundUrl && (
         <div className="fixed inset-0 z-[-2] pointer-events-none overflow-hidden">
-          {backgroundUrl.endsWith('.mp4') || backgroundUrl.endsWith('.webm') ? (
-            <video src={backgroundUrl} autoPlay loop muted playsInline className="w-full h-full object-cover opacity-40" />
+          {backgroundUrl.split('?')[0].toLowerCase().endsWith('.gif') ? (
+            <img 
+              src={backgroundUrl} 
+              className="w-full h-full object-cover opacity-40" 
+              alt="Background VFX" 
+            />
           ) : (
-            <img src={backgroundUrl} className="w-full h-full object-cover opacity-40" alt="Background" />
+            <video 
+              key={backgroundUrl} 
+              autoPlay 
+              loop 
+              muted 
+              playsInline 
+              preload="auto"
+              crossOrigin="anonymous"
+              className="w-full h-full object-cover opacity-40 mix-blend-screen"
+            >
+              <source src={backgroundUrl} type={backgroundUrl.includes('.webm') ? 'video/webm' : 'video/mp4'} />
+            </video>
           )}
+          
+          {/* Sombra de profundidade para garantir leitura da UI */}
           <div className="absolute inset-0 bg-black/60" />
         </div>
       )}
+
+      {/* ❄️ CAMADA DE PRIMEIRO PLANO (PARTÍCULAS CSS) */}
       <EfeitosVisuais particula={particulaId} />
     </>
   );

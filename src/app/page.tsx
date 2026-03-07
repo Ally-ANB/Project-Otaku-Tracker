@@ -63,6 +63,17 @@ export default function Home() {
   
   const [lojaItens, setLojaItens] = useState<any[]>([]);
 
+  // ✅ ESTADOS DE COSMÉTICOS (NOVO SLOT: vfx)
+  const [inventario, setInventario] = useState<string[]>([]);
+  const [equipados, setEquipados] = useState<Record<string, string>>({ 
+    moldura: "", 
+    particula: "", 
+    vfx: "", 
+    titulo: "", 
+    chat_cor: "", 
+    chat_balao: "" 
+  });
+
   const [estaAbertoAdd, setEstaAbertoAdd] = useState(false);
   const [mangaDetalhe, setMangaDetalhe] = useState<Manga | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -132,10 +143,14 @@ export default function Home() {
       setIsAdmin(usuarioAtual === "Admin");
       buscarMangas(); buscarAnimes(); buscarFilmes(); buscarLivros();
       
-      // ✅ SINCRONIZA OS DADOS DO CARD AO MUDAR DE USUÁRIO
+      // ✅ SINCRONIZA OS DADOS DO CARD E COSMÉTICOS AO MUDAR DE USUÁRIO
       const pAtivo = perfis.find(p => p.nome_original === usuarioAtual);
-      if (pAtivo?.cosmeticos?.ativos?.card_config) {
-        setCardDados(pAtivo.cosmeticos.ativos.card_config);
+      if (pAtivo) {
+        if (pAtivo.cosmeticos?.ativos?.card_config) {
+          setCardDados(pAtivo.cosmeticos.ativos.card_config);
+        }
+        setInventario(pAtivo.cosmeticos?.comprados || []);
+        setEquipados(pAtivo.cosmeticos?.ativos || { moldura: "", particula: "", vfx: "", titulo: "" });
       }
     }
   }, [usuarioAtual, perfis]);
@@ -144,7 +159,8 @@ export default function Home() {
   // 🛠️ [SESSÃO 6] - FUNÇÕES DE BUSCA E BANCO
   // ==========================================
   async function buscarLoja() {
-    const { data } = await supabase.from("loja_itens").select("id, imagem_url");
+    // ✅ BUSCA CAMPOS EXTRAS PARA A LÓGICA DE SEPARAÇÃO (tipo)
+    const { data } = await supabase.from("loja_itens").select("id, nome, tipo, imagem_url");
     if (data) setLojaItens(data);
   }
 
@@ -347,6 +363,32 @@ export default function Home() {
   function fecharFormularioHunter() { setMostrandoFormHunter(false); setNovoHunter({ nome: '', avatar: '👤', pin: '', cor: 'verde' }); }
   function prepararEdicao(perfil: any) { setNovoHunter({ nome: perfil.nome_exibicao, avatar: perfil.avatar, pin: perfil.pin || '', cor: perfil.cor_tema }); setEditandoNomeOriginal(perfil.nome_original); setMostrandoFormHunter(true); }
 
+  // ✅ [SESSÃO 9.1] - SISTEMA DE INVENTÁRIO (EQUIPAR)
+  async function equiparCosmetico(item: any) {
+    // SEPARAÇÃO: Se for 'vfx', vai pro slot vfx. Se for 'particula', vai pro slot particula.
+    // Assim, um não desequipa o outro!
+    const nEquip: Record<string, string> = { 
+      ...equipados, 
+      [item.tipo]: equipados[item.tipo] === item.id ? "" : item.id
+    };
+
+    const { error } = await supabase.from("perfis").update({ 
+      cosmeticos: { 
+        comprados: inventario, 
+        ativos: nEquip 
+      } 
+    }).eq("nome_original", usuarioAtual);
+    
+    if (!error) {
+      setEquipados(nEquip);
+      // ✅ Dispara o sinal global para o GlobalVFXManager atualizar sem refresh
+      window.dispatchEvent(new Event("hunter_cosmeticos_update"));
+      mostrarToast(`${item.nome} ${nEquip[item.tipo] ? 'Equipado' : 'Desequipado'}!`, "sucesso");
+    } else {
+      mostrarToast("Erro ao equipar item.", "erro");
+    }
+  }
+
   async function atualizarConfig(chave: string, valor: boolean) {
     setConfig(prev => ({ ...prev, [chave]: valor }));
     await supabase.from("site_config").update({ [chave]: valor }).eq("id", 1);
@@ -407,7 +449,7 @@ export default function Home() {
   if (!usuarioAtual) return (
   <ProfileSelection 
     perfis={perfis} 
-    lojaItens={lojaItens} // <--- ADICIONE ESTA LINHA AQUI
+    lojaItens={lojaItens} 
     temas={TEMAS} 
     tentarMudarPerfil={tentarMudarPerfil} 
     perfilAlvoParaBloqueio={perfilAlvoParaBloqueio} 
