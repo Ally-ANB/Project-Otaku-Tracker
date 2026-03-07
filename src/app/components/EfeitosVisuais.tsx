@@ -26,18 +26,19 @@ export default function EfeitosVisuais({ particula, urlVfx }: { particula: strin
     const checkStatus = () => setAtivo(localStorage.getItem("hunter_animacoes") !== "false");
     checkStatus();
     
-    // ✅ SINCRONIA DE URL
+    // ✅ SE HOUVER UM URL DO BANCO (MP4/WEBM/GIF CUSTOMIZADO), ELE SOBRESCREVE OS PADRÕES!
     setVideoUrl(urlVfx || VIDEOS_VFX[particula] || null);
 
     window.addEventListener("hunter_animacoes_toggle", checkStatus);
     return () => window.removeEventListener("hunter_animacoes_toggle", checkStatus);
   }, [particula, urlVfx]);
 
-  // ✅ DETECTOR DE FORMATO GIF (Melhorado para ignorar query strings do Supabase)
-  const ehGif = videoUrl?.split('?')[0].toLowerCase().endsWith('.gif');
+  // ✅ DETECTOR DE FORMATO GIF
+  const ehGif = videoUrl?.toLowerCase().includes('.gif');
 
   return (
     <>
+      {/* 🚀 CSS GLOBAL DE COSMÉTICOS (RESTAURADO E COMPLETO) */}
       <style>{`
         /* ANIMAÇÕES DE PARTÍCULAS BASE */
         @keyframes cairPetala { 0% { transform: translateY(-10vh) translateX(0) rotate(0deg); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(110vh) translateX(50px) rotate(720deg); opacity: 0; } }
@@ -65,14 +66,15 @@ export default function EfeitosVisuais({ particula, urlVfx }: { particula: strin
         .folha-outono { position: absolute; background: #ea580c; border-radius: 10px 0 10px 0; animation: cairPetala linear infinite; box-shadow: 0 0 8px #c2410c; }
         .vagalume { position: absolute; background: #fef08a; border-radius: 50%; animation: voarVagalume ease-in-out infinite; box-shadow: 0 0 10px #fde047; }
 
-        /* MOLDURAS & TÍTULOS */
+        /* KEYFRAMES DAS MOLDURAS */
         @keyframes raioEletrico { 0%, 100% { box-shadow: 0 0 10px #3b82f6, inset 0 0 10px #3b82f6; border-color: #60a5fa; } 50% { box-shadow: 0 0 30px #60a5fa, inset 0 0 20px #60a5fa; border-color: #fff; } }
         @keyframes pulsoEsmeralda { 0%, 100% { box-shadow: 0 0 15px #10b981; border-color: #059669; } 50% { box-shadow: 0 0 40px #34d399, inset 0 0 15px #34d399; border-color: #a7f3d0; } }
         @keyframes fumacaSombria { 0%, 100% { box-shadow: 0 0 20px #4c1d95, -5px 5px 30px #000; border-color: #4c1d95; } 50% { box-shadow: 5px -5px 40px #7c3aed, 0 0 20px #000; border-color: #6d28d9; } }
         @keyframes brilhoGelo { 0%, 100% { box-shadow: 0 0 10px #7dd3fc; border-color: #bae6fd; } 50% { box-shadow: 0 0 30px #38bdf8, inset 0 0 20px #e0f2fe; border-color: #fff; } }
         @keyframes animarMagma { 0% { border-color: #ef4444; box-shadow: 0 5px 20px #ef4444; } 50% { border-color: #f97316; box-shadow: 0 -5px 25px #f97316; } 100% { border-color: #ef4444; box-shadow: 0 5px 20px #ef4444; } }
         @keyframes celestialFlutua { 0%, 100% { transform: translateY(0); box-shadow: 0 0 20px #fff, 0 20px 30px rgba(255,255,255,0.2); border-color: #fff; } 50% { transform: translateY(-10px); box-shadow: 0 0 40px #fef08a, 0 30px 40px rgba(255,255,255,0.1); border-color: #fef08a; } }
-        
+
+        /* CLASSES MOLDURAS (Ligadas por ID) */
         .moldura_ouro { border-color: #eab308 !important; box-shadow: 0 0 30px rgba(234,179,8,0.5) !important; z-index: 10; }
         .moldura_neon { border-color: #d946ef !important; box-shadow: 0 0 30px rgba(217,70,239,0.5) !important; animation: piscarEstrela 2s infinite !important; }
         .moldura_choque { animation: raioEletrico 1.5s infinite !important; }
@@ -82,12 +84,14 @@ export default function EfeitosVisuais({ particula, urlVfx }: { particula: strin
         .moldura_magma { animation: animarMagma 2.5s infinite !important; }
         .moldura_celestial { animation: celestialFlutua 3s ease-in-out infinite !important; border-width: 3px !important; }
 
+        /* KEYFRAMES DOS TÍTULOS */
         @keyframes arcoirisBg { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
         @keyframes glitchTxt { 0% { transform: translate(0); text-shadow: none; } 20% { transform: translate(-2px, 2px); text-shadow: 2px 0 red, -2px 0 blue; } 40% { transform: translate(-2px, -2px); text-shadow: none; } 60% { transform: translate(2px, 2px); text-shadow: -2px 0 red, 2px 0 blue; } 80% { transform: translate(2px, -2px); text-shadow: none; } 100% { transform: translate(0); } }
         @keyframes bloodPulse { 0%, 100% { color: #dc2626; text-shadow: 0 0 5px #991b1b; } 50% { color: #f87171; text-shadow: 0 0 20px #ef4444, 0 5px 5px #7f1d1d; } }
         @keyframes ghostAnim { 0%, 100% { opacity: 0.3; filter: blur(2px); transform: translateY(0); } 50% { opacity: 0.9; filter: blur(0px); transform: translateY(-2px); text-shadow: 0 0 10px #cbd5e1; } }
         @keyframes sombraCaminha { 0%, 100% { text-shadow: 5px 5px 10px #000, 10px 10px 20px rgba(0,0,0,0.5); } 50% { text-shadow: -5px 5px 15px #000, -10px 10px 25px rgba(0,0,0,0.8); } }
 
+        /* CLASSES TÍTULOS (Ligadas por ID) */
         .titulo_arcoiris { background: linear-gradient(270deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3); background-size: 400% 400%; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: arcoirisBg 4s ease infinite; }
         .titulo_hacker { animation: glitchTxt 1.5s infinite; color: #22c55e; }
         .titulo_sangue { animation: bloodPulse 2s infinite; }
@@ -102,7 +106,7 @@ export default function EfeitosVisuais({ particula, urlVfx }: { particula: strin
       {ativo && particula && (
         <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none w-screen h-screen">
           
-          {/* ✅ MOTOR HÍBRIDO ATUALIZADO PARA VÍDEOS LONGOS */}
+          {/* ✅ MOTOR HÍBRIDO: DETECTA SE É VÍDEO OU GIF */}
           {videoUrl && (
             ehGif ? (
               <img 
@@ -112,19 +116,14 @@ export default function EfeitosVisuais({ particula, urlVfx }: { particula: strin
               />
             ) : (
               <video
-                key={videoUrl} // Força reset total do elemento de vídeo
+                key={videoUrl}
                 autoPlay
                 loop
-                muted // Essencial para burlar bloqueio de autoplay
-                playsInline // Essencial para mobile
-                preload="auto" // Pre-carregamento agressivo
-                crossOrigin="anonymous" // Evita erros de CORS no Supabase
+                muted
+                playsInline
                 className="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-screen transition-opacity duration-1000"
               >
-                <source 
-                  src={videoUrl} 
-                  type={videoUrl.toLowerCase().includes('.webm') ? 'video/webm' : 'video/mp4'} 
-                />
+                <source src={videoUrl} type={videoUrl.endsWith('.webm') ? 'video/webm' : 'video/mp4'} />
               </video>
             )
           )}
