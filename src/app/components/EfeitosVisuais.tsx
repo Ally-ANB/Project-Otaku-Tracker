@@ -33,8 +33,8 @@ export default function EfeitosVisuais({ particula, urlVfx }: { particula: strin
     return () => window.removeEventListener("hunter_animacoes_toggle", checkStatus);
   }, [particula, urlVfx]);
 
-  // ✅ DETECTOR DE FORMATO GIF
-  const ehGif = videoUrl?.toLowerCase().includes('.gif');
+  // ✅ DETECTOR DE FORMATO GIF (Melhorado para ignorar query strings do Supabase)
+  const ehGif = videoUrl?.split('?')[0].toLowerCase().endsWith('.gif');
 
   return (
     <>
@@ -106,7 +106,7 @@ export default function EfeitosVisuais({ particula, urlVfx }: { particula: strin
       {ativo && particula && (
         <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none w-screen h-screen">
           
-          {/* ✅ MOTOR HÍBRIDO: DETECTA SE É VÍDEO OU GIF */}
+          {/* ✅ MOTOR HÍBRIDO: VÍDEOS COM ATRIBUTOS DE COMPATIBILIDADE ATUALIZADOS */}
           {videoUrl && (
             ehGif ? (
               <img 
@@ -119,11 +119,13 @@ export default function EfeitosVisuais({ particula, urlVfx }: { particula: strin
                 key={videoUrl}
                 autoPlay
                 loop
-                muted
-                playsInline
+                muted // Essencial para navegadores permitirem autoplay em vídeos longos
+                playsInline // Necessário para mobile
+                preload="auto" // Força o pre-carregamento total
+                crossOrigin="anonymous" // Permite carregar recursos do Supabase Storage
                 className="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-screen transition-opacity duration-1000"
               >
-                <source src={videoUrl} type={videoUrl.endsWith('.webm') ? 'video/webm' : 'video/mp4'} />
+                <source src={videoUrl} type={videoUrl.toLowerCase().includes('.webm') ? 'video/webm' : 'video/mp4'} />
               </video>
             )
           )}
