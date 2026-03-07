@@ -103,7 +103,6 @@ export default function GuildaPage() {
 
   const meuPerfilAtivo = perfis.find(p => p.nome_original === usuarioAtivo);
 
-  // Sincroniza dados do card quando o perfil carregar
   useEffect(() => {
     if (meuPerfilAtivo?.cosmeticos?.ativos?.card_config) {
       setCardDados(meuPerfilAtivo.cosmeticos.ativos.card_config);
@@ -116,18 +115,16 @@ export default function GuildaPage() {
     }
   }, [mensagens, abaAtiva]);
 
-  // ✅ ALTERAÇÃO: Agora calcula as estatísticas sempre que houver perfis carregados, independente da aba
+  // ✅ DISPARA O CÁLCULO SEMPRE QUE OS PERFIS CARREGAREM
   useEffect(() => {
     if (perfis.length > 0 && estatisticas.length === 0) {
       gerarRanking();
     }
-  }, [perfis, abaAtiva]);
+  }, [perfis]);
 
-  // ✅ ALTERAÇÃO: Adicionado gerarRanking() aqui para carregar dados reais no início
   async function carregarDados() {
     await buscarPerfis();
     await buscarMensagens();
-    await gerarRanking(); 
     const { data: itensDB } = await supabase.from("loja_itens").select("*");
     if (itensDB) setLojaItens(itensDB);
   }
@@ -184,8 +181,10 @@ export default function GuildaPage() {
     const statusCompletos = perfis.map(p => {
       const s = statsByUser[p.nome_original] || { obras: 0, caps: 0, tempoMin: 0, favs: 0 };
       let eloTier = "BRONZE";
-      if (s.obras >= 1000) eloTier = "DIVINDADE"; else if (s.obras >= 500) eloTier = "DESAFIANTE";
-      else if (s.obras >= 200) eloTier = "MESTRE"; else if (s.obras >= 100) eloTier = "DIAMANTE";
+      if (s.obras >= 1000) eloTier = "DIVINDADE"; 
+      else if (s.obras >= 500) eloTier = "DESAFIANTE";
+      else if (s.obras >= 200) eloTier = "MESTRE"; 
+      else if (s.obras >= 100) eloTier = "DIAMANTE";
       return {
         ...p, esmolas: p.esmolas || 0, total_obras: s.obras, total_capitulos: s.caps,
         tempo_vida: Math.floor(s.tempoMin / 60), total_favoritos: s.favs, elo: eloTier
@@ -194,6 +193,17 @@ export default function GuildaPage() {
     setEstatisticas(statusCompletos);
     setCarregandoRanking(false);
   }
+
+  // ✅ FUNÇÃO: CALCULAR PROGRESSO DO ELO
+  const calcularProgressoElo = (obras: number) => {
+    let atual = 0; let prox = 100;
+    if (obras >= 1000) return 100;
+    if (obras >= 500) { atual = 500; prox = 1000; }
+    else if (obras >= 200) { atual = 200; prox = 500; }
+    else if (obras >= 100) { atual = 100; prox = 200; }
+    const percent = ((obras - atual) / (prox - atual)) * 100;
+    return Math.min(Math.max(percent, 5), 100);
+  };
 
   async function enviarMensagem(e?: React.FormEvent, urlFigurinha?: string) {
     if (e) e.preventDefault();
@@ -314,7 +324,6 @@ export default function GuildaPage() {
     return lojaItens.find(i => i.id === idItem);
   }
 
-  // ✅ CORREÇÃO 1: Reinstalando a lógica de ordenação do Ranking
   const huntersOrdenados = [...estatisticas].sort((a, b) => {
     if (filtroRanking === "OBRAS") return b.total_obras - a.total_obras;
     if (filtroRanking === "ESMOLAS") return b.esmolas - a.esmolas;
@@ -340,7 +349,6 @@ export default function GuildaPage() {
         <aside className="lg:w-80 flex flex-col gap-4">
           <div className="bg-[#0e0e11]/95 border border-zinc-800 rounded-[2rem] p-6 flex-1 flex flex-col gap-6">
             
-            {/* ✅ PLAYER CARD DO USUÁRIO NO TOPO DA SIDEBAR */}
             {meuPerfilAtivo && (
               <div className="flex flex-col gap-3">
                 <h2 className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Meu Card de Hunter</h2>
@@ -418,7 +426,6 @@ export default function GuildaPage() {
                   let mostrarCabecalho = true;
                   if (index > 0) {
                     const prevMsg = mensagens[index - 1];
-                    // ✅ CORREÇÃO: Propriedade corrigida para criado_em
                     const diffTime = new Date(msg.criado_em).getTime() - new Date(prevMsg.criado_em).getTime();
                     if (prevMsg.usuario === msg.usuario && diffTime < 300000) mostrarCabecalho = false;
                   }
@@ -426,19 +433,27 @@ export default function GuildaPage() {
                     <div key={msg.id} className={`group flex gap-4 items-start w-full px-4 py-1 transition-all rounded-lg ${mostrarCabecalho ? 'mt-4' : 'mt-0'} ${classeBalao.includes('bg-transparent') ? classeBalao : 'p-3 ' + classeBalao}`}>
                       <div className="w-10 shrink-0 flex justify-center mt-1">
                         {mostrarCabecalho ? (
-                          <HunterAvatar 
-                            avatarUrl={getAvatar(msg.usuario)} 
-                            idMoldura={autorPerfil?.cosmeticos?.ativos?.moldura} 
-                            imagemMolduraUrl={molduraChat || undefined}
-                            tamanho="sm"
-                            temaCor={autorPerfil?.cor_tema?.startsWith('#') ? autorPerfil.cor_tema : autorPerfil?.custom_color}
-                          />
+                          <div className="cursor-pointer" onClick={() => abrirInspecao(msg.usuario)}>
+                            <HunterAvatar 
+                              avatarUrl={getAvatar(msg.usuario)} 
+                              idMoldura={autorPerfil?.cosmeticos?.ativos?.moldura} 
+                              imagemMolduraUrl={molduraChat || undefined}
+                              tamanho="sm"
+                              temaCor={autorPerfil?.cor_tema?.startsWith('#') ? autorPerfil.cor_tema : autorPerfil?.custom_color}
+                            />
+                          </div>
                         ) : <div className="w-10" />}
                       </div>
                       <div className="flex flex-col w-full relative">
                         {mostrarCabecalho && (
                           <div className="flex flex-wrap items-baseline gap-2 mb-1">
-                            <span className={`text-[12px] font-black uppercase ${getCor(msg.usuario)}`} style={autorPerfil?.cor_tema?.startsWith('#') ? { color: autorPerfil.cor_tema } : {}}>{autorPerfil?.nome_exibicao || msg.usuario}</span>
+                            <span 
+                              className={`text-[12px] font-black uppercase cursor-pointer hover:underline ${getCor(msg.usuario)}`} 
+                              style={autorPerfil?.cor_tema?.startsWith('#') ? { color: autorPerfil.cor_tema } : {}}
+                              onClick={() => abrirInspecao(msg.usuario)}
+                            >
+                              {autorPerfil?.nome_exibicao || msg.usuario}
+                            </span>
                             {tituloChat && <span className={`text-[8px] font-black uppercase tracking-widest ${tituloChat.imagem_url || tituloChat.id}`}>« {tituloChat.nome.replace("Título: ", "")} »</span>}
                             <span className="text-[10px] text-zinc-600 font-bold ml-1">{formatarHora(msg.criado_em)}</span>
                           </div>
@@ -533,7 +548,7 @@ export default function GuildaPage() {
                         />
                         <div>
                           <p className="font-black text-lg uppercase flex items-center gap-2">{hunter.nome_exibicao} {isTop1 || isTop2 || isTop3 ? <span className="text-xl">{medalha}</span> : ""}</p>
-                          {tituloRank && <p className={`text-[9px] font-black uppercase tracking-[0.2em] mt-0.5 ${tituloRank.imagem_url || tituloRank.id}`}>« {tituloRank.nome.replace("Título: ", "")} »</p>}
+                          {tituloRank && <p className={`text-[9px] font-black uppercase tracking-[0.2em] mt-0.5 ${tituloRank.id}`}>« {tituloRank.nome.replace("Título: ", "")} »</p>}
                           <p className="text-[9px] text-zinc-500 uppercase tracking-widest mt-1">RANK: <span className="text-white">{hunter.elo}</span></p>
                         </div>
                       </div>
@@ -550,30 +565,27 @@ export default function GuildaPage() {
         </section>
       </div>
 
-      {/* ✅ MODAL DE EDIÇÃO DO PLAYER CARD */}
       {editandoCard && meuPerfilAtivo && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/90 backdrop-blur-sm">
           <div className="bg-[#0e0e11] border border-zinc-800 w-full max-w-md rounded-[2.5rem] p-8 flex flex-col gap-6 shadow-2xl animate-in fade-in zoom-in duration-300">
             <h2 className="text-xl font-black italic uppercase tracking-tighter text-blue-500">Configurar Player Card</h2>
-            
             <div className="space-y-4">
               <div>
                 <label className="text-[10px] font-black uppercase text-zinc-500 ml-2">URL do Banner (Fundo)</label>
                 <input 
                   type="text" 
-                  placeholder="Link da imagem (Ex: Flores, Paisagens...)"
-                  className="w-full bg-black border border-zinc-800 p-4 rounded-2xl text-xs outline-none focus:border-blue-500 transition-all mt-1"
+                  placeholder="Link da imagem..."
+                  className="w-full bg-black border border-zinc-800 p-4 rounded-2xl text-xs outline-none focus:border-blue-500 mt-1"
                   value={cardDados.banner_url}
                   onChange={(e) => setCardDados({...cardDados, banner_url: e.target.value})}
                 />
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] font-black uppercase text-zinc-500 ml-2">Texto da Tag</label>
                   <input 
                     type="text" 
-                    className="w-full bg-black border border-zinc-800 p-4 rounded-2xl text-xs outline-none focus:border-blue-500 transition-all mt-1"
+                    className="w-full bg-black border border-zinc-800 p-4 rounded-2xl text-xs outline-none focus:border-blue-500 mt-1"
                     value={cardDados.tag_texto}
                     maxLength={6}
                     onChange={(e) => setCardDados({...cardDados, tag_texto: e.target.value.toUpperCase()})}
@@ -590,72 +602,103 @@ export default function GuildaPage() {
                 </div>
               </div>
             </div>
-
             <div className="flex gap-3 mt-4">
-              <button 
-                onClick={salvarPlayerCard}
-                className="flex-1 bg-blue-600 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-500 transition-all text-white"
-              >
-                Salvar Alterações
-              </button>
-              <button 
-                onClick={() => setEditandoCard(false)}
-                className="px-6 bg-zinc-900 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-zinc-800 transition-all text-zinc-400"
-              >
-                Voltar
-              </button>
+              <button onClick={salvarPlayerCard} className="flex-1 bg-blue-600 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest text-white">Salvar Alterações</button>
+              <button onClick={() => setEditandoCard(false)} className="px-6 bg-zinc-900 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest text-zinc-400">Voltar</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ✅ NOVO: MODAL DE INSPEÇÃO DE HUNTER (Relatório de Atributos) */}
+      {/* ✅ MODAL DE INSPEÇÃO ATUALIZADO (SCOUTER) */}
       
-      {inspecionandoHunter && (
-        <div className="fixed inset-0 z-[600] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md" onClick={() => setInspecionandoHunter(null)}>
-          <div 
-            className="bg-[#0e0e11] border border-zinc-800 w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in duration-300"
-            onClick={(e) => e.stopPropagation()} 
-          >
-            {/* CABEÇALHO COM O PLAYER CARD CUSTOMIZADO DO ALVO */}
-            <HunterCard 
-              perfil={inspecionandoHunter} 
-              customizacao={inspecionandoHunter.cosmeticos?.ativos?.card_config} 
-            />
+      {inspecionandoHunter && (() => {
+        const molduraInspecao = getMolduraPng(inspecionandoHunter.cosmeticos?.ativos?.moldura);
+        const tituloInspecao = getTituloItem(inspecionandoHunter.cosmeticos?.ativos?.titulo);
+        const corAura = inspecionandoHunter.cor_tema?.startsWith('#') 
+          ? inspecionandoHunter.cor_tema 
+          : (inspecionandoHunter.custom_color || "#3b82f6");
+        const progresso = calcularProgressoElo(inspecionandoHunter.total_obras);
 
-            <div className="p-8 grid grid-cols-2 gap-4">
-              <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-center">
-                <p className="text-[8px] font-black uppercase text-zinc-500 tracking-widest mb-1">Obras Lidas</p>
-                <p className="text-xl font-black italic text-blue-500">{inspecionandoHunter.total_obras}</p>
-              </div>
-              <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-center">
-                <p className="text-[8px] font-black uppercase text-zinc-500 tracking-widest mb-1">Capítulos</p>
-                <p className="text-xl font-black italic text-red-500">{inspecionandoHunter.total_capitulos}</p>
-              </div>
-              <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-center">
-                <p className="text-[8px] font-black uppercase text-zinc-500 tracking-widest mb-1">Esmolas</p>
-                <p className="text-xl font-black italic text-yellow-500">{(inspecionandoHunter.esmolas || 0).toLocaleString()}</p>
-              </div>
-              <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-center">
-                <p className="text-[8px] font-black uppercase text-zinc-500 tracking-widest mb-1">Elo Hunter</p>
-                <p className="text-[10px] font-black uppercase text-white mt-2">{inspecionandoHunter.elo}</p>
-              </div>
-              
-              <div className="col-span-2 bg-blue-600/10 p-4 rounded-2xl border border-blue-500/20 text-center">
-                <p className="text-[8px] font-black uppercase text-blue-400 tracking-widest mb-1">Tempo de Vida</p>
-                <p className="text-sm font-black text-white">{inspecionandoHunter.tempo_vida} horas de imersão</p>
-              </div>
-            </div>
-
-            <button 
-              onClick={() => setInspecionandoHunter(null)} 
-              className="w-full py-6 bg-zinc-900 hover:bg-zinc-800 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 transition-all border-t border-zinc-800"
+        return (
+          <div className="fixed inset-0 z-[600] flex items-center justify-center p-6 bg-black/95 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setInspecionandoHunter(null)}>
+            <div 
+              className="bg-[#0e0e11] border border-zinc-800 w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in duration-300 relative"
+              onClick={(e) => e.stopPropagation()} 
             >
-              Fechar Relatório
-            </button>
+              {/* COMPONENTE DE FUNDO PERSONALIZADO */}
+              <HunterCard 
+                perfil={inspecionandoHunter} 
+                customizacao={inspecionandoHunter.cosmeticos?.ativos?.card_config} 
+              />
+
+              {/* CONTEÚDO DE IDENTIDADE */}
+              <div className="px-8 -mt-6 relative z-10">
+                <div className="flex justify-center mb-4">
+                  <HunterAvatar 
+                    avatarUrl={inspecionandoHunter.avatar} 
+                    idMoldura={inspecionandoHunter.cosmeticos?.ativos?.moldura} 
+                    imagemMolduraUrl={molduraInspecao || undefined}
+                    tamanho="lg"
+                    temaCor={corAura}
+                  />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-2xl font-black uppercase italic tracking-tighter" style={{ color: corAura }}>
+                    {inspecionandoHunter.nome_exibicao}
+                  </h3>
+                  {tituloInspecao && (
+                    <p className={`text-[10px] font-black uppercase tracking-[0.4em] mt-1 opacity-80 ${tituloInspecao.id}`}>
+                      « {tituloInspecao.nome.replace("Título: ", "")} »
+                    </p>
+                  )}
+                </div>
+
+                {/* BARRA DE PROGRESSO DE ELO */}
+                <div className="mt-6 mb-2">
+                  <div className="flex justify-between items-end mb-2">
+                    <span className="text-[8px] font-black uppercase text-zinc-500 tracking-widest">Nível de Ascensão</span>
+                    <span className="text-[10px] font-black text-white italic">{inspecionandoHunter.elo}</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden border border-white/5">
+                    <div 
+                      className="h-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-all duration-1000" 
+                      style={{ width: `${progresso}%`, boxShadow: '0 0 10px rgba(37, 99, 235, 0.5)' }} 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* GRID DE ESTATÍSTICAS */}
+              <div className="p-8 grid grid-cols-2 gap-3 bg-zinc-950/50 mt-4 border-t border-white/5">
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-center">
+                  <p className="text-[7px] font-black uppercase text-zinc-500 tracking-[0.2em] mb-1">Obras</p>
+                  <p className="text-xl font-black italic text-blue-500">{inspecionandoHunter.total_obras}</p>
+                </div>
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-center">
+                  <p className="text-[7px] font-black uppercase text-zinc-500 tracking-[0.2em] mb-1">Capítulos</p>
+                  <p className="text-xl font-black italic text-red-500">{inspecionandoHunter.total_capitulos}</p>
+                </div>
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-center">
+                  <p className="text-[7px] font-black uppercase text-zinc-500 tracking-[0.2em] mb-1">Esmolas</p>
+                  <p className="text-xl font-black italic text-yellow-500">{inspecionandoHunter.esmolas}</p>
+                </div>
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-center">
+                  <p className="text-[7px] font-black uppercase text-zinc-500 tracking-[0.2em] mb-1">Imersão</p>
+                  <p className="text-sm font-black text-white mt-1">{inspecionandoHunter.tempo_vida}h</p>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setInspecionandoHunter(null)} 
+                className="w-full py-6 bg-zinc-900 hover:bg-zinc-800 text-[9px] font-black uppercase tracking-[0.4em] text-zinc-600 transition-all border-t border-zinc-800 hover:text-white"
+              >
+                Encerrar Inspeção
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </main>
   );
 }
