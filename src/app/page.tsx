@@ -405,13 +405,20 @@ export default function Home() {
   if (!mestreAutorizado) return <AcessoMestre aoAutorizar={() => setMestreAutorizado(true)} />;
 
   if (!usuarioAtual) return (
-    <ProfileSelection 
-      perfis={perfis} temas={TEMAS} tentarMudarPerfil={tentarMudarPerfil} 
-      perfilAlvoParaBloqueio={perfilAlvoParaBloqueio} setPerfilAlvoParaBloqueio={setPerfilAlvoParaBloqueio} 
-      pinDigitado={pinDigitado} setPinDigitado={setPinDigitado} confirmarPin={confirmarPin} 
-      setPinAdminAberto={setPinAdminAberto} pinAdminAberto={pinAdminAberto} 
-    />
-  );
+  <ProfileSelection 
+    perfis={perfis} 
+    lojaItens={lojaItens} // <--- ADICIONE ESTA LINHA AQUI
+    temas={TEMAS} 
+    tentarMudarPerfil={tentarMudarPerfil} 
+    perfilAlvoParaBloqueio={perfilAlvoParaBloqueio} 
+    setPerfilAlvoParaBloqueio={setPerfilAlvoParaBloqueio} 
+    pinDigitado={pinDigitado} 
+    setPinDigitado={setPinDigitado} 
+    confirmarPin={confirmarPin} 
+    setPinAdminAberto={setPinAdminAberto} 
+    pinAdminAberto={pinAdminAberto} 
+  />
+);
 
   if (isAdmin) return (
     <AdminPanel 
