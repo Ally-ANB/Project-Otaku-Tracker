@@ -439,41 +439,86 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-transparent p-6 md:p-12 text-white relative overflow-x-hidden" style={perfilAtivo.cor_tema?.startsWith('#') ? { '--aura': perfilAtivo.cor_tema } as any : {}}>
       
+      {/* ✅ HEADER REESTILIZADO (COMMAND CENTER) */}
       <header className="flex flex-col md:flex-row justify-between items-center gap-6 mb-16 border-b border-zinc-800/50 pb-10 relative z-20">
         <div className="text-center md:text-left">
           <h1 className="text-5xl font-black italic tracking-tighter">Hunter<span className={aura.text}>.</span>Tracker</h1>
-          <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-zinc-500 mt-2">Sincronizado: {perfilAtivo.nome_exibicao}</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-zinc-500 mt-2">Central de Operações Hunter</p>
         </div>
 
         <div className="flex items-center gap-4">
-          <button onClick={toggleModoCinema} className={`w-14 h-14 bg-zinc-900 border-2 rounded-2xl flex items-center justify-center text-xl transition-all ${modoCinema ? `${aura.border} ${aura.shadow}` : 'border-zinc-800'}`}>{modoCinema ? "📺" : "👓"}</button>
-          {perfilAtivo.anilist_token && (abaPrincipal === "MANGA" || abaPrincipal === "ANIME") && (
-            <button onClick={puxarProgressoDoAniList} disabled={sincronizando} className={`w-14 h-14 bg-zinc-900 border-2 border-blue-500/30 rounded-2xl flex items-center justify-center text-xl transition-all ${sincronizando ? 'animate-spin' : ''}`}>🔄</button>
-          )}
-          <button onClick={() => setEstaAbertoAdd(true)} className={`px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all bg-zinc-900 border-2 ${aura.border} ${aura.shadow} text-white`}>+ Adicionar Obra</button>
           
-          <Link href="/guilda" className="w-14 h-14 bg-zinc-900 border-2 border-zinc-800 hover:border-zinc-500 rounded-2xl flex items-center justify-center text-2xl transition-all" title="A Guilda">
-            🌍
-          </Link>
+          {/* BOTÃO ADICIONAR (GRADIENTE & DESTAQUE) */}
+          <button 
+            onClick={() => setEstaAbertoAdd(true)} 
+            className={`hidden md:flex items-center gap-3 px-8 py-3.5 bg-gradient-to-r from-blue-600/10 to-indigo-600/10 hover:from-blue-600 hover:to-indigo-600 border border-blue-500/20 rounded-2xl group transition-all duration-500 shadow-lg hover:shadow-blue-500/20`}
+          >
+            <span className="text-blue-400 group-hover:text-white transition-colors text-lg font-light">+</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">Adicionar Obra</span>
+          </button>
 
-          <div className="flex items-center gap-2">
-            <Link href="/perfil" className="hover:scale-105 transition-transform">
-              <HunterAvatar 
-                avatarUrl={perfilAtivo.avatar} 
-                idMoldura={perfilAtivo.cosmeticos?.ativos?.moldura} 
-                imagemMolduraUrl={molduraHeader?.imagem_url}
-                temaCor={perfilAtivo.custom_color}
-                tamanho="md"
-              />
-            </Link>
-            {/* ✅ BOTÃO PARA CUSTOMIZAR O CARD DE IDENTIDADE */}
+          {/* CAPSULA DE UTILITÁRIOS (GLASSMORPISM) */}
+          <div className="flex items-center gap-1.5 bg-white/5 backdrop-blur-md border border-white/10 p-1.5 rounded-2xl">
             <button 
-              onClick={() => setEditandoCard(true)}
-              className="w-10 h-10 bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800 rounded-xl flex items-center justify-center text-xs transition-all"
-              title="Customizar Card de Hunter"
+              onClick={toggleModoCinema} 
+              className={`p-3 rounded-xl transition-all ${modoCinema ? 'bg-blue-600 text-white shadow-lg' : 'text-zinc-500 hover:bg-white/10'}`} 
+              title="Modo Cinema"
             >
-              ⚙️
+              {modoCinema ? "📺" : "👓"}
             </button>
+            
+            {perfilAtivo.anilist_token && (abaPrincipal === "MANGA" || abaPrincipal === "ANIME") && (
+              <button 
+                onClick={puxarProgressoDoAniList} 
+                disabled={sincronizando} 
+                className={`p-3 text-zinc-500 hover:text-blue-400 hover:bg-white/10 rounded-xl transition-all ${sincronizando ? 'animate-spin' : ''}`}
+                title="Sincronizar AniList"
+              >
+                🔄
+              </button>
+            )}
+
+            <Link 
+              href="/guilda" 
+              className="p-3 text-zinc-500 hover:text-purple-400 hover:bg-white/10 rounded-xl transition-all" 
+              title="A Guilda Global"
+            >
+              🌍
+            </Link>
+          </div>
+
+          {/* HUB DO HUNTER INTEGRADO */}
+          <div className="relative group">
+            <div className="flex items-center gap-3 pl-2 pr-4 py-1.5 bg-zinc-900/40 hover:bg-zinc-800/60 border border-white/5 rounded-2xl transition-all duration-300 cursor-pointer shadow-lg">
+              
+              <Link href="/perfil" className="relative flex-shrink-0">
+                <HunterAvatar 
+                  avatarUrl={perfilAtivo.avatar} 
+                  idMoldura={perfilAtivo.cosmeticos?.ativos?.moldura} 
+                  imagemMolduraUrl={molduraHeader?.imagem_url}
+                  tamanho="sm"
+                  temaCor={perfilAtivo.custom_color}
+                />
+                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-zinc-950 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+              </Link>
+
+              <div className="hidden lg:flex flex-col text-left">
+                <span className="text-[9px] font-black uppercase tracking-wider text-white/90 leading-none">
+                  {perfilAtivo.nome_exibicao}
+                </span>
+                <span className="text-[7px] font-bold text-blue-500/80 uppercase tracking-widest mt-1">Status: Online</span>
+              </div>
+
+              <div className="w-px h-4 bg-white/10 mx-1 hidden sm:block" />
+              
+              <button 
+                onClick={() => setEditandoCard(true)}
+                className="p-1.5 text-zinc-600 group-hover:text-white group-hover:rotate-90 transition-all duration-500"
+                title="Configurar Identidade"
+              >
+                ⚙️
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -515,65 +560,32 @@ export default function Home() {
         />
       )} 
 
-      {/* ✅ MODAL DE EDIÇÃO DO PLAYER CARD (SINCRONIZADO COM A GUILDA) */}
       {editandoCard && perfilAtivo && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/95 backdrop-blur-md">
           <div className="bg-[#0e0e11] border border-zinc-800 w-full max-w-md rounded-[2.5rem] p-8 flex flex-col gap-6 shadow-2xl animate-in zoom-in duration-300">
             <h2 className="text-2xl font-black italic uppercase tracking-tighter text-blue-500">Player Card Identity</h2>
-            
-            {/* PREVIEW EM TEMPO REAL */}
             <div className="border border-white/5 rounded-2xl overflow-hidden scale-90 origin-center mb-2">
               <HunterCard perfil={perfilAtivo} customizacao={cardDados} />
             </div>
-
             <div className="space-y-4">
               <div>
                 <label className="text-[10px] font-black uppercase text-zinc-500 ml-2">Banner URL (Fundo)</label>
-                <input 
-                  type="text" 
-                  placeholder="https://exemplo.com/imagem.jpg"
-                  className="w-full bg-black border border-zinc-800 p-4 rounded-2xl text-xs outline-none focus:border-blue-500 transition-all mt-1"
-                  value={cardDados.banner_url}
-                  onChange={(e) => setCardDados({...cardDados, banner_url: e.target.value})}
-                />
+                <input type="text" placeholder="https://exemplo.com/imagem.jpg" className="w-full bg-black border border-zinc-800 p-4 rounded-2xl text-xs outline-none focus:border-blue-500 transition-all mt-1" value={cardDados.banner_url} onChange={(e) => setCardDados({...cardDados, banner_url: e.target.value})} />
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[10px] font-black uppercase text-zinc-500 ml-2">Tag Texto</label>
-                  <input 
-                    type="text" 
-                    className="w-full bg-black border border-zinc-800 p-4 rounded-2xl text-xs outline-none focus:border-blue-500 transition-all mt-1 text-center"
-                    value={cardDados.tag_texto}
-                    maxLength={8}
-                    onChange={(e) => setCardDados({...cardDados, tag_texto: e.target.value.toUpperCase()})}
-                  />
+                  <input type="text" className="w-full bg-black border border-zinc-800 p-4 rounded-2xl text-xs outline-none focus:border-blue-500 transition-all mt-1 text-center" value={cardDados.tag_texto} maxLength={8} onChange={(e) => setCardDados({...cardDados, tag_texto: e.target.value.toUpperCase()})} />
                 </div>
                 <div>
                   <label className="text-[10px] font-black uppercase text-zinc-500 ml-2">Tag Color</label>
-                  <input 
-                    type="color" 
-                    className="w-full h-[50px] bg-black border border-zinc-800 p-2 rounded-2xl cursor-pointer mt-1"
-                    value={cardDados.tag_cor}
-                    onChange={(e) => setCardDados({...cardDados, tag_cor: e.target.value})}
-                  />
+                  <input type="color" className="w-full h-[50px] bg-black border border-zinc-800 p-2 rounded-2xl cursor-pointer mt-1" value={cardDados.tag_cor} onChange={(e) => setCardDados({...cardDados, tag_cor: e.target.value})} />
                 </div>
               </div>
             </div>
-
             <div className="flex gap-3 mt-4">
-              <button 
-                onClick={salvarPlayerCard}
-                className="flex-1 bg-blue-600 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-500 transition-all text-white shadow-lg shadow-blue-500/20"
-              >
-                Salvar Card
-              </button>
-              <button 
-                onClick={() => setEditandoCard(false)}
-                className="px-6 bg-zinc-900 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-zinc-800 transition-all text-zinc-400"
-              >
-                Cancelar
-              </button>
+              <button onClick={salvarPlayerCard} className="flex-1 bg-blue-600 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-500 transition-all text-white shadow-lg shadow-blue-500/20">Salvar Card</button>
+              <button onClick={() => setEditandoCard(false)} className="px-6 bg-zinc-900 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-zinc-800 transition-all text-zinc-400">Cancelar</button>
             </div>
           </div>
         </div>
