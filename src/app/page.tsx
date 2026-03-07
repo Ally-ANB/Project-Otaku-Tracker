@@ -338,6 +338,8 @@ export default function Home() {
       if (pinDigitado === pinCorreto) {
         sessionStorage.setItem("hunter_ativo", "Admin");
         setUsuarioAtual("Admin"); setPerfilAlvoParaBloqueio(null);
+        // Isso avisa o Layout que um novo Hunter entrou e os VFX devem ser carregados.
+    window.dispatchEvent(new Event("hunter_cosmeticos_update"));
       } else {
         mostrarToast("Acesso Negado: PIN de Administrador Incorreto!", "erro");
       }
