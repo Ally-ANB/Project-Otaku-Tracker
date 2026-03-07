@@ -351,15 +351,20 @@ export default function PerfilPage() {
 
   const aura = dadosPerfil.tema === "custom" ? TEMAS.custom : (TEMAS[dadosPerfil.tema as keyof typeof TEMAS] || TEMAS.azul);
 
-  // ✅ PROCURA A URL DA IMAGEM CASO O USUÁRIO TENHA COMPRADO UMA MOLDURA PNG PERSONALIZADA (Vem do banco de dados)
+  // ✅ PREPARATIVOS PARA AS IMAGENS E VÍDEOS PERSONALIZADOS
   const molduraEquipadaItem = lojaItens.find(item => item.id === equipados.moldura);
-  const imagemMolduraUrl = molduraEquipadaItem?.imagem_url || null;
+  const imagemMolduraUrl = molduraEquipadaItem?.imagem_url && !molduraEquipadaItem.imagem_url.includes('.mp4') && !molduraEquipadaItem.imagem_url.includes('.webm') ? molduraEquipadaItem.imagem_url : null;
+
+  const particulaEquipadaItem = lojaItens.find(item => item.id === equipados.particula);
+  const vfxUrlPersonalizado = particulaEquipadaItem?.imagem_url && (particulaEquipadaItem.imagem_url.includes('.mp4') || particulaEquipadaItem.imagem_url.includes('.webm')) ? particulaEquipadaItem.imagem_url : undefined;
 
   if (carregando) return <div className="min-h-screen bg-[#040405] flex items-center justify-center text-white italic animate-pulse">SINCRONIZANDO HUB...</div>;
 
   return (
     <main className="min-h-screen bg-[#040405] flex flex-col items-center justify-center p-6 relative overflow-hidden" style={{ "--aura": dadosPerfil.custom_color } as any}>
-      <EfeitosVisuais particula={equipados.particula} />
+      
+      {/* ✅ INJETANDO O VFX URL SE FOR DO BANCO DE DADOS */}
+      <EfeitosVisuais particula={equipados.particula} urlVfx={vfxUrlPersonalizado} />
 
       <div className="fixed top-0 left-0 w-full p-10 flex justify-between items-center z-[110] pointer-events-none">
         <Link href="/" className="pointer-events-auto bg-black/50 px-6 py-3 rounded-2xl border border-white/5 text-[10px] font-black uppercase text-zinc-500 hover:text-white transition-all">← Voltar</Link>
@@ -373,11 +378,11 @@ export default function PerfilPage() {
           <span className="text-white font-black">{esmolas}</span>
         </div>
 
-        {/* ✅ O AVATAR AGORA SUPORTA MOLDURAS CSS (DISCORD) OU MOLDURAS EM PNG (CRIADAS NO PAINEL ADMIN) */}
-        <div className="relative mt-4 mb-2 flex items-center justify-center">
+        {/* ✅ FIX 1: AVATAR MOLDURA COM REDIMENSIONAMENTO AUTOMÁTICO `w-[140%]` e `max-w-none` evitam o esmagamento! */}
+        <div className="relative mt-4 mb-2 flex items-center justify-center w-28 h-28 shrink-0">
           
           {imagemMolduraUrl && (
-            <img src={imagemMolduraUrl} className="absolute z-20 w-36 h-36 object-contain pointer-events-none scale-110" alt="Moldura PNG" />
+            <img src={imagemMolduraUrl} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-[140%] h-[140%] max-w-none object-contain pointer-events-none" alt="Moldura PNG" />
           )}
           
           <div className={`w-28 h-28 bg-zinc-950 rounded-[2.5rem] overflow-hidden flex items-center justify-center relative z-10 
@@ -390,8 +395,9 @@ export default function PerfilPage() {
 
         <h1 className="text-3xl font-black text-white uppercase italic mt-6 mb-1">{dadosPerfil.nome}</h1>
         
+        {/* ✅ FIX 3: TÍTULOS COM ANIMAÇÕES SALVAS NO BANCO */}
         {equipados.titulo && (
-          <p className={`text-[10px] font-black uppercase tracking-[0.3em] mb-2 drop-shadow-md ${equipados.titulo}`}>
+          <p className={`text-[10px] font-black uppercase tracking-[0.3em] mb-2 drop-shadow-md ${lojaItens.find(i => i.id === equipados.titulo)?.imagem_url || equipados.titulo}`}>
             « {lojaItens.find(i => i.id === equipados.titulo)?.nome.replace("Título: ", "")} »
           </p>
         )}
@@ -465,7 +471,6 @@ export default function PerfilPage() {
 
           {abaAtiva === "LOJA" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-10">
-              {/* ✅ RENDERIZANDO OS ITENS DINAMICAMENTE DO BANCO DE DADOS */}
               {lojaItens.map(item => {
                 const comprado = inventario.includes(item.id); 
                 const equipado = equipados[item.tipo] === item.id;
@@ -474,8 +479,8 @@ export default function PerfilPage() {
                   <div key={item.id} className={`p-4 rounded-3xl border flex flex-col gap-4 ${comprado ? 'bg-zinc-900 border-zinc-700' : 'bg-black/50 border-zinc-800'}`}>
                     <div className="flex items-center gap-4">
                       
-                      {/* Se for uma imagem (PNG), exibe a imagem. Se não, exibe o ícone (Emoji) */}
-                      {item.imagem_url ? (
+                      {/* Se for imagem PNG exibe normal. Ignora MP4/WEBM e Títulos aqui na foto */}
+                      {item.imagem_url && !item.imagem_url.includes('.mp4') && !item.imagem_url.includes('.webm') && item.tipo !== 'titulo' ? (
                         <div className="w-14 h-14 bg-zinc-950 p-2 rounded-2xl border border-white/5 flex items-center justify-center">
                           <img src={item.imagem_url} alt={item.nome} className="w-full h-full object-contain" />
                         </div>
@@ -484,7 +489,8 @@ export default function PerfilPage() {
                       )}
 
                       <div>
-                        <p className="font-black uppercase text-[10px] text-white">{item.nome}</p>
+                        {/* Se for título, renderiza a classe dinâmica para preview */}
+                        <p className={`font-black uppercase text-[10px] ${item.tipo === 'titulo' && item.imagem_url ? item.imagem_url : 'text-white'}`}>{item.nome}</p>
                         <p className="text-[7px] text-zinc-500 uppercase">{item.tipo}</p>
                       </div>
                     </div>

@@ -18,7 +18,7 @@ const VIDEOS_VFX: Record<string, string> = {
 const CONFETE_CORES = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
 const MATRIX_CHARS = ['0', '1', 'H', 'U', 'N', 'T', 'E', 'R'];
 
-export default function EfeitosVisuais({ particula }: { particula: string }) {
+export default function EfeitosVisuais({ particula, urlVfx }: { particula: string, urlVfx?: string }) {
   const [ativo, setAtivo] = useState(true);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
@@ -26,12 +26,12 @@ export default function EfeitosVisuais({ particula }: { particula: string }) {
     const checkStatus = () => setAtivo(localStorage.getItem("hunter_animacoes") !== "false");
     checkStatus();
     
-    // Atualiza o link do vídeo sempre que a partícula mudar
-    setVideoUrl(VIDEOS_VFX[particula] || null);
+    // ✅ SE HOUVER UM URL DO BANCO (MP4/WEBM CUSTOMIZADO), ELE SOBRESCREVE OS PADRÕES!
+    setVideoUrl(urlVfx || VIDEOS_VFX[particula] || null);
 
     window.addEventListener("hunter_animacoes_toggle", checkStatus);
     return () => window.removeEventListener("hunter_animacoes_toggle", checkStatus);
-  }, [particula]);
+  }, [particula, urlVfx]);
 
   return (
     <>
@@ -103,17 +103,17 @@ export default function EfeitosVisuais({ particula }: { particula: string }) {
       {ativo && particula && (
         <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none w-screen h-screen">
           
-          {/* 🎬 MOTOR DE VÍDEO MP4 (ITENS DE ELITE) */}
+          {/* 🎬 MOTOR DE VÍDEO MP4/WEBM (ITENS DE ELITE) */}
           {videoUrl && (
             <video
-              key={particula}
+              key={videoUrl}
               autoPlay
               loop
               muted
               playsInline
               className="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-screen transition-opacity duration-1000"
             >
-              <source src={videoUrl} type="video/mp4" />
+              <source src={videoUrl} type={videoUrl.endsWith('.webm') ? 'video/webm' : 'video/mp4'} />
             </video>
           )}
 

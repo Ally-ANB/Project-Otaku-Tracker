@@ -10,6 +10,17 @@ interface AdminPanelProps {
   deletarPerfil: (p: any) => void;
 }
 
+// ✅ PRESETS DE AURAS MÁGICAS PARA OS TÍTULOS (Injetam CSS direto no banco)
+const TITULO_PRESETS = [
+  { id: "fogo_infernal", nome: "🔥 Fogo Infernal", classes: "bg-gradient-to-r from-red-600 to-yellow-500 text-transparent bg-clip-text animate-pulse drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]" },
+  { id: "ouro_divino", nome: "👑 Ouro Divino", classes: "bg-gradient-to-r from-yellow-300 via-yellow-500 to-yellow-700 text-transparent bg-clip-text drop-shadow-[0_0_10px_rgba(234,179,8,0.5)]" },
+  { id: "cyber_glitch", nome: "👾 Cyber Glitch", classes: "bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 text-transparent bg-clip-text animate-pulse" },
+  { id: "abismo_galatico", nome: "🌌 Abismo Galático", classes: "bg-gradient-to-r from-indigo-900 via-purple-900 to-black text-transparent bg-clip-text drop-shadow-[0_0_15px_rgba(88,28,135,0.8)]" },
+  { id: "aura_toxica", nome: "☠️ Aura Tóxica", classes: "bg-gradient-to-r from-green-400 to-green-700 text-transparent bg-clip-text drop-shadow-[0_0_12px_rgba(74,222,128,0.8)]" },
+  { id: "fantasma", nome: "👻 Espectral", classes: "text-zinc-300 opacity-80 drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]" },
+  { id: "carmesim", nome: "🩸 Carmesim Vampírico", classes: "text-red-700 drop-shadow-[0_0_12px_rgba(153,27,27,0.9)]" }
+];
+
 export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarConfig, deletarPerfil }: AdminPanelProps) {
   const [abaAtiva, setAbaAtiva] = useState("GUILDA");
   const [localPerfis, setLocalPerfis] = useState<any[]>([]);
@@ -189,7 +200,7 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
     try {
       setFazendoUploadLoja(true);
       const file = event.target.files[0];
-      if (!file) throw new Error("Nenhuma imagem selecionada.");
+      if (!file) throw new Error("Nenhum arquivo selecionado.");
 
       const fileExt = file.name.split('.').pop();
       const fileName = `item-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
@@ -202,7 +213,7 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
       const { data } = supabase.storage.from('cosmeticos').getPublicUrl(filePath);
       
       setFormLoja({ ...formLoja, imagem_url: data.publicUrl });
-      alert("✅ Imagem enviada! Salve o item para confirmar.");
+      alert("✅ Arquivo enviado! Salve o item para confirmar.");
     } catch (error: any) {
       alert("❌ Erro no upload: " + error.message);
     } finally {
@@ -263,7 +274,6 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
 
       {/* ABAS DO PAINEL */}
       <div className="flex flex-wrap gap-4 mb-10">
-        {/* ✅ ADICIONADO A ABA LOJA */}
         {["GUILDA", "LOJA", "SISTEMA", "FERRAMENTAS"].map(aba => (
           <button 
             key={aba} onClick={() => setAbaAtiva(aba)} 
@@ -343,7 +353,11 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
                 
                 <div className="flex justify-between items-start">
                   <div className="w-12 h-12 bg-black rounded-xl border border-white/5 flex items-center justify-center text-2xl overflow-hidden">
-                    {item.imagem_url ? <img src={item.imagem_url} className="w-full h-full object-contain" alt="item" /> : item.icone}
+                    {item.imagem_url && !item.imagem_url.includes('.mp4') && !item.imagem_url.includes('.webm') && item.tipo !== 'titulo' ? (
+                      <img src={item.imagem_url} className="w-full h-full object-contain" alt="item" />
+                    ) : (
+                      <span>{item.icone}</span>
+                    )}
                   </div>
                   <div className="text-right">
                     <p className="text-[10px] text-yellow-500 font-black">{item.preco} 🪙</p>
@@ -352,7 +366,7 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
                 </div>
 
                 <div>
-                  <p className="text-xs font-black text-white uppercase">{item.nome}</p>
+                  <p className={`text-xs font-black uppercase ${item.tipo === 'titulo' && item.imagem_url ? item.imagem_url : 'text-white'}`}>{item.nome}</p>
                   <p className="text-[9px] text-zinc-500 mt-1 line-clamp-2">{item.desc_texto}</p>
                   <p className="text-[8px] text-zinc-600 mt-2 font-mono">ID: {item.id}</p>
                 </div>
@@ -482,7 +496,7 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">ID Único (ex: moldura_fogo)</label>
+                  <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">ID Único (ex: aura_fogo)</label>
                   <input type="text" disabled={!isNovoItem} className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-mono text-xs outline-none focus:border-purple-500 mt-1 disabled:opacity-50" value={formLoja.id} onChange={e => setFormLoja({...formLoja, id: e.target.value})} />
                 </div>
                 <div>
@@ -500,7 +514,7 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
                   <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">Tipo de Equipamento</label>
                   <select className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-[10px] font-bold uppercase outline-none mt-1" value={formLoja.tipo} onChange={e => setFormLoja({...formLoja, tipo: e.target.value})}>
                     <option value="moldura">Moldura de Avatar</option>
-                    <option value="particula">Partículas de Fundo</option>
+                    <option value="particula">Partículas de Fundo / VFX</option>
                     <option value="titulo">Título Honroso</option>
                     <option value="chat_cor">Cor de Chat</option>
                     <option value="chat_balao">Balão de Chat</option>
@@ -513,24 +527,40 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
                 <input type="text" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-xs outline-none focus:border-purple-500 mt-1" value={formLoja.desc_texto} onChange={e => setFormLoja({...formLoja, desc_texto: e.target.value})} />
               </div>
 
-              {/* UPLOAD DE IMAGEM */}
-              <div className="p-4 bg-purple-500/5 border border-purple-500/20 rounded-2xl flex flex-col gap-3 mt-4">
-                <p className="text-[10px] font-black uppercase text-purple-400 tracking-widest">Aparência do Item (PNG/GIF)</p>
-                <div className="flex gap-3">
-                  <input type="text" placeholder="URL direta da imagem ou deixe vazio..." className="flex-1 bg-black border border-white/5 p-4 rounded-xl text-white text-xs outline-none" value={formLoja.imagem_url} onChange={e => setFormLoja({...formLoja, imagem_url: e.target.value})} />
-                  
-                  <label className={`flex items-center justify-center px-4 rounded-xl font-black uppercase text-[9px] cursor-pointer transition-all border ${fazendoUploadLoja ? 'bg-zinc-800 text-zinc-500 border-zinc-700' : 'bg-purple-600/20 text-purple-400 border-purple-500/30 hover:bg-purple-600 hover:text-white'}`}>
-                    {fazendoUploadLoja ? "⏳..." : "⬆️ Upar do PC"}
-                    <input type="file" accept="image/*" className="hidden" onChange={uploadImagemLoja} disabled={fazendoUploadLoja} />
-                  </label>
+              {/* LÓGICA CONDICIONAL: SE FOR TÍTULO, MOSTRA A FORJA. SENÃO, MOSTRA O UPLOAD. */}
+              {formLoja.tipo === "titulo" ? (
+                <div className="p-4 bg-purple-500/5 border border-purple-500/20 rounded-2xl flex flex-col gap-3 mt-4">
+                  <p className="text-[10px] font-black uppercase text-purple-400 tracking-widest">Aura do Título (Forja Automática)</p>
+                  <select className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-xs outline-none" value={formLoja.imagem_url} onChange={e => setFormLoja({...formLoja, imagem_url: e.target.value})}>
+                    <option value="">Selecione a Aura Mágica...</option>
+                    {TITULO_PRESETS.map(p => <option key={p.id} value={p.classes}>{p.nome}</option>)}
+                  </select>
+                  {formLoja.imagem_url && (
+                    <div className="mt-4 text-center p-4 bg-black border border-zinc-800 rounded-xl">
+                      <span className={`text-xl font-black uppercase tracking-widest ${formLoja.imagem_url}`}>Preview do Título</span>
+                    </div>
+                  )}
                 </div>
-                {!formLoja.imagem_url && (
-                  <div>
-                    <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Se não enviar imagem, qual Emoji será usado de Ícone?</label>
-                    <input type="text" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-2xl text-center outline-none focus:border-purple-500 mt-1" value={formLoja.icone} onChange={e => setFormLoja({...formLoja, icone: e.target.value})} />
+              ) : (
+                <div className="p-4 bg-purple-500/5 border border-purple-500/20 rounded-2xl flex flex-col gap-3 mt-4">
+                  <p className="text-[10px] font-black uppercase text-purple-400 tracking-widest">Aparência do Item (PNG/GIF/MP4/WEBM)</p>
+                  <div className="flex gap-3">
+                    <input type="text" placeholder="URL direta ou deixe vazio..." className="flex-1 bg-black border border-white/5 p-4 rounded-xl text-white text-xs outline-none" value={formLoja.imagem_url} onChange={e => setFormLoja({...formLoja, imagem_url: e.target.value})} />
+                    
+                    <label className={`flex items-center justify-center px-4 rounded-xl font-black uppercase text-[9px] cursor-pointer transition-all border ${fazendoUploadLoja ? 'bg-zinc-800 text-zinc-500 border-zinc-700' : 'bg-purple-600/20 text-purple-400 border-purple-500/30 hover:bg-purple-600 hover:text-white'}`}>
+                      {fazendoUploadLoja ? "⏳..." : "⬆️ Upar do PC"}
+                      {/* ✅ ACEITANDO ARQUIVOS DE VÍDEO AGORA */}
+                      <input type="file" accept="image/*, video/mp4, video/webm" className="hidden" onChange={uploadImagemLoja} disabled={fazendoUploadLoja} />
+                    </label>
                   </div>
-                )}
-              </div>
+                  {!formLoja.imagem_url && (
+                    <div>
+                      <label className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest ml-1">Ícone Simples (Emoji)</label>
+                      <input type="text" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-2xl text-center outline-none focus:border-purple-500 mt-1" value={formLoja.icone} onChange={e => setFormLoja({...formLoja, icone: e.target.value})} placeholder="🔥" />
+                    </div>
+                  )}
+                </div>
+              )}
 
               <button onClick={salvarItemLoja} disabled={carregandoAcao} className="w-full py-5 mt-4 rounded-xl bg-purple-600 text-white font-black uppercase tracking-widest hover:bg-purple-500 transition-all shadow-[0_0_20px_rgba(168,85,247,0.3)]">
                 {carregandoAcao ? "Salvando..." : (isNovoItem ? "Lançar Cosmético no Mercado" : "Atualizar Item")}

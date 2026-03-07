@@ -71,10 +71,13 @@ export default function GuildaPage() {
   const [novaFigurinhaUrl, setNovaFigurinhaUrl] = useState("");
   const [fazendoUploadFigurinha, setFazendoUploadFigurinha] = useState(false);
 
-  // ✅ NOVOS ESTADOS: Edição, Exclusão e Paginação
+  // Estados de Edição, Exclusão e Paginação
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [textoEdicao, setTextoEdicao] = useState("");
   const [limiteMensagens, setLimiteMensagens] = useState(50);
+  
+  // ✅ ESTADO DOS ITENS DA LOJA (PARA LER OS VÍDEOS E AS AURA DOS TÍTULOS)
+  const [lojaItens, setLojaItens] = useState<any[]>([]);
 
   useEffect(() => {
     const hunter = sessionStorage.getItem("hunter_ativo");
@@ -85,7 +88,7 @@ export default function GuildaPage() {
     
     const intervalo = setInterval(buscarMensagens, 10000);
     return () => clearInterval(intervalo);
-  }, [limiteMensagens]); // ✅ Adicionado limiteMensagens como dependência para atualizar ao carregar mais
+  }, [limiteMensagens]);
 
   useEffect(() => {
     // Só força o scroll para baixo se não estivermos paginando (vendo antigas)
@@ -103,6 +106,10 @@ export default function GuildaPage() {
   async function carregarDados() {
     await buscarPerfis();
     await buscarMensagens();
+    
+    // ✅ BUSCA OS ITENS DO BANCO PARA SABERMOS QUAIS SÃO AS MOLDURAS E QUAIS SÃO OS TÍTULOS MÁGICOS
+    const { data: itensDB } = await supabase.from("loja_itens").select("*");
+    if (itensDB) setLojaItens(itensDB);
   }
 
   async function buscarPerfis() {
@@ -114,11 +121,11 @@ export default function GuildaPage() {
     const { data } = await supabase
       .from("guilda_mensagens")
       .select("*")
-      .order("criado_em", { ascending: false }) // Pega as mais novas do banco
-      .limit(limiteMensagens); // ✅ Agora usa o estado dinâmico
+      .order("criado_em", { ascending: false })
+      .limit(limiteMensagens);
       
     if (data) {
-      setMensagens(data.reverse()); // Inverte para renderizar de cima para baixo
+      setMensagens(data.reverse());
     }
   }
 
@@ -199,7 +206,6 @@ export default function GuildaPage() {
     setEnviando(false);
   }
 
-  // ✅ NOVAS FUNÇÕES: Editar e Excluir
   async function excluirMensagem(id: number) {
     if (!confirm("Tem certeza que deseja apagar esta mensagem?")) return;
     await supabase.from("guilda_mensagens").delete().eq("id", id);
@@ -279,6 +285,21 @@ export default function GuildaPage() {
     return p.cor_tema?.startsWith('#') ? `text-[${p.cor_tema}]` : (cores[p.cor_tema] || "text-green-500");
   }
 
+  // ✅ FUNÇÕES DE APOIO PARA EXIBIR A MOLDURA E O TÍTULO DOS USUÁRIOS
+  function getMolduraPng(idItem?: string) {
+    if (!idItem) return null;
+    const item = lojaItens.find(i => i.id === idItem);
+    if (item?.imagem_url && !item.imagem_url.includes('.mp4') && !item.imagem_url.includes('.webm') && item.tipo !== 'titulo') {
+      return item.imagem_url;
+    }
+    return null;
+  }
+
+  function getTituloItem(idItem?: string) {
+    if (!idItem) return null;
+    return lojaItens.find(i => i.id === idItem);
+  }
+
   const huntersOrdenados = [...estatisticas].sort((a, b) => {
     if (filtroRanking === "OBRAS") return b.total_obras - a.total_obras;
     if (filtroRanking === "ESMOLAS") return b.esmolas - a.esmolas;
@@ -308,20 +329,38 @@ export default function GuildaPage() {
           <div className="bg-[#0e0e11]/95 border border-zinc-800 rounded-[2rem] p-6 flex-1">
             <h2 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-6 border-b border-zinc-800 pb-4">Hunters Registrados</h2>
             <div className="space-y-4 overflow-y-auto custom-scrollbar max-h-[60vh] pr-2">
-              {perfis.map(p => (
-                <div key={p.nome_original} className="flex items-center gap-4 bg-black/40 p-3 rounded-2xl border border-white/5">
-                  {/* ✅ AVATARES DA LISTA DE HUNTERS COM MOLDURAS */}
-                  <div className="relative shrink-0">
-                    <div className={`w-10 h-10 rounded-[1rem] overflow-hidden bg-zinc-900 flex items-center justify-center text-xl relative z-10 ${!MOLDURAS_DISCORD[p.cosmeticos?.ativos?.moldura || ""] ? "border border-white/10" : ""} ${MOLDURAS_DISCORD[p.cosmeticos?.ativos?.moldura || ""] || ""}`}>
-                      {p.avatar?.startsWith('http') ? <img src={p.avatar} className="w-full h-full object-cover" /> : <span>{p.avatar}</span>}
+              {perfis.map(p => {
+                const molduraSidebar = getMolduraPng(p.cosmeticos?.ativos?.moldura);
+                const tituloSidebar = getTituloItem(p.cosmeticos?.ativos?.titulo);
+
+                return (
+                  <div key={p.nome_original} className="flex items-center gap-4 bg-black/40 p-3 rounded-2xl border border-white/5">
+                    
+                    {/* ✅ AVATARES DA LISTA DE HUNTERS COM MOLDURAS CORRIGIDAS */}
+                    <div className="relative shrink-0 w-10 h-10 flex items-center justify-center">
+                      {molduraSidebar && (
+                        <img src={molduraSidebar} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-[140%] h-[140%] max-w-none object-contain pointer-events-none" alt="Moldura PNG" />
+                      )}
+                      <div className={`w-10 h-10 rounded-[1rem] overflow-hidden bg-zinc-900 flex items-center justify-center text-xl relative z-10 ${!MOLDURAS_DISCORD[p.cosmeticos?.ativos?.moldura || ""] && !molduraSidebar ? "border border-white/10" : ""} ${MOLDURAS_DISCORD[p.cosmeticos?.ativos?.moldura || ""] || ""}`}>
+                        {p.avatar?.startsWith('http') ? <img src={p.avatar} className="w-full h-full object-cover" /> : <span>{p.avatar}</span>}
+                      </div>
+                    </div>
+
+                    <div className="overflow-hidden">
+                      <p className={`font-black text-xs truncate ${p.cor_tema?.startsWith('#') ? '' : getCor(p.nome_original)}`} style={p.cor_tema?.startsWith('#') ? { color: p.cor_tema } : {}}>{p.nome_exibicao}</p>
+                      
+                      {/* ✅ TÍTULOS SENDO RENDERIZADOS NO PAINEL LATERAL COM CSS INJETADO */}
+                      {tituloSidebar && (
+                        <p className={`text-[7px] font-black uppercase tracking-[0.2em] truncate mt-0.5 ${tituloSidebar.imagem_url || tituloSidebar.id}`}>
+                          « {tituloSidebar.nome.replace("Título: ", "")} »
+                        </p>
+                      )}
+                      
+                      <p className="text-[8px] text-zinc-500 uppercase tracking-widest mt-1">ID: {p.nome_original}</p>
                     </div>
                   </div>
-                  <div className="overflow-hidden">
-                    <p className={`font-black text-xs truncate ${p.cor_tema?.startsWith('#') ? '' : getCor(p.nome_original)}`} style={p.cor_tema?.startsWith('#') ? { color: p.cor_tema } : {}}>{p.nome_exibicao}</p>
-                    <p className="text-[8px] text-zinc-500 uppercase tracking-widest mt-1">ID: {p.nome_original}</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </aside>
@@ -337,7 +376,7 @@ export default function GuildaPage() {
             <div className="flex flex-col h-full flex-1 min-h-0">
               <div ref={scrollRef} className="flex-1 p-8 overflow-y-auto custom-scrollbar flex flex-col gap-1">
                 
-                {/* ✅ BOTÃO CARREGAR MAIS MENSAGENS */}
+                {/* BOTÃO CARREGAR MAIS MENSAGENS */}
                 {mensagens.length >= limiteMensagens && (
                   <div className="flex justify-center mb-6">
                     <button 
@@ -362,7 +401,11 @@ export default function GuildaPage() {
                     const classeTexto = corAtiva && CORES_CHAT[corAtiva] ? CORES_CHAT[corAtiva] : "text-zinc-300";
                     const classeBalao = balaoAtivo && BALOES_CHAT[balaoAtivo] ? BALOES_CHAT[balaoAtivo] : "hover:bg-white/5 bg-transparent";
 
-                    // ✅ LÓGICA DE AGRUPAMENTO DE MENSAGENS (ESTILO DISCORD)
+                    // Puxando as Molduras e os Títulos Mágicos para o Chat
+                    const molduraChat = getMolduraPng(autorPerfil?.cosmeticos?.ativos?.moldura);
+                    const tituloChat = getTituloItem(autorPerfil?.cosmeticos?.ativos?.titulo);
+
+                    // LÓGICA DE AGRUPAMENTO DE MENSAGENS (ESTILO DISCORD)
                     let mostrarCabecalho = true;
                     if (index > 0) {
                       const prevMsg = mensagens[index - 1];
@@ -376,10 +419,13 @@ export default function GuildaPage() {
                     return (
                       <div key={msg.id} className={`group flex gap-4 items-start w-full px-4 py-1 transition-all rounded-lg ${mostrarCabecalho ? 'mt-4' : 'mt-0'} ${classeBalao.includes('bg-transparent') ? classeBalao : 'p-3 ' + classeBalao}`}>
                         
-                        {/* Avatar com Moldura */}
+                        {/* ✅ Avatar com Moldura 140% no Chat */}
                         <div className="w-10 shrink-0 flex justify-center mt-1">
                           {mostrarCabecalho ? (
-                            <div className="relative">
+                            <div className="relative w-10 h-10 flex items-center justify-center">
+                              {molduraChat && (
+                                <img src={molduraChat} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-[140%] h-[140%] max-w-none object-contain pointer-events-none" alt="Moldura PNG" />
+                              )}
                               <div className={`w-10 h-10 rounded-[1rem] overflow-hidden bg-zinc-900 flex items-center justify-center text-sm relative z-10 ${MOLDURAS_DISCORD[autorPerfil?.cosmeticos?.ativos?.moldura || ""] || ""}`}>
                                 {getAvatar(msg.usuario)?.startsWith('http') ? <img src={getAvatar(msg.usuario)} className="w-full h-full object-cover" /> : <span>{getAvatar(msg.usuario)}</span>}
                               </div>
@@ -390,19 +436,24 @@ export default function GuildaPage() {
                         </div>
 
                         <div className="flex flex-col w-full relative">
-                          {/* Nome e Hora */}
+                          {/* ✅ Nome, TÍTULOS CSS e Hora no Chat */}
                           {mostrarCabecalho && (
-                            <div className="flex items-baseline gap-2 mb-1">
+                            <div className="flex flex-wrap items-baseline gap-2 mb-1">
                               <span className={`text-[12px] font-black uppercase ${getCor(msg.usuario)}`}>
                                 {autorPerfil?.nome_exibicao || msg.usuario}
                               </span>
-                              <span className="text-[10px] text-zinc-600 font-bold">
+                              {tituloChat && (
+                                <span className={`text-[8px] font-black uppercase tracking-widest ${tituloChat.imagem_url || tituloChat.id}`}>
+                                  « {tituloChat.nome.replace("Título: ", "")} »
+                                </span>
+                              )}
+                              <span className="text-[10px] text-zinc-600 font-bold ml-1">
                                 {formatarHora(msg.criado_em)}
                               </span>
                             </div>
                           )}
                           
-                          {/* ✅ CAIXA DE EDIÇÃO OU TEXTO NORMAL */}
+                          {/* CAIXA DE EDIÇÃO OU TEXTO NORMAL */}
                           <div className="text-sm leading-relaxed pr-16 min-h-[24px] flex items-center">
                             {editandoId === msg.id ? (
                               <div className="flex gap-2 w-full mt-1">
@@ -423,7 +474,7 @@ export default function GuildaPage() {
                             )}
                           </div>
 
-                          {/* ✅ BOTÕES FLUTUANTES DE EDITAR/EXCLUIR (Aparecem no Hover) */}
+                          {/* BOTÕES FLUTUANTES DE EDITAR/EXCLUIR */}
                           {isMe && editandoId !== msg.id && (
                             <div className="absolute right-0 top-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 bg-[#0e0e11] border border-zinc-800 px-2 py-1 rounded-lg shadow-lg">
                               {msg.tipo !== "figurinha" && (
@@ -527,18 +578,35 @@ export default function GuildaPage() {
                     if (filtroRanking === "CAPITULOS") { corTexto = "text-red-400"; valor = hunter.total_capitulos; label = "Caps / Episódios"; }
                     if (filtroRanking === "FAVORITOS") { corTexto = "text-green-400"; valor = hunter.total_favoritos; label = "Obras Favoritas"; }
 
+                    // Pegando customizações
+                    const molduraRank = getMolduraPng(hunter.cosmeticos?.ativos?.moldura);
+                    const tituloRank = getTituloItem(hunter.cosmeticos?.ativos?.titulo);
+
                     return (
                       <div key={hunter.nome_original} className={`flex items-center justify-between p-5 rounded-3xl border transition-all ${isTop1 ? 'bg-yellow-900/10 border-yellow-500/50 shadow-[0_0_30px_rgba(234,179,8,0.1)]' : isTop2 ? 'bg-zinc-800/20 border-zinc-400/50' : isTop3 ? 'bg-orange-900/10 border-orange-700/50' : 'bg-zinc-900/30 border-zinc-800'}`}>
                         <div className="flex items-center gap-6">
                           <span className={`text-3xl font-black italic w-10 text-center ${isTop1 ? 'text-yellow-500 drop-shadow-md' : isTop2 ? 'text-zinc-300' : isTop3 ? 'text-orange-500' : 'text-zinc-600'}`}>#{index + 1}</span>
                           
-                          {/* ✅ AVATARES DO RANKING COM MOLDURAS */}
-                          <div className={`w-14 h-14 rounded-[1.5rem] overflow-hidden bg-zinc-950 flex items-center justify-center text-2xl relative z-10 ${!MOLDURAS_DISCORD[hunter.cosmeticos?.ativos?.moldura || ""] ? "border border-white/10" : ""} ${MOLDURAS_DISCORD[hunter.cosmeticos?.ativos?.moldura || ""] || ""}`}>
-                            {hunter.avatar?.startsWith('http') ? <img src={hunter.avatar} className="w-full h-full object-cover" /> : <span>{hunter.avatar}</span>}
+                          {/* ✅ AVATARES DO RANKING COM MOLDURAS CORRIGIDAS */}
+                          <div className="relative w-14 h-14 shrink-0 flex items-center justify-center">
+                            {molduraRank && (
+                              <img src={molduraRank} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-[140%] h-[140%] max-w-none object-contain pointer-events-none" alt="Moldura PNG" />
+                            )}
+                            <div className={`w-14 h-14 rounded-[1.5rem] overflow-hidden bg-zinc-950 flex items-center justify-center text-2xl relative z-10 ${!MOLDURAS_DISCORD[hunter.cosmeticos?.ativos?.moldura || ""] && !molduraRank ? "border border-white/10" : ""} ${MOLDURAS_DISCORD[hunter.cosmeticos?.ativos?.moldura || ""] || ""}`}>
+                              {hunter.avatar?.startsWith('http') ? <img src={hunter.avatar} className="w-full h-full object-cover" /> : <span>{hunter.avatar}</span>}
+                            </div>
                           </div>
 
                           <div>
                             <p className="font-black text-lg uppercase flex items-center gap-2">{hunter.nome_exibicao} {isTop1 || isTop2 || isTop3 ? <span className="text-xl">{medalha}</span> : ""}</p>
+                            
+                            {/* ✅ TÍTULOS SENDO RENDERIZADOS NO RANKING COM CSS INJETADO */}
+                            {tituloRank && (
+                              <p className={`text-[9px] font-black uppercase tracking-[0.2em] mt-0.5 ${tituloRank.imagem_url || tituloRank.id}`}>
+                                « {tituloRank.nome.replace("Título: ", "")} »
+                              </p>
+                            )}
+                            
                             <p className="text-[9px] text-zinc-500 uppercase tracking-widest mt-1">RANK: <span className="text-white">{hunter.elo}</span></p>
                           </div>
                         </div>
