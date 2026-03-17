@@ -6,14 +6,15 @@ import EfeitosVisuais from "./EfeitosVisuais";
 
 export default function GlobalVFXManager() {
   const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null);
-  const [particulaId, setParticulaId] = useState<string>("");
+  // ✅ NOVA SESSÃO: Objeto Completo agora inclui a 'direcao'
+  const [particulaConfig, setParticulaConfig] = useState<{ id: string, tema_css: string, quantidade: number, direcao: string | null } | null>(null);
 
   const carregarCosmeticosGlobais = async () => {
     const hunterAtivo = sessionStorage.getItem("hunter_ativo");
     
     if (!hunterAtivo) {
       setBackgroundUrl(null);
-      setParticulaId("");
+      setParticulaConfig(null);
       return;
     }
 
@@ -26,10 +27,34 @@ export default function GlobalVFXManager() {
     if (perfil?.cosmeticos?.ativos) {
       const ativos = perfil.cosmeticos.ativos;
       
-      // ✅ Slot 1: Partículas (Repassa para o EfeitosVisuais)
-      setParticulaId(ativos.particula || "");
+      // ==========================================
+      // ✅ [SESSÃO SLOT 1] - PARTÍCULAS DINÂMICAS
+      // ==========================================
+      if (ativos.particula) {
+        // Agora busca também a direcao na loja_itens
+        const { data: itemParticula } = await supabase
+          .from("loja_itens")
+          .select("tema_css, quantidade_elementos, direcao")
+          .eq("id", ativos.particula)
+          .single();
 
-      // ✅ Slot 2: VFX (Background Imersivo)
+        if (itemParticula && itemParticula.tema_css) {
+          setParticulaConfig({
+            id: ativos.particula,
+            tema_css: itemParticula.tema_css,
+            quantidade: itemParticula.quantidade_elementos || 30, // Fallback
+            direcao: itemParticula.direcao || null // Pode ser null para itens lendários antigos
+          });
+        } else {
+          setParticulaConfig(null);
+        }
+      } else {
+        setParticulaConfig(null);
+      }
+
+      // ==========================================
+      // ✅ [SESSÃO SLOT 2] - VFX BACKGROUND
+      // ==========================================
       if (ativos.vfx) {
         const { data: item } = await supabase
           .from("loja_itens")
@@ -59,13 +84,13 @@ export default function GlobalVFXManager() {
 
   return (
     <>
-      {/* 🎬 CAMADA DE BACKGROUND (VFX) - CALIBRADA PARA CLARIDADE */}
+      {/* 🎬 CAMADA DE BACKGROUND (VFX) */}
       {backgroundUrl && (
         <div className="fixed inset-0 z-[-2] pointer-events-none overflow-hidden">
           {backgroundUrl.split('?')[0].toLowerCase().endsWith('.gif') ? (
             <img 
               src={backgroundUrl} 
-              className="w-full h-full object-cover opacity-70" // ✅ Aumentado para dar mais brilho ao GIF
+              className="w-full h-full object-cover opacity-70" 
               alt="Background VFX" 
             />
           ) : (
@@ -77,19 +102,18 @@ export default function GlobalVFXManager() {
               playsInline 
               preload="auto"
               crossOrigin="anonymous"
-              className="w-full h-full object-cover opacity-50 mix-blend-screen" // ✅ Opacidade do vídeo equilibrada
+              className="w-full h-full object-cover opacity-50 mix-blend-screen" 
             >
               <source src={backgroundUrl} type={backgroundUrl.includes('.webm') ? 'video/webm' : 'video/mp4'} />
             </video>
           )}
           
-          {/* ✅ FILTRO DE PROFUNDIDADE REVISADO: Mais claro e com desfoque sutil */}
           <div className="absolute inset-0 bg-black/25 backdrop-blur-[1px]" />
         </div>
       )}
 
       {/* ❄️ CAMADA DE PRIMEIRO PLANO (PARTÍCULAS CSS) */}
-      <EfeitosVisuais particula={particulaId} />
+      <EfeitosVisuais config={particulaConfig} />
     </>
   );
 }

@@ -10,7 +10,9 @@ interface AdminPanelProps {
   deletarPerfil: (p: any) => void;
 }
 
-// ✅ PRESETS DE AURAS MÁGICAS PARA OS TÍTULOS (Injetam CSS direto no banco)
+// ==========================================
+// 🎨 [SESSÃO] - PRESETS DE TÍTULOS E AURAS
+// ==========================================
 const TITULO_PRESETS = [
   { id: "fogo_infernal", nome: "🔥 Fogo Infernal", classes: "bg-gradient-to-r from-red-600 to-yellow-500 text-transparent bg-clip-text animate-pulse drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]" },
   { id: "ouro_divino", nome: "👑 Ouro Divino", classes: "bg-gradient-to-r from-yellow-300 via-yellow-500 to-yellow-700 text-transparent bg-clip-text drop-shadow-[0_0_10px_rgba(234,179,8,0.5)]" },
@@ -22,6 +24,9 @@ const TITULO_PRESETS = [
 ];
 
 export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarConfig, deletarPerfil }: AdminPanelProps) {
+  // ==========================================
+  // ⚙️ [SESSÃO] - ESTADOS GLOBAIS
+  // ==========================================
   const [abaAtiva, setAbaAtiva] = useState("GUILDA");
   const [localPerfis, setLocalPerfis] = useState<any[]>([]);
   const [usuarioEditando, setUsuarioEditando] = useState<any | null>(null);
@@ -29,26 +34,27 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
   const [carregandoAcao, setCarregandoAcao] = useState(false);
 
   // ==========================================
-  // 🛒 ESTADOS DA LOJA DE COSMÉTICOS
+  // 🛒 [SESSÃO] - ESTADOS DA LOJA
   // ==========================================
   const [lojaItens, setLojaItens] = useState<any[]>([]);
   const [itemLojaEditando, setItemLojaEditando] = useState<any | null>(null);
-  const [formLoja, setFormLoja] = useState({ id: "", nome: "", tipo: "moldura", preco: 0, icone: "", imagem_url: "", desc_texto: "" });
   const [fazendoUploadLoja, setFazendoUploadLoja] = useState(false);
   const [isNovoItem, setIsNovoItem] = useState(false);
-
-  // Sincroniza os perfis que vêm do banco
-  useEffect(() => { setLocalPerfis(perfis); }, [perfis]);
-
-  // Carrega os itens da loja ao abrir a aba LOJA
-  useEffect(() => {
-    if (abaAtiva === "LOJA") {
-      carregarLojaItens();
-    }
-  }, [abaAtiva]);
+  
+  // ✅ Adicionado tema_css, quantidade_elementos e direcao no estado inicial
+  const [formLoja, setFormLoja] = useState({ 
+    id: "", nome: "", tipo: "moldura", preco: 0, icone: "", imagem_url: "", desc_texto: "",
+    tema_css: "", quantidade_elementos: 30, direcao: "padrao"
+  });
 
   // ==========================================
-  // 🛠️ FUNÇÕES DA GUILDA (GERENCIAMENTO)
+  // 🔄 [SESSÃO] - EFEITOS DE SINCRONIZAÇÃO
+  // ==========================================
+  useEffect(() => { setLocalPerfis(perfis); }, [perfis]);
+  useEffect(() => { if (abaAtiva === "LOJA") carregarLojaItens(); }, [abaAtiva]);
+
+  // ==========================================
+  // 👥 [SESSÃO] - FUNÇÕES DA GUILDA
   // ==========================================
   function abrirEdicao(perfil: any) {
     setUsuarioEditando(perfil);
@@ -113,7 +119,7 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
   }
 
   // ==========================================
-  // 🛒 FUNÇÕES DA LOJA (GERENCIAMENTO DE ITENS)
+  // 🏪 [SESSÃO] - FUNÇÕES DA LOJA (GERENCIAMENTO)
   // ==========================================
   async function carregarLojaItens() {
     setCarregandoAcao(true);
@@ -139,12 +145,19 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
         preco: item.preco,
         icone: item.icone || "",
         imagem_url: item.imagem_url || "",
-        desc_texto: item.desc_texto || ""
+        desc_texto: item.desc_texto || "",
+        // ✅ Carrega os dados das partículas se existirem
+        tema_css: item.tema_css || "",
+        quantidade_elementos: item.quantidade_elementos || 30,
+        direcao: item.direcao || "padrao"
       });
     } else {
       setIsNovoItem(true);
       setItemLojaEditando({ id: "novo" });
-      setFormLoja({ id: "", nome: "", tipo: "moldura", preco: 0, icone: "🎁", imagem_url: "", desc_texto: "" });
+      setFormLoja({ 
+        id: "", nome: "", tipo: "moldura", preco: 0, icone: "🎁", imagem_url: "", desc_texto: "",
+        tema_css: "", quantidade_elementos: 30, direcao: "padrao"
+      });
     }
   }
 
@@ -165,7 +178,11 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
           preco: formLoja.preco,
           icone: formLoja.icone,
           imagem_url: formLoja.imagem_url,
-          desc_texto: formLoja.desc_texto
+          desc_texto: formLoja.desc_texto,
+          // ✅ Envia os dados do motor dinâmico
+          tema_css: formLoja.tema_css,
+          quantidade_elementos: formLoja.quantidade_elementos,
+          direcao: formLoja.direcao
         }).eq("id", formLoja.id);
         if (error) throw error;
       }
@@ -222,7 +239,7 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
   }
 
   // ==========================================
-  // ⚡ FERRAMENTAS DIVINAS
+  // ⚡ [SESSÃO] - FERRAMENTAS DIVINAS
   // ==========================================
   async function limparCachePesquisa() {
     if (!confirm("⚠️ Tem certeza? Isso vai apagar o histórico de buscas otimizadas pela IA. O sistema vai recriar o cache aos poucos.")) return;
@@ -251,8 +268,12 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
     }
   }
 
+  // ==========================================
+  // 🎨 [SESSÃO] - RENDERIZAÇÃO DA INTERFACE VISUAL
+  // ==========================================
   return (
     <main className="min-h-screen bg-[#040405] p-6 md:p-12 text-white font-sans relative overflow-x-hidden">
+      {/* CABEÇALHO */}
       <header className="flex justify-between items-center mb-12 border-b border-yellow-500/20 pb-8">
         <div>
           <h1 className="text-4xl font-black text-white italic tracking-tighter flex items-center gap-3">
@@ -265,6 +286,7 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
         </button>
       </header>
 
+      {/* MENU NAVEGAÇÃO */}
       <div className="flex flex-wrap gap-4 mb-10">
         {["GUILDA", "LOJA", "SISTEMA", "FERRAMENTAS"].map(aba => (
           <button key={aba} onClick={() => setAbaAtiva(aba)} className={`px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all border ${abaAtiva === aba ? 'bg-yellow-500 text-black border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.3)]' : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-white hover:border-zinc-600'}`}>
@@ -273,6 +295,7 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
         ))}
       </div>
 
+      {/* 👥 TELA GUILDA */}
       {abaAtiva === "GUILDA" && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
           <div className="flex justify-between items-center mb-6">
@@ -316,6 +339,7 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
         </div>
       )}
 
+      {/* 🛒 TELA LOJA */}
       {abaAtiva === "LOJA" && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
           <div className="flex justify-between items-center mb-6">
@@ -355,6 +379,7 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
         </div>
       )}
 
+      {/* ⚙️ TELA SISTEMA */}
       {abaAtiva === "SISTEMA" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4">
           <div className="bg-zinc-900/40 p-8 rounded-3xl border border-zinc-800 flex items-center justify-between">
@@ -378,6 +403,7 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
         </div>
       )}
 
+      {/* ⚡ TELA FERRAMENTAS */}
       {abaAtiva === "FERRAMENTAS" && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4">
           <div className="bg-gradient-to-br from-zinc-900 to-black p-8 rounded-3xl border border-zinc-800 flex flex-col gap-4">
@@ -396,6 +422,7 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
         </div>
       )}
 
+      {/* 🎭 MODAL: EDIÇÃO DE USUÁRIO */}
       {usuarioEditando && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
           <div className="bg-[#0e0e11] w-full max-w-lg p-8 rounded-[3rem] border border-zinc-800 shadow-2xl relative animate-in zoom-in-95">
@@ -437,14 +464,14 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
         </div>
       )}
 
-      {/* ✅ MODAL FORJA: DUAS COLUNAS COM LIVE PREVIEW CALIBRADO */}
+      {/* ⚒️ MODAL FORJA: CRIAÇÃO/EDIÇÃO DA LOJA (COM MOTOR DINÂMICO INJETADO) */}
       {itemLojaEditando && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl">
           <div className="bg-[#0e0e11] w-full max-w-5xl p-10 rounded-[3rem] border border-purple-500/30 shadow-[0_0_50px_rgba(168,85,247,0.15)] relative animate-in zoom-in-95 grid grid-cols-1 md:grid-cols-2 gap-10">
             <button onClick={() => setItemLojaEditando(null)} className="absolute top-8 right-10 text-zinc-600 hover:text-white font-black text-xl z-50 transition-colors">✕</button>
             
             {/* 🛠️ COLUNA 1: CONFIGURAÇÃO (FORMULÁRIO) */}
-            <div className="space-y-5">
+            <div className="space-y-5 overflow-y-auto max-h-[80vh] custom-scrollbar pr-2">
               <header>
                 <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter">
                   {isNovoItem ? "Forjar Artefato" : "Aprimorar Item"}
@@ -486,6 +513,51 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
                 <input type="text" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white text-xs outline-none focus:border-purple-500 mt-1" value={formLoja.desc_texto} onChange={e => setFormLoja({...formLoja, desc_texto: e.target.value})} />
               </div>
 
+              {/* ❄️ [SESSÃO INJETADA] MOTOR DINÂMICO DE PARTÍCULAS (Só aparece se for particula) */}
+              {formLoja.tipo === "particula" && (
+                <div className="p-5 bg-cyan-500/10 border border-cyan-500/30 rounded-2xl flex flex-col gap-4 shadow-[0_0_15px_rgba(6,182,212,0.1)]">
+                  <p className="text-[10px] font-black uppercase text-cyan-400 tracking-widest border-b border-cyan-500/20 pb-2">⚙️ Motor de Partículas CSS</p>
+                  
+                  <div>
+                    <label className="text-[8px] font-black text-zinc-400 uppercase tracking-widest ml-1">Tema Visual (Classe CSS)</label>
+                    <select className="w-full bg-black border border-white/5 p-3 rounded-xl text-white text-xs outline-none mt-1" value={formLoja.tema_css} onChange={e => setFormLoja({...formLoja, tema_css: e.target.value})}>
+                      <option value="">Selecione a Forma Visual...</option>
+                      <option value="neve">Neve Clássica</option>
+                      <option value="fogo">Fogo / Chamas</option>
+                      <option value="petala">Pétalas Rosas</option>
+                      <option value="chuva">Chuva Melancólica</option>
+                      <option value="bolha">Bolhas de Água</option>
+                      <option value="estrela">Estrelas Cadentes</option>
+                      <option value="matrix">Código Matrix (0, 1, H, U...)</option>
+                      <option value="confete">Confetes Coloridos</option>
+                      <option value="morcego">Morcegos</option>
+                      <option value="folha-primavera">Folhas Verdes</option>
+                      <option value="folha-outono">Folhas Laranjas</option>
+                      <option value="vagalume">Vagalumes Amarelos</option>
+                      <option value="custom">Custom (Bolas Brancas de Luz)</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[8px] font-black text-zinc-400 uppercase tracking-widest ml-1">Direção da Física</label>
+                      <select className="w-full bg-black border border-white/5 p-3 rounded-xl text-white text-[10px] uppercase outline-none mt-1" value={formLoja.direcao} onChange={e => setFormLoja({...formLoja, direcao: e.target.value})}>
+                        <option value="padrao">✨ Física Original do Tema</option>
+                        <option value="vertical_baixo">⬇️ Cair Reto (Chuva)</option>
+                        <option value="vertical_cima">⬆️ Subir Reto (Bolhas)</option>
+                        <option value="diagonal_direita">↘️ Vento pra Direita</option>
+                        <option value="diagonal_esquerda">↙️ Vento pra Esquerda</option>
+                        <option value="caos">🌪️ Caos Absoluto</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[8px] font-black text-zinc-400 uppercase tracking-widest ml-1">Quantidade na Tela</label>
+                      <input type="number" min="1" max="200" className="w-full bg-black border border-white/5 p-3 rounded-xl text-cyan-400 font-bold outline-none focus:border-cyan-500 mt-1" value={formLoja.quantidade_elementos} onChange={e => setFormLoja({...formLoja, quantidade_elementos: parseInt(e.target.value) || 30})} placeholder="Ex: 50" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* LÓGICA DE APARÊNCIA */}
               {formLoja.tipo === "titulo" ? (
                 <div className="p-5 bg-purple-500/5 border border-purple-500/20 rounded-2xl flex flex-col gap-3">
@@ -495,7 +567,7 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
                     {TITULO_PRESETS.map(p => <option key={p.id} value={p.classes}>{p.nome}</option>)}
                   </select>
                 </div>
-              ) : (
+              ) : formLoja.tipo !== "particula" && ( // Oculta mídia se for partícula, pois partícula usa CSS
                 <div className="p-5 bg-purple-500/5 border border-purple-500/20 rounded-2xl space-y-3">
                   <p className="text-[10px] font-black uppercase text-purple-400 tracking-widest">Mídia do Item</p>
                   <div className="flex gap-2">
@@ -518,7 +590,7 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
               </div>
             </div>
 
-            {/* 👁️ COLUNA 2: LIVE FORGE PREVIEW (REFLEXO DO SITE) */}
+            {/* 👁️ COLUNA 2: LIVE FORGE PREVIEW */}
             <div className="bg-zinc-950/50 border border-white/5 rounded-[3rem] p-10 flex flex-col items-center justify-center relative overflow-hidden">
               <div className="absolute top-8 left-10 flex items-center gap-2">
                 <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse shadow-[0_0_8px_#a855f7]" />
@@ -526,7 +598,13 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
               </div>
 
               <div className="w-full h-80 rounded-[2.5rem] border border-white/10 overflow-hidden flex items-center justify-center bg-[#040405] relative shadow-2xl">
-                {formLoja.imagem_url ? (
+                {formLoja.tipo === "particula" ? (
+                  <div className="text-center opacity-80">
+                     <span className="text-6xl block mb-4 text-cyan-500 animate-pulse">❄️</span>
+                     <p className="text-[10px] text-cyan-400 uppercase font-black tracking-[0.4em]">Partícula Dinâmica CSS</p>
+                     <p className="text-[8px] text-zinc-500 mt-2">Veja na tela principal após equipar.</p>
+                  </div>
+                ) : formLoja.imagem_url ? (
                   formLoja.imagem_url.split('?')[0].toLowerCase().endsWith('.mp4') || formLoja.imagem_url.split('?')[0].toLowerCase().endsWith('.webm') ? (
                     <video key={formLoja.imagem_url} autoPlay loop muted playsInline crossOrigin="anonymous" className="w-full h-full object-cover opacity-70 mix-blend-screen">
                       <source src={formLoja.imagem_url} />
@@ -543,7 +621,6 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
                   </div>
                 )}
                 
-                {/* ✅ TESTE DE CLARIDADE: Filtro de 25% + Blur sutil */}
                 <div className="absolute inset-0 bg-black/25 backdrop-blur-[1px]" />
               </div>
 
