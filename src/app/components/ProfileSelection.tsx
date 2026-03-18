@@ -43,7 +43,7 @@ export default function ProfileSelection({
     <div className="min-h-screen bg-[#040405] flex flex-col items-center justify-center p-6 relative overflow-hidden">
       
       {/* 🚀 INJETA O CSS GLOBAL DOS COSMÉTICOS SEM ATIVAR PARTÍCULAS NO LOGIN */}
-      <EfeitosVisuais particula="" />
+      <EfeitosVisuais config={null} />
 
       {/* TÍTULO PRINCIPAL */}
       <div className="text-center mb-16 animate-in slide-in-from-top-8 fade-in duration-700">
