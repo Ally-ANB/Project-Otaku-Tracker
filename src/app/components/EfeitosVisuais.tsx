@@ -37,6 +37,8 @@ export default function EfeitosVisuais({ config, isPreview = false }: { config: 
     // 🎨 1. MOTOR DA FORJA CUSTOMIZADA (NOVO!)
     if (particula_custom) {
       base.animationName = 'movimentoDinamico';
+      base.animationIterationCount = 'infinite'; // Faz a partícula cair para sempre
+      base.animationTimingFunction = 'linear';   // Mantém a velocidade constante e suave
       base.top = '-10%';
       
       // Matemática de Tamanho e Velocidade Customizada

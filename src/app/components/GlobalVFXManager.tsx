@@ -7,7 +7,7 @@ import EfeitosVisuais from "./EfeitosVisuais";
 export default function GlobalVFXManager() {
   const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null);
   // ✅ NOVA SESSÃO: Objeto Completo agora inclui a 'direcao'
-  const [particulaConfig, setParticulaConfig] = useState<{ id: string, tema_css: string, quantidade: number, direcao: string | null } | null>(null);
+  const [particulaConfig, setParticulaConfig] = useState<{ id: string, tema_css: string, quantidade: number, direcao: string | null, particula_custom: any | null } | null>(null);
 
   const carregarCosmeticosGlobais = async () => {
     const hunterAtivo = sessionStorage.getItem("hunter_ativo");
@@ -31,19 +31,20 @@ export default function GlobalVFXManager() {
       // ✅ [SESSÃO SLOT 1] - PARTÍCULAS DINÂMICAS
       // ==========================================
       if (ativos.particula) {
-        // Agora busca também a direcao na loja_itens
+        // Agora busca também a direcao e a particula_custom na loja_itens
         const { data: itemParticula } = await supabase
           .from("loja_itens")
-          .select("tema_css, quantidade_elementos, direcao")
+          .select("tema_css, quantidade_elementos, direcao, particula_custom")
           .eq("id", ativos.particula)
           .single();
 
-        if (itemParticula && itemParticula.tema_css) {
+        if (itemParticula && (itemParticula.tema_css || itemParticula.particula_custom)) {
           setParticulaConfig({
             id: ativos.particula,
             tema_css: itemParticula.tema_css,
             quantidade: itemParticula.quantidade_elementos || 30, // Fallback
-            direcao: itemParticula.direcao || null // Pode ser null para itens lendários antigos
+            direcao: itemParticula.direcao || null, // Pode ser null para itens lendários antigos
+            particula_custom: itemParticula.particula_custom || null
           });
         } else {
           setParticulaConfig(null);
