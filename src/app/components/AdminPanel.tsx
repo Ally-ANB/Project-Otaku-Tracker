@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
+import EfeitosVisuais from "./EfeitosVisuais";
 
 interface AdminPanelProps {
   perfis: any[];
@@ -41,10 +42,10 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
   const [fazendoUploadLoja, setFazendoUploadLoja] = useState(false);
   const [isNovoItem, setIsNovoItem] = useState(false);
   
-  // ✅ Adicionado tema_css, quantidade_elementos e direcao no estado inicial
+  // ✅ Adicionado tema_css, quantidade_elementos, direcao e particula_custom no estado inicial
   const [formLoja, setFormLoja] = useState({ 
     id: "", nome: "", tipo: "moldura", preco: 0, icone: "", imagem_url: "", desc_texto: "",
-    tema_css: "", quantidade_elementos: 30, direcao: "padrao"
+    tema_css: "", quantidade_elementos: 30, direcao: "padrao", particula_custom: null as any
   });
 
   // ==========================================
@@ -149,14 +150,15 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
         // ✅ Carrega os dados das partículas se existirem
         tema_css: item.tema_css || "",
         quantidade_elementos: item.quantidade_elementos || 30,
-        direcao: item.direcao || "padrao"
+        direcao: item.direcao || "padrao",
+        particula_custom: item.particula_custom || null
       });
     } else {
       setIsNovoItem(true);
       setItemLojaEditando({ id: "novo" });
       setFormLoja({ 
         id: "", nome: "", tipo: "moldura", preco: 0, icone: "🎁", imagem_url: "", desc_texto: "",
-        tema_css: "", quantidade_elementos: 30, direcao: "padrao"
+        tema_css: "", quantidade_elementos: 30, direcao: "padrao", particula_custom: null
       });
     }
   }
@@ -169,7 +171,10 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
     setCarregandoAcao(true);
     try {
       if (isNovoItem) {
-        const { error } = await supabase.from("loja_itens").insert([formLoja]);
+        const { error } = await supabase.from("loja_itens").insert([{
+          ...formLoja,
+          particula_custom: formLoja.particula_custom
+        }]);
         if (error) throw error;
       } else {
         const { error } = await supabase.from("loja_itens").update({
@@ -182,7 +187,8 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
           // ✅ Envia os dados do motor dinâmico
           tema_css: formLoja.tema_css,
           quantidade_elementos: formLoja.quantidade_elementos,
-          direcao: formLoja.direcao
+          direcao: formLoja.direcao,
+          particula_custom: formLoja.particula_custom
         }).eq("id", formLoja.id);
         if (error) throw error;
       }
@@ -518,27 +524,114 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
                 <div className="p-5 bg-cyan-500/10 border border-cyan-500/30 rounded-2xl flex flex-col gap-4 shadow-[0_0_15px_rgba(6,182,212,0.1)]">
                   <p className="text-[10px] font-black uppercase text-cyan-400 tracking-widest border-b border-cyan-500/20 pb-2">⚙️ Motor de Partículas CSS</p>
                   
-                  <div>
-                    <label className="text-[8px] font-black text-zinc-400 uppercase tracking-widest ml-1">Tema Visual (Classe CSS)</label>
-                    <select className="w-full bg-black border border-white/5 p-3 rounded-xl text-white text-xs outline-none mt-1" value={formLoja.tema_css} onChange={e => setFormLoja({...formLoja, tema_css: e.target.value})}>
-                      <option value="">Selecione a Forma Visual...</option>
-                      <option value="neve">Neve Clássica</option>
-                      <option value="fogo">Fogo / Chamas</option>
-                      <option value="petala">Pétalas Rosas</option>
-                      <option value="chuva">Chuva Melancólica</option>
-                      <option value="bolha">Bolhas de Água</option>
-                      <option value="estrela">Estrelas Cadentes</option>
-                      <option value="matrix">Código Matrix (0, 1, H, U...)</option>
-                      <option value="confete">Confetes Coloridos</option>
-                      <option value="morcego">Morcegos</option>
-                      <option value="folha-primavera">Folhas Verdes</option>
-                      <option value="folha-outono">Folhas Laranjas</option>
-                      <option value="vagalume">Vagalumes Amarelos</option>
-                      <option value="custom">Custom (Bolas Brancas de Luz)</option>
-                    </select>
-                  </div>
+                  {/* 🧪 MESA DE ALQUIMIA - MOTOR DE PARTÍCULAS */}
+                  {formLoja.tipo === 'particula' && (
+                    <div className="space-y-4 bg-zinc-900/50 p-4 rounded-xl border border-cyan-500/30">
+                      <h4 className="text-cyan-400 font-bold mb-2 flex items-center gap-2">
+                        <span className="text-xl">🧪</span> Mesa de Alquimia
+                      </h4>
+                      <div>
+                        <label className="block text-sm font-medium text-zinc-400 mb-1">Modo de Criação</label>
+                        <select
+                          value={formLoja.particula_custom ? "custom" : "classico"}
+                          onChange={(e) => {
+                            if (e.target.value === "custom") {
+                              setFormLoja({ 
+                                ...formLoja, 
+                                tema_css: 'custom', 
+                                particula_custom: { tipo_render: 'emoji', conteudo: '✨', tamanho: 20, velocidade: 5 } 
+                              });
+                            } else {
+                              setFormLoja({ 
+                                ...formLoja, 
+                                particula_custom: null, 
+                                tema_css: 'neve' 
+                              });
+                            }
+                          }}
+                          className="w-full bg-zinc-800 border border-zinc-700 rounded p-2 text-white outline-none focus:border-cyan-500 transition-colors"
+                        >
+                          <option value="classico">Modelos Clássicos</option>
+                          <option value="custom">Criar do Zero (Motor Customizado)</option>
+                        </select>
+                      </div>
+                      {!formLoja.particula_custom && (
+                        <div>
+                          <label className="block text-sm font-medium text-zinc-400 mb-1">Escolha o Modelo Clássico</label>
+                          <select
+                            value={formLoja.tema_css || ''}
+                            onChange={(e) => setFormLoja({ ...formLoja, tema_css: e.target.value })}
+                            className="w-full bg-zinc-800 border border-zinc-700 rounded p-2 text-white outline-none focus:border-cyan-500"
+                          >
+                            <option value="neve">❄️ Neve Branca</option>
+                            <option value="fogo">🔥 Fogo Subindo</option>
+                            <option value="petala">🌸 Pétalas de Cerejeira</option>
+                            <option value="bolha">🫧 Bolhas d'Água</option>
+                            <option value="estrela">⭐ Estrelas Piscantes</option>
+                            <option value="matrix">💻 Chuva Matrix</option>
+                            <option value="confete">🎉 Confete Colorido</option>
+                            <option value="chuva">🌧️ Chuva</option>
+                            <option value="morcego">🦇 Morcego</option>
+                            <option value="folha-primavera">🍃 Folhas de Primavera</option>
+                            <option value="folha-outono">🍂 Folhas de Outono</option>
+                            <option value="vagalume">✨ Vagalumes</option>
+                          </select>
+                        </div>
+                      )}
+                      {formLoja.particula_custom && (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="col-span-2">
+                            <label className="block text-sm font-medium text-zinc-400 mb-1">Emoji / Ícone da Partícula</label>
+                            <input
+                              type="text"
+                              placeholder="Ex: 💀, 🌸, 🪙"
+                              value={formLoja.particula_custom.conteudo || ''}
+                              onChange={(e) => setFormLoja({ 
+                                ...formLoja, 
+                                particula_custom: { 
+                                  ...formLoja.particula_custom, 
+                                  conteudo: e.target.value 
+                                } 
+                              })}
+                              className="w-full bg-zinc-800 border border-zinc-700 rounded p-2 text-white outline-none focus:border-cyan-500 text-center text-2xl"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-zinc-400 mb-1">Tamanho (px)</label>
+                            <input
+                              type="number" min="5" max="100"
+                              value={formLoja.particula_custom.tamanho || 20}
+                              onChange={(e) => setFormLoja({ 
+                                ...formLoja, 
+                                particula_custom: { 
+                                  ...formLoja.particula_custom, 
+                                  tamanho: Number(e.target.value) 
+                                } 
+                              })}
+                              className="w-full bg-zinc-800 border border-zinc-700 rounded p-2 text-white outline-none focus:border-cyan-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-zinc-400 mb-1">Velocidade (1=Rápido, 10=Lento)</label>
+                            <input
+                              type="number" min="1" max="20"
+                              value={formLoja.particula_custom.velocidade || 5}
+                              onChange={(e) => setFormLoja({ 
+                                ...formLoja, 
+                                particula_custom: { 
+                                  ...formLoja.particula_custom, 
+                                  velocidade: Number(e.target.value) 
+                                } 
+                              })}
+                              className="w-full bg-zinc-800 border border-zinc-700 rounded p-2 text-white outline-none focus:border-cyan-500"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4 mt-4">
                     <div>
                       <label className="text-[8px] font-black text-zinc-400 uppercase tracking-widest ml-1">Direção da Física</label>
                       <select className="w-full bg-black border border-white/5 p-3 rounded-xl text-white text-[10px] uppercase outline-none mt-1" value={formLoja.direcao} onChange={e => setFormLoja({...formLoja, direcao: e.target.value})}>
@@ -598,8 +691,22 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
               </div>
 
               <div className="w-full h-80 rounded-[2.5rem] border border-white/10 overflow-hidden flex items-center justify-center bg-[#040405] relative shadow-2xl">
+                {formLoja.tipo === "particula" && (
+                  <div className="absolute inset-0 pointer-events-none">
+                    <EfeitosVisuais
+                      isPreview={true}
+                      config={{
+                        tema_css: formLoja.tema_css,
+                        quantidade: formLoja.quantidade_elementos || 30,
+                        direcao: formLoja.direcao,
+                        particula_custom: formLoja.particula_custom,
+                      }}
+                    />
+                  </div>
+                )}
+
                 {formLoja.tipo === "particula" ? (
-                  <div className="text-center opacity-80">
+                  <div className="text-center opacity-80 relative z-10">
                      <span className="text-6xl block mb-4 text-cyan-500 animate-pulse">❄️</span>
                      <p className="text-[10px] text-cyan-400 uppercase font-black tracking-[0.4em]">Partícula Dinâmica CSS</p>
                      <p className="text-[8px] text-zinc-500 mt-2">Veja na tela principal após equipar.</p>
