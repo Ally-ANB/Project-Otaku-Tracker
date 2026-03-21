@@ -33,6 +33,7 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
   const [usuarioEditando, setUsuarioEditando] = useState<any | null>(null);
   const [formEdit, setFormEdit] = useState({ nome_exibicao: "", avatar: "", pin: "", cor_tema: "", esmolas: 0 });
   const [carregandoAcao, setCarregandoAcao] = useState(false);
+  const [mostrarPins, setMostrarPins] = useState(false);
 
   // ==========================================
   // 🛒 [SESSÃO] - ESTADOS DA LOJA
@@ -306,9 +307,14 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
           <div className="flex justify-between items-center mb-6">
             <p className="text-xs font-black text-zinc-500 uppercase tracking-widest">Caçadores Registrados ({localPerfis.length})</p>
-            <button onClick={criarNovoUsuario} disabled={carregandoAcao} className="px-6 py-3 bg-green-500/10 border border-green-500/50 text-green-500 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-green-500 hover:text-black transition-all">
-              + Recrutar Novo
-            </button>
+            <div className="flex items-center">
+              <button onClick={criarNovoUsuario} disabled={carregandoAcao} className="px-6 py-3 bg-green-500/10 border border-green-500/50 text-green-500 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-green-500 hover:text-black transition-all">
+                + Recrutar Novo
+              </button>
+              <button onClick={() => setMostrarPins(!mostrarPins)} className="px-4 py-3 bg-zinc-800 border border-zinc-700 text-zinc-400 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-zinc-700 hover:text-white transition-all ml-4">
+                {mostrarPins ? "🙈 Ocultar PINs" : "👁️ Revelar PINs"}
+              </button>
+            </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {localPerfis.map(p => (
@@ -326,7 +332,7 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
                 <div className="flex justify-between items-center bg-black/50 p-3 rounded-xl border border-white/5 mt-2">
                   <div className="text-center">
                     <p className="text-[8px] text-zinc-500 uppercase font-black">PIN</p>
-                    <p className="text-xs font-bold text-white tracking-widest">{p.nome_original === "Admin" ? "🔒 .ENV" : (p.pin || "N/A")}</p>
+                    <p className="text-xs font-bold text-white tracking-widest">{p.nome_original === "Admin" ? "🔒 .ENV" : (!p.pin ? "N/A" : (mostrarPins ? p.pin : "••••"))}</p>
                   </div>
                   <div className="text-center">
                     <p className="text-[8px] text-yellow-500 uppercase font-black">Esmolas</p>
