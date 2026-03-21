@@ -12,6 +12,8 @@ import AddMangaModal from "./components/AddMangaModal";
 import MangaDetailsModal from "./components/MangaDetailsModal";
 import AdminPanel from "./components/AdminPanel";
 import ProfileSelection from "./components/ProfileSelection";
+import { useSenhaMestraInterativa } from "./hooks/useSenhaMestraInterativa";
+import { dbClient, requisicaoDbApi } from "@/lib/dbClient";
 // ✅ ADICIONADO: Componente de Identidade Universal e Player Card
 import HunterAvatar from "./components/HunterAvatar";
 import HunterCard from "./components/HunterCard";
@@ -90,6 +92,7 @@ export default function Home() {
   const [editandoNomeOriginal, setEditandoNomeOriginal] = useState<string | null>(null);
   const [mostrandoFormHunter, setMostrandoFormHunter] = useState(false);
   const [pinAdminAberto, setPinAdminAberto] = useState(false);
+  const { obterSenhaMestreInterativa, modalSenhaMestra } = useSenhaMestraInterativa();
 
   // ✅ ESTADOS DO PLAYER CARD (IDENTIDADE)
   const [editandoCard, setEditandoCard] = useState(false);
@@ -221,6 +224,16 @@ export default function Home() {
     if (data) setPerfis(data);
   }
 
+  async function requisicaoDbSegura(method: "POST" | "DELETE", payload: Record<string, any>, exigirSenhaMestre = true) {
+    const senhaMestre = exigirSenhaMestre ? await obterSenhaMestreInterativa() : undefined;
+    if (exigirSenhaMestre && !senhaMestre) return { ok: false, data: { error: "Operação cancelada." } };
+
+    return requisicaoDbApi(method, {
+      ...payload,
+      ...(exigirSenhaMestre ? { senhaMestre } : {}),
+    });
+  }
+
   // ✅ FUNÇÃO PARA SALVAR O PLAYER CARD
   async function salvarPlayerCard() {
     const pAtivo = perfis.find(p => p.nome_original === usuarioAtual);
@@ -231,14 +244,18 @@ export default function Home() {
       card_config: cardDados 
     };
 
-    const { error } = await supabase.from("perfis").update({ 
-      cosmeticos: { ...(pAtivo.cosmeticos || {}), ativos: novosAtivos } 
-    }).eq("nome_original", usuarioAtual);
-    
-    if (!error) {
+    const resultado = await requisicaoDbSegura("POST", {
+      tabela: "perfis",
+      nome_original: usuarioAtual,
+      dados: { cosmeticos: { ...(pAtivo.cosmeticos || {}), ativos: novosAtivos } }
+    }, false);
+
+    if (resultado.ok) {
       setEditandoCard(false);
       buscarPerfis();
       mostrarToast("Card de Identidade Atualizado!", "sucesso");
+    } else {
+      mostrarToast(resultado.data?.error || "Falha ao atualizar card.", "erro");
     }
   }
 
@@ -322,7 +339,15 @@ export default function Home() {
       setMangaDetalhe(prev => prev ? { ...prev, capitulo_atual: novo, status: novoStatus, ultima_leitura: agora } : null);
     }
 
-    await supabase.from(tabelaDb).update({ capitulo_atual: novo, status: novoStatus, ultima_leitura: agora }).eq("id", manga.id);
+    const resultado = await requisicaoDbSegura("POST", {
+      tabela: tabelaDb,
+      id: manga.id,
+      dados: { capitulo_atual: novo, status: novoStatus, ultima_leitura: agora }
+    });
+    if (!resultado.ok) {
+      mostrarToast(resultado.data?.error || "Erro ao salvar na base de dados.", "erro");
+      return;
+    }
     mostrarToast("Salvo na base de dados.", "sucesso");
 
     const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual);
@@ -344,7 +369,15 @@ export default function Home() {
       setMangaDetalhe(prev => prev ? { ...prev, ...dadosAtualizados } : null);
     }
 
-    await supabase.from(tabelaDb).update(dadosAtualizados).eq("id", id);
+    const resultado = await requisicaoDbSegura("POST", {
+      tabela: tabelaDb,
+      id,
+      dados: dadosAtualizados
+    });
+    if (!resultado.ok) {
+      mostrarToast(resultado.data?.error || "Erro ao salvar configuração.", "erro");
+      return;
+    }
     mostrarToast("Configuração salva.", "sucesso");
 
     const listaAtual = abaPrincipal === "MANGA" ? mangas : abaPrincipal === "ANIME" ? animes : abaPrincipal === "FILME" ? filmes : abaPrincipal === "LIVRO" ? livros : abaPrincipal === "SERIE" ? series : abaPrincipal === "JOGO" ? jogos : musicas;
@@ -360,18 +393,34 @@ export default function Home() {
   }
 
   async function deletarMangaDaEstante(id: number) {
-    const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : abaPrincipal === "ANIME" ? "animes" : abaPrincipal === "FILME" ? "filmes" : abaPrincipal === "LIVRO" ? "livros" : abaPrincipal === "SERIE" ? "series" : abaPrincipal === "JOGO" ? "jogos" : "musicas";
-    if(confirm(`Remover da estante?`)) {
-      await supabase.from(tabelaDb).delete().eq("id", id);
-      if (abaPrincipal === "MANGA") buscarMangas();
-      else if (abaPrincipal === "ANIME") buscarAnimes();
-      else if (abaPrincipal === "FILME") buscarFilmes();
-      else if (abaPrincipal === "LIVRO") buscarLivros();
-      else if (abaPrincipal === "SERIE") buscarSeries();
-      else if (abaPrincipal === "JOGO") buscarJogos();
-      else buscarMusicas();
-      mostrarToast("Obra removida.", "aviso");
-    }
+    if (!confirm(`Remover da estante?`)) return;
+    const tabela = abaPrincipal === "MANGA" ? "mangas" : abaPrincipal === "ANIME" ? "animes" : abaPrincipal === "FILME" ? "filmes" : abaPrincipal === "LIVRO" ? "livros" : abaPrincipal === "SERIE" ? "series" : abaPrincipal === "JOGO" ? "jogos" : "musicas";
+
+    const executarRemocao = async (): Promise<boolean> => {
+      const res = await dbClient.delete(tabela, id);
+      if (res.success) return true;
+      if ("precisaSenhaMestre" in res && res.precisaSenhaMestre) {
+        const senha = await obterSenhaMestreInterativa();
+        if (!senha) {
+          mostrarToast("Operação cancelada.", "aviso");
+          return false;
+        }
+        return executarRemocao();
+      }
+      mostrarToast(res.error || "Erro ao remover obra.", "erro");
+      return false;
+    };
+
+    if (!(await executarRemocao())) return;
+
+    if (abaPrincipal === "MANGA") buscarMangas();
+    else if (abaPrincipal === "ANIME") buscarAnimes();
+    else if (abaPrincipal === "FILME") buscarFilmes();
+    else if (abaPrincipal === "LIVRO") buscarLivros();
+    else if (abaPrincipal === "SERIE") buscarSeries();
+    else if (abaPrincipal === "JOGO") buscarJogos();
+    else buscarMusicas();
+    mostrarToast("Obra removida.", "aviso");
   }
 
   // ==========================================
@@ -380,8 +429,27 @@ export default function Home() {
   async function salvarHunter() {
     if (!novoHunter.nome) return alert("Nome obrigatório!");
     const dados = { nome_exibicao: novoHunter.nome, avatar: novoHunter.avatar, pin: novoHunter.pin, cor_tema: novoHunter.cor };
-    if (editandoNomeOriginal) await supabase.from("perfis").update(dados).eq("nome_original", editandoNomeOriginal);
-    else await supabase.from("perfis").insert([{ ...dados, nome_original: novoHunter.nome }]);
+    if (editandoNomeOriginal) {
+      const resultado = await requisicaoDbSegura("POST", {
+        tabela: "perfis",
+        nome_original: editandoNomeOriginal,
+        dados
+      }, false);
+      if (!resultado.ok) {
+        mostrarToast(resultado.data?.error || "Erro ao salvar hunter.", "erro");
+        return;
+      }
+    } else {
+      const resultado = await requisicaoDbSegura("POST", {
+        tabela: "perfis",
+        operacao: "insert",
+        dados: { ...dados, nome_original: novoHunter.nome }
+      }, false);
+      if (!resultado.ok) {
+        mostrarToast(resultado.data?.error || "Erro ao criar hunter.", "erro");
+        return;
+      }
+    }
     fecharFormularioHunter(); buscarPerfis();
   }
 
@@ -397,32 +465,50 @@ export default function Home() {
       [item.tipo]: equipados[item.tipo] === item.id ? "" : item.id
     };
 
-    const { error } = await supabase.from("perfis").update({ 
-      cosmeticos: { 
-        comprados: inventario, 
-        ativos: nEquip 
-      } 
-    }).eq("nome_original", usuarioAtual);
-    
-    if (!error) {
+    const resultado = await requisicaoDbSegura("POST", {
+      tabela: "perfis",
+      nome_original: usuarioAtual,
+      dados: {
+        cosmeticos: {
+          comprados: inventario,
+          ativos: nEquip
+        }
+      }
+    }, false);
+
+    if (resultado.ok) {
       setEquipados(nEquip);
       // ✅ Dispara o sinal global para o GlobalVFXManager atualizar sem refresh
       window.dispatchEvent(new Event("hunter_cosmeticos_update"));
       mostrarToast(`${item.nome} ${nEquip[item.tipo] ? 'Equipado' : 'Desequipado'}!`, "sucesso");
     } else {
-      mostrarToast("Erro ao equipar item.", "erro");
+      mostrarToast(resultado.data?.error || "Erro ao equipar item.", "erro");
     }
   }
 
   async function atualizarConfig(chave: string, valor: boolean) {
     setConfig(prev => ({ ...prev, [chave]: valor }));
-    await supabase.from("site_config").update({ [chave]: valor }).eq("id", 1);
+    const resultado = await requisicaoDbSegura("POST", {
+      tabela: "site_config",
+      id: 1,
+      dados: { [chave]: valor }
+    });
+    if (!resultado.ok) {
+      mostrarToast(resultado.data?.error || "Erro ao salvar configuração do site.", "erro");
+    }
   }
 
   async function deletarPerfil(perfil: any) {
     if (perfil.nome_original === "Admin") return alert("Impossível remover Admin.");
     if (confirm(`Remover Hunter "${perfil.nome_exibicao}"?`)) {
-      await supabase.from("perfis").delete().eq("nome_original", perfil.nome_original);
+      const resultado = await requisicaoDbSegura("DELETE", {
+        tabela: "perfis",
+        nome_original: perfil.nome_original
+      }, false);
+      if (!resultado.ok) {
+        mostrarToast(resultado.data?.error || "Erro ao remover perfil.", "erro");
+        return;
+      }
       buscarPerfis();
     }
   }
@@ -523,10 +609,17 @@ export default function Home() {
 );
 
   if (isAdmin) return (
-    <AdminPanel 
-      perfis={perfis} config={config} setUsuarioAtual={setUsuarioAtual} 
-      atualizarConfig={atualizarConfig} deletarPerfil={deletarPerfil} 
-    />
+    <>
+      <AdminPanel
+        perfis={perfis}
+        config={config}
+        setUsuarioAtual={setUsuarioAtual}
+        atualizarConfig={atualizarConfig}
+        deletarPerfil={deletarPerfil}
+        solicitarSenhaMestre={obterSenhaMestreInterativa}
+      />
+      {modalSenhaMestra}
+    </>
   );
 
   const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual) || { nome_exibicao: usuarioAtual, avatar: "👤", cor_tema: "verde", custom_color: "#22c55e", cosmeticos: { ativos: {} } };
@@ -665,7 +758,14 @@ export default function Home() {
         </div>
       )}
 
-      <AddMangaModal estaAberto={estaAbertoAdd} fechar={() => setEstaAbertoAdd(false)} usuarioAtual={usuarioAtual} abaPrincipal={abaPrincipal} aoSalvar={() => { buscarMangas(); buscarAnimes(); buscarFilmes(); buscarLivros(); buscarSeries(); buscarJogos(); buscarMusicas(); setEstaAbertoAdd(false); }} />
+      <AddMangaModal
+        estaAberto={estaAbertoAdd}
+        fechar={() => setEstaAbertoAdd(false)}
+        usuarioAtual={usuarioAtual}
+        abaPrincipal={abaPrincipal}
+        solicitarSenhaMestre={obterSenhaMestreInterativa}
+        aoSalvar={() => { buscarMangas(); buscarAnimes(); buscarFilmes(); buscarLivros(); buscarSeries(); buscarJogos(); buscarMusicas(); setEstaAbertoAdd(false); }}
+      />
       
       {mangaDetalhe && (
         <MangaDetailsModal 
@@ -707,6 +807,8 @@ export default function Home() {
         </div>
       )}
       
+      {modalSenhaMestra}
+
       <div className="fixed bottom-10 right-10 z-[300] flex flex-col gap-3 pointer-events-none">
         {toasts.map(t => (
           <div key={t.id} className={`flex items-center gap-4 px-6 py-4 rounded-2xl border backdrop-blur-md shadow-2xl animate-in slide-in-from-right-8 fade-in duration-300 ${t.tipo === "sucesso" ? "bg-green-500/10 border-green-500/50 text-green-400" : t.tipo === "erro" ? "bg-red-500/10 border-red-500/50 text-red-400" : t.tipo === "aviso" ? "bg-orange-500/10 border-orange-500/50 text-orange-400" : "bg-blue-500/10 border-blue-500/50 text-blue-400"}`}>

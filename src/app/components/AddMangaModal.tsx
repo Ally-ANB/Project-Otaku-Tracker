@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
+import { limparSenhaMestreNaSessao, obterSenhaMestreRevelada } from "@/lib/dbClient";
 
 // ==========================================
 // 📦 SESSÃO 1: INTERFACES
@@ -20,9 +21,10 @@ interface AddMangaModalProps {
   usuarioAtual: string;
   abaPrincipal: "MANGA" | "ANIME" | "FILME" | "LIVRO" | "SERIE" | "JOGO" | "MUSICA";
   aoSalvar: (novoManga: any) => void;
+  solicitarSenhaMestre?: () => Promise<string | null>;
 }
 
-export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPrincipal, aoSalvar }: AddMangaModalProps) {
+export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPrincipal, aoSalvar, solicitarSenhaMestre }: AddMangaModalProps) {
   // ==========================================
   // 🔐 SESSÃO 2: ESTADOS DO MODAL
   // ==========================================
@@ -36,6 +38,29 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
   const [novoManga, setNovoManga] = useState({ 
     titulo: "", capa: "", capitulo_atual: 0, total_capitulos: 0, status: "Planejo Ler", sinopse: "", favorito: false 
   });
+
+  async function obterSenhaMestreCacheada() {
+    const senhaEmCache = obterSenhaMestreRevelada();
+    if (senhaEmCache) return senhaEmCache;
+    if (solicitarSenhaMestre) return await solicitarSenhaMestre();
+    return null;
+  }
+
+  async function requisicaoDbInsertSegura(tabela: string, dados: any, exigirSenhaMestre = true) {
+    const senhaMestre = exigirSenhaMestre ? await obterSenhaMestreCacheada() : undefined;
+    if (exigirSenhaMestre && !senhaMestre) return { ok: false, error: "Operação cancelada." };
+
+    const res = await fetch("/api/db", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tabela, operacao: "insert", dados, ...(exigirSenhaMestre ? { senhaMestre } : {}) })
+    });
+
+    const data = await res.json();
+    if (res.status === 401) limparSenhaMestreNaSessao();
+
+    return { ok: res.ok && !!data?.success, data };
+  }
 
   useEffect(() => {
     if (!estaAberto) {
@@ -75,7 +100,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
             const jsonIA = await resIA.json();
             if (jsonIA.resultado && !jsonIA.resultado.includes('⚠️')) {
               termoFinal = jsonIA.resultado;
-              await supabase.from('search_cache').insert([{ termo_original: termoAnilist, resultado_ia: termoFinal }]);
+              await requisicaoDbInsertSegura('search_cache', { termo_original: termoAnilist, resultado_ia: termoFinal }, false);
             }
           }
         }
@@ -207,10 +232,9 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
     if (novoManga.status === "Completos" && novoManga.total_capitulos > 0) progressoFinal = novoManga.total_capitulos;
 
     const obraParaSalvar = { ...novoManga, capitulo_atual: progressoFinal, usuario: usuarioAtual, ultima_leitura: new Date().toISOString() };
-    const { error } = await supabase.from(tabelaDb).insert([obraParaSalvar]);
-    
-    if (!error) { aoSalvar(obraParaSalvar); fechar(); }
-    else { alert("Erro ao salvar: " + error.message); }
+    const resultado = await requisicaoDbInsertSegura(tabelaDb, obraParaSalvar, true);
+    if (resultado.ok) { aoSalvar(obraParaSalvar); fechar(); }
+    else { alert("Erro ao salvar: " + (resultado.data?.error || resultado.error || "Falha desconhecida.")); }
     setSalvando(false);
   }
 

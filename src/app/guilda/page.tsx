@@ -93,6 +93,16 @@ export default function GuildaPage() {
   // ✅ NOVO ESTADO: INSPEÇÃO DE PERFIL
   const [inspecionandoHunter, setInspecionandoHunter] = useState<EstatisticasHunter | null>(null);
 
+  async function requisicaoDb(method: "POST" | "DELETE", payload: Record<string, any>) {
+    const res = await fetch("/api/db", {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    return { ok: res.ok && !!data?.success, data };
+  }
+
   useEffect(() => {
     const hunter = sessionStorage.getItem("hunter_ativo");
     if (!hunter) { window.location.href = '/'; return; }
@@ -247,25 +257,33 @@ export default function GuildaPage() {
       if (farm.ganhos < 30) {
         farm.ganhos += 5;
         const novoSaldo = (meuPerfilAtivo.esmolas || 0) + 5;
-        await supabase.from("perfis").update({ esmolas: novoSaldo, chat_farm_diario: farm }).eq("nome_original", usuarioAtivo);
+        await requisicaoDb("POST", {
+          tabela: "perfis",
+          nome_original: usuarioAtivo,
+          dados: { esmolas: novoSaldo, chat_farm_diario: farm }
+        });
         setPerfis(prev => prev.map(p => p.nome_original === usuarioAtivo ? { ...p, esmolas: novoSaldo, chat_farm_diario: farm } : p));
       }
     }
-    const { error } = await supabase.from("guilda_mensagens").insert([{ usuario: usuarioAtivo, mensagem: msg, tipo: tipoMsg }]);
-    if (!error) await buscarMensagens();
+    const resultado = await requisicaoDb("POST", {
+      tabela: "guilda_mensagens",
+      operacao: "insert",
+      dados: { usuario: usuarioAtivo, mensagem: msg, tipo: tipoMsg }
+    });
+    if (resultado.ok) await buscarMensagens();
     if (urlFigurinha) setPainelFigurinhas(false);
     setEnviando(false);
   }
 
   async function excluirMensagem(id: number) {
     if (!confirm("Tem certeza que deseja apagar esta mensagem?")) return;
-    await supabase.from("guilda_mensagens").delete().eq("id", id);
+    await requisicaoDb("DELETE", { tabela: "guilda_mensagens", id });
     buscarMensagens();
   }
 
   async function salvarEdicao(id: number) {
     if (!textoEdicao.trim()) return;
-    await supabase.from("guilda_mensagens").update({ mensagem: textoEdicao }).eq("id", id);
+    await requisicaoDb("POST", { tabela: "guilda_mensagens", id, dados: { mensagem: textoEdicao } });
     setEditandoId(null);
     setTextoEdicao("");
     buscarMensagens();
@@ -274,7 +292,7 @@ export default function GuildaPage() {
   async function adicionarFigurinha() {
     if(!novaFigurinhaUrl || !meuPerfilAtivo) return;
     const atualizadas = [...(meuPerfilAtivo.figurinhas || []), novaFigurinhaUrl];
-    await supabase.from("perfis").update({ figurinhas: atualizadas }).eq("nome_original", usuarioAtivo);
+    await requisicaoDb("POST", { tabela: "perfis", nome_original: usuarioAtivo, dados: { figurinhas: atualizadas } });
     setPerfis(prev => prev.map(p => p.nome_original === usuarioAtivo ? { ...p, figurinhas: atualizadas } : p));
     setNovaFigurinhaUrl("");
   }
@@ -292,7 +310,7 @@ export default function GuildaPage() {
       const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
       if(meuPerfilAtivo) {
         const atualizadas = [...(meuPerfilAtivo.figurinhas || []), data.publicUrl];
-        await supabase.from("perfis").update({ figurinhas: atualizadas }).eq("nome_original", usuarioAtivo);
+        await requisicaoDb("POST", { tabela: "perfis", nome_original: usuarioAtivo, dados: { figurinhas: atualizadas } });
         setPerfis(prev => prev.map(p => p.nome_original === usuarioAtivo ? { ...p, figurinhas: atualizadas } : p));
       }
     } catch (error: any) { alert("❌ Erro no upload: " + error.message); }
@@ -302,7 +320,7 @@ export default function GuildaPage() {
   async function deletarFigurinha(url: string) {
     if(!meuPerfilAtivo) return;
     const atualizadas = (meuPerfilAtivo.figurinhas || []).filter(f => f !== url);
-    await supabase.from("perfis").update({ figurinhas: atualizadas }).eq("nome_original", usuarioAtivo);
+    await requisicaoDb("POST", { tabela: "perfis", nome_original: usuarioAtivo, dados: { figurinhas: atualizadas } });
     setPerfis(prev => prev.map(p => p.nome_original === usuarioAtivo ? { ...p, figurinhas: atualizadas } : p));
   }
 
@@ -312,9 +330,11 @@ export default function GuildaPage() {
       ...(meuPerfilAtivo.cosmeticos?.ativos || {}), 
       card_config: cardDados 
     };
-    await supabase.from("perfis").update({ 
-      cosmeticos: { ...(meuPerfilAtivo.cosmeticos || {}), ativos: novosAtivos } 
-    }).eq("nome_original", usuarioAtivo);
+    await requisicaoDb("POST", {
+      tabela: "perfis",
+      nome_original: usuarioAtivo,
+      dados: { cosmeticos: { ...(meuPerfilAtivo.cosmeticos || {}), ativos: novosAtivos } }
+    });
     
     setEditandoCard(false);
     buscarPerfis();

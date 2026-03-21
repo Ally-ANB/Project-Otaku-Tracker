@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import EfeitosVisuais from "./EfeitosVisuais";
+import { obterSenhaMestreRevelada, requisicaoDbApi } from "@/lib/dbClient";
 
 interface AdminPanelProps {
   perfis: any[];
@@ -9,6 +10,7 @@ interface AdminPanelProps {
   setUsuarioAtual: (v: string | null) => void;
   atualizarConfig: (k: string, v: boolean) => void;
   deletarPerfil: (p: any) => void;
+  solicitarSenhaMestre?: () => Promise<string | null>;
 }
 
 // ==========================================
@@ -24,7 +26,7 @@ const TITULO_PRESETS = [
   { id: "carmesim", nome: "🩸 Carmesim Vampírico", classes: "text-red-700 drop-shadow-[0_0_12px_rgba(153,27,27,0.9)]" }
 ];
 
-export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarConfig, deletarPerfil }: AdminPanelProps) {
+export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarConfig, deletarPerfil, solicitarSenhaMestre }: AdminPanelProps) {
   // ==========================================
   // ⚙️ [SESSÃO] - ESTADOS GLOBAIS
   // ==========================================
@@ -48,6 +50,23 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
     id: "", nome: "", tipo: "moldura", preco: 0, icone: "", imagem_url: "", desc_texto: "",
     tema_css: "", quantidade_elementos: 30, direcao: "padrao", particula_custom: null as any
   });
+
+  async function obterSenhaMestreCacheada() {
+    const senhaEmCache = obterSenhaMestreRevelada();
+    if (senhaEmCache) return senhaEmCache;
+    if (solicitarSenhaMestre) return await solicitarSenhaMestre();
+    return null;
+  }
+
+  async function requisicaoDbSegura(method: "POST" | "DELETE", payload: Record<string, any>, exigirSenhaMestre = true) {
+    const senhaMestre = exigirSenhaMestre ? await obterSenhaMestreCacheada() : undefined;
+    if (exigirSenhaMestre && !senhaMestre) return { ok: false, data: { error: "Operação cancelada." } };
+
+    return requisicaoDbApi(method, {
+      ...payload,
+      ...(exigirSenhaMestre ? { senhaMestre } : {}),
+    });
+  }
 
   // ==========================================
   // 🔄 [SESSÃO] - EFEITOS DE SINCRONIZAÇÃO
@@ -73,15 +92,18 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
     if (!usuarioEditando) return;
     setCarregandoAcao(true);
     try {
-      const { error } = await supabase.from("perfis").update({
-        nome_exibicao: formEdit.nome_exibicao,
-        avatar: formEdit.avatar,
-        pin: formEdit.pin,
-        cor_tema: formEdit.cor_tema,
-        esmolas: formEdit.esmolas
-      }).eq("nome_original", usuarioEditando.nome_original);
-      
-      if (error) throw error;
+      const resultado = await requisicaoDbSegura("POST", {
+        tabela: "perfis",
+        nome_original: usuarioEditando.nome_original,
+        dados: {
+          nome_exibicao: formEdit.nome_exibicao,
+          avatar: formEdit.avatar,
+          pin: formEdit.pin,
+          cor_tema: formEdit.cor_tema,
+          esmolas: formEdit.esmolas
+        }
+      }, false);
+      if (!resultado.ok) throw new Error(resultado.data?.error || "Falha ao salvar edição.");
       
       setLocalPerfis(prev => prev.map(p => p.nome_original === usuarioEditando.nome_original ? { ...p, ...formEdit } : p));
       setUsuarioEditando(null);
@@ -102,16 +124,20 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
 
     setCarregandoAcao(true);
     try {
-      const { data, error } = await supabase.from("perfis").insert([{ 
+      const resultado = await requisicaoDbSegura("POST", {
+        tabela: "perfis",
+        operacao: "insert",
+        dados: { 
         nome_original: nomeOriginal, 
         nome_exibicao: nomeOriginal, 
         avatar: "👤", 
         cor_tema: "azul",
         esmolas: 0 
-      }]).select().single();
-      
-      if (error) throw error;
-      setLocalPerfis(prev => [...prev, data]);
+        }
+      }, false);
+      if (!resultado.ok) throw new Error(resultado.data?.error || "Falha ao criar usuário.");
+      const novoPerfil = Array.isArray(resultado.data?.data) ? resultado.data.data[0] : null;
+      if (novoPerfil) setLocalPerfis(prev => [...prev, novoPerfil]);
       alert("🎉 Novo Caçador recrutado com sucesso!");
     } catch (err: any) {
       alert("Erro ao criar: " + err.message);
@@ -172,26 +198,33 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
     setCarregandoAcao(true);
     try {
       if (isNovoItem) {
-        const { error } = await supabase.from("loja_itens").insert([{
+        const resultado = await requisicaoDbSegura("POST", {
+          tabela: "loja_itens",
+          operacao: "insert",
+          dados: {
           ...formLoja,
           particula_custom: formLoja.particula_custom
-        }]);
-        if (error) throw error;
+          }
+        });
+        if (!resultado.ok) throw new Error(resultado.data?.error || "Falha ao criar item.");
       } else {
-        const { error } = await supabase.from("loja_itens").update({
-          nome: formLoja.nome,
-          tipo: formLoja.tipo,
-          preco: formLoja.preco,
-          icone: formLoja.icone,
-          imagem_url: formLoja.imagem_url,
-          desc_texto: formLoja.desc_texto,
-          // ✅ Envia os dados do motor dinâmico
-          tema_css: formLoja.tema_css,
-          quantidade_elementos: formLoja.quantidade_elementos,
-          direcao: formLoja.direcao,
-          particula_custom: formLoja.particula_custom
-        }).eq("id", formLoja.id);
-        if (error) throw error;
+        const resultado = await requisicaoDbSegura("POST", {
+          tabela: "loja_itens",
+          id: formLoja.id,
+          dados: {
+            nome: formLoja.nome,
+            tipo: formLoja.tipo,
+            preco: formLoja.preco,
+            icone: formLoja.icone,
+            imagem_url: formLoja.imagem_url,
+            desc_texto: formLoja.desc_texto,
+            tema_css: formLoja.tema_css,
+            quantidade_elementos: formLoja.quantidade_elementos,
+            direcao: formLoja.direcao,
+            particula_custom: formLoja.particula_custom
+          }
+        });
+        if (!resultado.ok) throw new Error(resultado.data?.error || "Falha ao atualizar item.");
       }
       
       alert(isNovoItem ? "✅ Item criado com sucesso!" : "✅ Item atualizado!");
@@ -208,8 +241,8 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
     if (!confirm("Tem certeza que deseja apagar este item da loja para sempre?")) return;
     setCarregandoAcao(true);
     try {
-      const { error } = await supabase.from("loja_itens").delete().eq("id", id);
-      if (error) throw error;
+      const resultado = await requisicaoDbSegura("DELETE", { tabela: "loja_itens", id });
+      if (!resultado.ok) throw new Error(resultado.data?.error || "Falha ao excluir item.");
       alert("🗑️ Item apagado.");
       carregarLojaItens();
     } catch (err: any) {
@@ -251,7 +284,12 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
   async function limparCachePesquisa() {
     if (!confirm("⚠️ Tem certeza? Isso vai apagar o histórico de buscas otimizadas pela IA. O sistema vai recriar o cache aos poucos.")) return;
     setCarregandoAcao(true);
-    await supabase.from("search_cache").delete().neq("termo_original", "x"); 
+    const resultado = await requisicaoDbSegura("DELETE", { tabela: "search_cache", limparTudo: true });
+    if (!resultado.ok) {
+      alert(resultado.data?.error || "Erro ao limpar cache.");
+      setCarregandoAcao(false);
+      return;
+    }
     alert("🧹 Cache de pesquisa purificado com sucesso!");
     setCarregandoAcao(false);
   }
@@ -264,7 +302,12 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
     try {
       for (const p of localPerfis) {
         if (p.nome_original === "Admin") continue;
-        await supabase.from("perfis").update({ esmolas: (p.esmolas || 0) + quantia }).eq("nome_original", p.nome_original);
+        const resultado = await requisicaoDbSegura("POST", {
+          tabela: "perfis",
+          nome_original: p.nome_original,
+          dados: { esmolas: (p.esmolas || 0) + quantia }
+        }, false);
+        if (!resultado.ok) throw new Error(resultado.data?.error || "Falha ao atualizar esmolas.");
       }
       setLocalPerfis(prev => prev.map(p => p.nome_original === "Admin" ? p : { ...p, esmolas: (p.esmolas || 0) + quantia }));
       alert(`🌧️ Chuva de ${quantia} Esmolas realizada com sucesso!`);

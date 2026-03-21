@@ -3,6 +3,8 @@
 import { supabase } from "../supabase";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSenhaMestraInterativa } from "../hooks/useSenhaMestraInterativa";
+import { requisicaoDbApi } from "@/lib/dbClient";
 
 const TEMAS = {
   verde: { bg: "bg-green-500", text: "text-green-500", border: "border-green-500", glow: "shadow-green-500/20", btn: "bg-green-500/10 border-green-500/50 hover:bg-green-500 hover:text-black" },
@@ -45,6 +47,21 @@ export default function PerfilPage() {
   const [elo, setElo] = useState({ tier: "BRONZE", cor: "from-orange-800 to-orange-500", glow: "shadow-orange-900/40" });
 
   const [lojaItens, setLojaItens] = useState<any[]>(LOJA_ITENS_FALLBACK);
+
+  const { obterSenhaMestreInterativa, modalSenhaMestra } = useSenhaMestraInterativa();
+
+  async function requisicaoDb(payload: Record<string, any>, exigirSenhaMestre = false) {
+    let senhaMestre: string | undefined;
+    if (exigirSenhaMestre) {
+      const s = await obterSenhaMestreInterativa();
+      if (!s) return { ok: false, data: undefined };
+      senhaMestre = s;
+    }
+    return requisicaoDbApi("POST", {
+      ...payload,
+      ...(exigirSenhaMestre && senhaMestre ? { senhaMestre } : {}),
+    });
+  }
 
   useEffect(() => {
     const hunter = sessionStorage.getItem("hunter_ativo");
@@ -141,10 +158,11 @@ export default function PerfilPage() {
       if (p.ultima_missao_data !== hoje) {
         const resetProgress = [false, false, false, false, false, false];
         setMissoesProgresso(resetProgress);
-        supabase.from("perfis").update({ 
-          missoes_progresso: resetProgress, 
-          ultima_missao_data: hoje 
-        }).eq("nome_original", usuarioAtivo);
+        await requisicaoDb({
+          tabela: "perfis",
+          nome_original: usuarioAtivo,
+          dados: { missoes_progresso: resetProgress, ultima_missao_data: hoje }
+        });
       } else {
         setMissoesProgresso(p.missoes_progresso || [false, false, false, false, false, false]);
       }
@@ -180,11 +198,11 @@ export default function PerfilPage() {
     setMissoesProgresso(nProg); 
     setEsmolas(nSaldo);
     const hoje = new Date().toISOString().split('T')[0];
-    await supabase.from("perfis").update({ 
-      missoes_progresso: nProg, 
-      esmolas: nSaldo,
-      ultima_missao_data: hoje
-    }).eq("nome_original", usuarioAtivo);
+    await requisicaoDb({
+      tabela: "perfis",
+      nome_original: usuarioAtivo,
+      dados: { missoes_progresso: nProg, esmolas: nSaldo, ultima_missao_data: hoje }
+    });
   }
 
   async function comprarCosmetico(item: any) {
@@ -192,10 +210,11 @@ export default function PerfilPage() {
     if (confirm(`Comprar ${item.nome}?`)) {
       const nSaldo = esmolas - item.preco; 
       const nInv = [...inventario, item.id];
-      await supabase.from("perfis").update({ 
-        esmolas: nSaldo, 
-        cosmeticos: { comprados: nInv, ativos: equipados } 
-      }).eq("nome_original", usuarioAtivo);
+      await requisicaoDb({
+        tabela: "perfis",
+        nome_original: usuarioAtivo,
+        dados: { esmolas: nSaldo, cosmeticos: { comprados: nInv, ativos: equipados } }
+      });
       setEsmolas(nSaldo); 
       setInventario(nInv);
     }
@@ -203,9 +222,11 @@ export default function PerfilPage() {
 
   async function equiparCosmetico(item: any) {
     const nEquip = { ...equipados, [item.tipo]: equipados[item.tipo] === item.id ? "" : item.id };
-    await supabase.from("perfis").update({ 
-      cosmeticos: { comprados: inventario, ativos: nEquip } 
-    }).eq("nome_original", usuarioAtivo);
+    await requisicaoDb({
+      tabela: "perfis",
+      nome_original: usuarioAtivo,
+      dados: { cosmeticos: { comprados: inventario, ativos: nEquip } }
+    });
     setEquipados(nEquip);
 
     // ✅ DISPARA SINAL GLOBAL PARA O LAYOUT ATUALIZAR O FUNDO
@@ -213,13 +234,17 @@ export default function PerfilPage() {
   }
 
   async function atualizarPerfil() {
-    await supabase.from("perfis").update({ 
-      nome_exibicao: dadosPerfil.nome, 
-      avatar: dadosPerfil.avatar, 
-      cor_tema: dadosPerfil.tema, 
-      custom_color: dadosPerfil.custom_color, 
-      pin: dadosPerfil.pin 
-    }).eq("nome_original", usuarioAtivo);
+    await requisicaoDb({
+      tabela: "perfis",
+      nome_original: usuarioAtivo,
+      dados: {
+        nome_exibicao: dadosPerfil.nome,
+        avatar: dadosPerfil.avatar,
+        cor_tema: dadosPerfil.tema,
+        custom_color: dadosPerfil.custom_color,
+        pin: dadosPerfil.pin
+      }
+    });
     alert("✨ Hunter Sincronizado!");
   }
 
@@ -447,6 +472,8 @@ export default function PerfilPage() {
           <button onClick={() => { sessionStorage.removeItem('hunter_ativo'); window.location.href = '/'; }} className="w-full py-3 text-[8px] font-black text-zinc-700 hover:text-red-500 uppercase tracking-[0.3em] transition-all">Encerrar Sessão</button>
         </div>
       </div>
+
+      {modalSenhaMestra}
     </main>
   );
 }
