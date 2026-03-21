@@ -55,6 +55,7 @@ interface EstatisticasHunter extends Perfil {
   tempo_vida: number;
   total_favoritos: number;
   elo: string;
+  total_conquistas: number;
 }
 
 export default function GuildaPage() {
@@ -66,7 +67,7 @@ export default function GuildaPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const [abaAtiva, setAbaAtiva] = useState<"CHAT" | "RANKING">("CHAT");
-  const [filtroRanking, setFiltroRanking] = useState<"OBRAS" | "ESMOLAS" | "TEMPO" | "CAPITULOS" | "FAVORITOS">("OBRAS");
+  const [filtroRanking, setFiltroRanking] = useState<"OBRAS" | "ESMOLAS" | "TEMPO" | "CAPITULOS" | "FAVORITOS" | "CONQUISTAS">("OBRAS");
   const [estatisticas, setEstatisticas] = useState<EstatisticasHunter[]>([]);
   const [carregandoRanking, setCarregandoRanking] = useState(false);
 
@@ -150,7 +151,7 @@ export default function GuildaPage() {
       setInspecionandoHunter(stats);
     } else {
       const basico = perfis.find(p => p.nome_original === nomeOriginal);
-      if (basico) setInspecionandoHunter({ ...basico, total_obras: 0, total_capitulos: 0, tempo_vida: 0, total_favoritos: 0, elo: 'BRONZE' } as EstatisticasHunter);
+      if (basico) setInspecionandoHunter({ ...basico, total_obras: 0, total_capitulos: 0, tempo_vida: 0, total_favoritos: 0, elo: 'BRONZE', total_conquistas: 0 } as EstatisticasHunter);
     }
   };
 
@@ -161,33 +162,53 @@ export default function GuildaPage() {
     const { data: f } = await supabase.from("filmes").select("usuario, capitulo_atual, status, favorito");
     const { data: l } = await supabase.from("livros").select("usuario, capitulo_atual, favorito");
 
-    const statsByUser: Record<string, { obras: number, caps: number, tempoMin: number, favs: number }> = {};
-    perfis.forEach(p => { statsByUser[p.nome_original] = { obras: 0, caps: 0, tempoMin: 0, favs: 0 }; });
+    const statsByUser: Record<string, { obras: number, caps: number, tempoMin: number, favs: number, filmes: number, livros: number }> = {};
+    perfis.forEach(p => { statsByUser[p.nome_original] = { obras: 0, caps: 0, tempoMin: 0, favs: 0, filmes: 0, livros: 0 }; });
 
-    const processarTabela = (dados: any[] | null, tipo: "anime" | "filme" | "outro") => {
+    const processarTabela = (dados: any[] | null, tipo: "anime" | "filme" | "livro" | "outro") => {
       (dados || []).forEach(obra => {
-        if (!statsByUser[obra.usuario]) statsByUser[obra.usuario] = { obras: 0, caps: 0, tempoMin: 0, favs: 0 };
+        if (!statsByUser[obra.usuario]) statsByUser[obra.usuario] = { obras: 0, caps: 0, tempoMin: 0, favs: 0, filmes: 0, livros: 0 };
         const userStats = statsByUser[obra.usuario];
         userStats.obras += 1;
         userStats.caps += (obra.capitulo_atual || 0);
         if (obra.favorito) userStats.favs += 1;
         if (tipo === "anime") userStats.tempoMin += (obra.capitulo_atual || 0) * 23;
-        else if (tipo === "filme" && obra.status === "Completos") userStats.tempoMin += 120;
+        else if (tipo === "filme" && obra.status === "Completos") { userStats.tempoMin += 120; userStats.filmes += 1; }
+        else if (tipo === "filme") { userStats.filmes += 1; }
+        else if (tipo === "livro") { userStats.livros += 1; }
       });
     };
 
-    processarTabela(m, "outro"); processarTabela(a, "anime"); processarTabela(f, "filme"); processarTabela(l, "outro");
+    processarTabela(m, "outro"); processarTabela(a, "anime"); processarTabela(f, "filme"); processarTabela(l, "livro");
 
     const statusCompletos = perfis.map(p => {
-      const s = statsByUser[p.nome_original] || { obras: 0, caps: 0, tempoMin: 0, favs: 0 };
+      const s = statsByUser[p.nome_original] || { obras: 0, caps: 0, tempoMin: 0, favs: 0, filmes: 0, livros: 0 };
       let eloTier = "BRONZE";
       if (s.obras >= 1000) eloTier = "DIVINDADE"; 
       else if (s.obras >= 500) eloTier = "DESAFIANTE";
       else if (s.obras >= 200) eloTier = "MESTRE"; 
       else if (s.obras >= 100) eloTier = "DIAMANTE";
+      let trofeus = 0;
+      for (let id = 1; id <= 85; id++) {
+        let check = false;
+        if (id <= 50) {
+          if (id === 1) check = s.obras >= 1;
+          else if (id === 2) check = s.obras >= 10;
+          else if (id === 3) check = s.caps >= 100;
+          else if (id === 4) check = Math.floor(s.tempoMin / 60) >= 10;
+          else if (id === 5) check = s.favs >= 5;
+          else check = s.obras >= (id * 3);
+        } else if (id <= 70) {
+          check = s.filmes >= ((id - 50) * 5);
+        } else {
+          check = s.livros >= ((id - 70) * 5);
+        }
+        if (check) trofeus++;
+      }
+
       return {
         ...p, esmolas: p.esmolas || 0, total_obras: s.obras, total_capitulos: s.caps,
-        tempo_vida: Math.floor(s.tempoMin / 60), total_favoritos: s.favs, elo: eloTier
+        tempo_vida: Math.floor(s.tempoMin / 60), total_favoritos: s.favs, elo: eloTier, total_conquistas: trofeus
       };
     });
     setEstatisticas(statusCompletos);
@@ -325,6 +346,7 @@ export default function GuildaPage() {
   }
 
   const huntersOrdenados = [...estatisticas].sort((a, b) => {
+    if (filtroRanking === "CONQUISTAS") return b.total_conquistas - a.total_conquistas;
     if (filtroRanking === "OBRAS") return b.total_obras - a.total_obras;
     if (filtroRanking === "ESMOLAS") return b.esmolas - a.esmolas;
     if (filtroRanking === "TEMPO") return b.tempo_vida - a.tempo_vida;
@@ -519,6 +541,7 @@ export default function GuildaPage() {
                 <button onClick={() => setFiltroRanking("TEMPO")} className={`px-4 py-2 rounded-xl border text-[9px] font-black uppercase transition-all ${filtroRanking === "TEMPO" ? 'bg-purple-600/20 border-purple-500 text-purple-400' : 'bg-black/50 border-zinc-800 text-zinc-500 hover:text-white'}`}>⏳ Veteranos (Horas)</button>
                 <button onClick={() => setFiltroRanking("CAPITULOS")} className={`px-4 py-2 rounded-xl border text-[9px] font-black uppercase transition-all ${filtroRanking === "CAPITULOS" ? 'bg-red-600/20 border-red-500 text-red-400' : 'bg-black/50 border-zinc-800 text-zinc-500 hover:text-white'}`}>🔥 Devoradores (Caps)</button>
                 <button onClick={() => setFiltroRanking("FAVORITOS")} className={`px-4 py-2 rounded-xl border text-[9px] font-black uppercase transition-all ${filtroRanking === "FAVORITOS" ? 'bg-green-600/20 border-green-500 text-green-400' : 'bg-black/50 border-zinc-800 text-zinc-500 hover:text-white'}`}>⭐ Curadores</button>
+                <button onClick={() => setFiltroRanking("CONQUISTAS")} className={`px-4 py-2 rounded-xl border text-[9px] font-black uppercase transition-all ${filtroRanking === "CONQUISTAS" ? 'bg-cyan-600/20 border-cyan-500 text-cyan-400' : 'bg-black/50 border-zinc-800 text-zinc-500 hover:text-white'}`}>🏆 Platinadores</button>
               </div>
               <div className="flex flex-col gap-4">
                 {huntersOrdenados.map((hunter: EstatisticasHunter, index: number) => {
@@ -529,6 +552,7 @@ export default function GuildaPage() {
                   if (filtroRanking === "TEMPO") { corTexto = "text-purple-400"; valor = hunter.tempo_vida; label = "Horas Consumidas"; }
                   if (filtroRanking === "CAPITULOS") { corTexto = "text-red-400"; valor = hunter.total_capitulos; label = "Caps / Episódios"; }
                   if (filtroRanking === "FAVORITOS") { corTexto = "text-green-400"; valor = hunter.total_favoritos; label = "Obras Favoritas"; }
+                  if (filtroRanking === "CONQUISTAS") { corTexto = "text-cyan-400"; valor = hunter.total_conquistas; label = "Troféus Desbloqueados"; }
                   const molduraRank = getMolduraPng(hunter.cosmeticos?.ativos?.moldura);
                   const tituloRank = getTituloItem(hunter.cosmeticos?.ativos?.titulo);
                   return (
