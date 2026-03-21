@@ -11,7 +11,7 @@ interface ResultadoBusca {
   capa: string;
   total: number;
   sinopse: string;
-  fonte: "AniList" | "MyAnimeList" | "TMDB" | "Google Books";
+  fonte: "AniList" | "MyAnimeList" | "TMDB" | "Google Books" | "RAWG" | "Apple Music";
 }
 
 interface AddMangaModalProps {
@@ -139,6 +139,41 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
               total: m.volumeInfo?.pageCount || 1, sinopse: m.volumeInfo?.description || "Sem sinopse.", fonte: "Google Books"
             };
           }));
+        }
+
+      // 🎮 Motor RAWG (Jogos)
+      } else if (abaPrincipal === "JOGO") {
+        // Usando uma API Key pública de testes do RAWG (ideal é substituir depois)
+        const RAWG_KEY = process.env.NEXT_PUBLIC_RAWG_API_KEY || "ca32dbdb75514f76b53cb1a415ff6a42";
+        const resRawg = await fetch(`https://api.rawg.io/api/games?key=${RAWG_KEY}&search=${encodeURIComponent(termoFinal)}&page_size=5`);
+        const jsonRawg = await resRawg.json();
+
+        if (jsonRawg.results) {
+          setResultados(jsonRawg.results.map((g: any): ResultadoBusca => ({
+            id: g.id,
+            titulo: g.name,
+            capa: g.background_image || "https://placehold.co/400x600/1f1f22/52525b.png?text=SEM+CAPA",
+            total: 100, // RAWG não dá total de horas na busca inicial
+            sinopse: "Data de lançamento: " + (g.released || "Desconhecida"),
+            fonte: "RAWG"
+          })));
+        }
+
+      // 🎵 Motor iTunes / Apple Music (Músicas - Álbuns)
+      } else if (abaPrincipal === "MUSICA") {
+        // API aberta, não precisa de chave. Focando em álbuns para ter a capa quadrada bonita.
+        const resItunes = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(termoFinal)}&entity=album&limit=5`);
+        const jsonItunes = await resItunes.json();
+
+        if (jsonItunes.results) {
+          setResultados(jsonItunes.results.map((m: any): ResultadoBusca => ({
+            id: m.collectionId,
+            titulo: `${m.artistName} - ${m.collectionName}`,
+            capa: m.artworkUrl100?.replace('100x100bb', '600x600bb') || "https://placehold.co/400x400/1f1f22/52525b.png?text=SEM+CAPA",
+            total: m.trackCount || 1,
+            sinopse: `Gênero: ${m.primaryGenreName}\nLançamento: ${m.releaseDate?.substring(0, 4) || 'N/A'}`,
+            fonte: "Apple Music"
+          })));
         }
 
       // 🇯🇵 Motor AniList / MyAnimeList (Restaurado)
