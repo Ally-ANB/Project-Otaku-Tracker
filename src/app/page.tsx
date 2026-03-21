@@ -455,7 +455,7 @@ export default function Home() {
 
       // Se NÃO tiver PIN no banco, vai perguntar pro Cofre do Servidor (.env)
       try {
-        const res = await fetch("/api/auth", {
+        const res = await fetch("/api/auth/anilist", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tipo: "admin_pin", senhaDigitada: pinDigitado })

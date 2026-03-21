@@ -81,84 +81,55 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
         }
       }
 
-      // 🎬 Motor TMDB (Restaurado)
-      if (abaPrincipal === "FILME") {
-        const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY; 
-        if (!TMDB_API_KEY) {
-          alert("⚠️ Hunter, a API Key do TMDB está faltando!");
-          setBuscando(false);
-          return;
-        }
-        const resTmdb = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&language=pt-BR&query=${encodeURIComponent(termoFinal)}`);
-        const jsonTmdb = await resTmdb.json();
-        if (jsonTmdb.results) {
-          setResultados(jsonTmdb.results.slice(0, 5).map((m: any): ResultadoBusca => ({
-            id: m.id, titulo: m.title, 
+      // 🎬 Filmes e Séries via TMDB Seguro
+      if (abaPrincipal === "FILME" || abaPrincipal === "SERIE") {
+        const tipoTmdb = abaPrincipal === "FILME" ? "movie" : "tv";
+        const res = await fetch(`/api/tmdb?q=${encodeURIComponent(termoFinal)}&type=${tipoTmdb}`);
+        const json = await res.json();
+        
+        if (json.results) {
+          setResultados(json.results.slice(0, 5).map((m: any): ResultadoBusca => ({
+            id: m.id, 
+            titulo: m.title || m.name || m.original_name, 
             capa: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://placehold.co/400x600/1f1f22/52525b.png?text=SEM+CAPA",
-            total: 1, sinopse: m.overview || "Sem sinopse.", fonte: "TMDB"
-          })));
-        }
-
-      // 📺 Séries (TMDB TV)
-      } else if (abaPrincipal === "SERIE") {
-        const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
-        if (!TMDB_API_KEY) {
-          alert("⚠️ Hunter, a API Key do TMDB está faltando!");
-          setBuscando(false);
-          return;
-        }
-        const resTmdb = await fetch(`https://api.themoviedb.org/3/search/tv?api_key=${TMDB_API_KEY}&language=pt-BR&query=${encodeURIComponent(termoFinal)}`);
-        const jsonTmdb = await resTmdb.json();
-        if (jsonTmdb.results) {
-          setResultados(jsonTmdb.results.slice(0, 5).map((m: any): ResultadoBusca => ({
-            id: m.id,
-            titulo: m.name || m.original_name || "Sem Título",
-            capa: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://placehold.co/400x600/1f1f22/52525b.png?text=SEM+CAPA",
-            total: m.number_of_episodes || 1,
-            sinopse: m.overview || "Sem sinopse.",
+            total: m.number_of_episodes || 1, 
+            sinopse: m.overview || "Sem sinopse.", 
             fonte: "TMDB"
           })));
         }
 
-      // 📖 Motor Google Books + Open Library (Restaurado)
+      // 📖 Livros via Google Books Seguro
       } else if (abaPrincipal === "LIVRO") {
-        const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY;
-        const urlBusca = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(termoFinal)}&maxResults=5&langRestrict=pt${GOOGLE_API_KEY ? `&key=${GOOGLE_API_KEY}` : ''}`;
-        const resBooks = await fetch(urlBusca);
-        const jsonBooks = await resBooks.json();
+        const res = await fetch(`/api/books?q=${encodeURIComponent(termoFinal)}`);
+        const json = await res.json();
         
-        if (jsonBooks.items) {
-          setResultados(jsonBooks.items.map((m: any): ResultadoBusca => {
+        if (json.items) {
+          setResultados(json.items.map((m: any): ResultadoBusca => {
             const links = m.volumeInfo?.imageLinks;
-            const isbns = m.volumeInfo?.industryIdentifiers;
-            const isbn13 = isbns?.find((id: any) => id.type === "ISBN_13")?.identifier;
-            
             return {
-              id: m.id, titulo: m.volumeInfo?.title || "Sem Título", 
-              capa: links?.thumbnail?.replace('http:', 'https:') || (isbn13 ? `https://covers.openlibrary.org/b/isbn/${isbn13}-L.jpg` : "https://placehold.co/400x600/1f1f22/52525b.png?text=SEM+CAPA"),
-              total: m.volumeInfo?.pageCount || 1, sinopse: m.volumeInfo?.description || "Sem sinopse.", fonte: "Google Books"
+              id: m.id, 
+              titulo: m.volumeInfo?.title || "Sem Título", 
+              capa: links?.thumbnail?.replace('http:', 'https:') || "https://placehold.co/400x600/1f1f22/52525b.png?text=SEM+CAPA",
+              total: m.volumeInfo?.pageCount || 1, 
+              sinopse: m.volumeInfo?.description || "Sem sinopse.", 
+              fonte: "Google Books"
             };
           }));
         }
 
-      // 🎮 Motor RAWG (Jogos)
+      // 🎮 Motor RAWG (Jogos) - VIA BACKEND SEGURO
       } else if (abaPrincipal === "JOGO") {
-        const RAWG_KEY = process.env.NEXT_PUBLIC_RAWG_API_KEY;
-        if (!RAWG_KEY) {
-          alert("⚠️ Hunter, a API Key do RAWG está faltando no arquivo .env!");
-          setBuscando(false);
-          return;
-        }
-        const resRawg = await fetch(`https://api.rawg.io/api/games?key=${RAWG_KEY}&search=${encodeURIComponent(termoFinal)}&page_size=5`);
+        // Agora chamamos a nossa própria rota blindada
+        const resRawg = await fetch(`/api/rawg?q=${encodeURIComponent(termoFinal)}`);
         const jsonRawg = await resRawg.json();
-
+        
         if (jsonRawg.results) {
           setResultados(jsonRawg.results.map((g: any): ResultadoBusca => ({
-            id: g.id,
-            titulo: g.name,
+            id: g.id, 
+            titulo: g.name, 
             capa: g.background_image || "https://placehold.co/400x600/1f1f22/52525b.png?text=SEM+CAPA",
-            total: 100, // RAWG não dá total de horas na busca inicial
-            sinopse: "Data de lançamento: " + (g.released || "Desconhecida"),
+            total: 100, // RAWG não fornece total de horas/capítulos na busca simples
+            sinopse: "Lançamento: " + (g.released || "Não informada"), 
             fonte: "RAWG"
           })));
         }

@@ -115,7 +115,7 @@ export default function ProfileSelection({
             <div className="w-16 h-16 bg-zinc-900 rounded-2xl mx-auto mb-6 flex items-center justify-center text-2xl border border-zinc-800">🔒</div>
             <h2 className="text-xl font-black text-white uppercase tracking-widest mb-2">Acesso Restrito</h2>
             <p className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] mb-8">Digite o PIN para {perfilAlvoParaBloqueio}</p>
-            <input type="password" maxLength={4} className="w-full bg-black border border-zinc-800 p-4 rounded-xl text-white font-black text-center text-2xl tracking-[1em] outline-none focus:border-white transition-all mb-6" value={pinDigitado} onChange={(e) => setPinDigitado(e.target.value.replace(/\D/g, ''))} onKeyDown={(e) => e.key === 'Enter' && confirmarPin()} autoFocus />
+            <input type="password" maxLength={6} className="w-full bg-black border border-zinc-800 p-4 rounded-xl text-white font-black text-center text-2xl tracking-[1em] outline-none focus:border-white transition-all mb-6" value={pinDigitado} onChange={(e) => setPinDigitado(e.target.value.replace(/\D/g, ''))} onKeyDown={(e) => e.key === 'Enter' && confirmarPin()} autoFocus />
             <button onClick={confirmarPin} className="w-full py-4 rounded-xl font-black uppercase tracking-widest transition-all bg-white text-black hover:bg-zinc-200">Desbloquear</button>
           </div>
         </div>
@@ -129,7 +129,7 @@ export default function ProfileSelection({
             <div className="w-16 h-16 bg-yellow-500/10 rounded-2xl mx-auto mb-6 flex items-center justify-center text-3xl border border-yellow-500/50 shadow-[0_0_20px_rgba(234,179,8,0.2)]">👑</div>
             <h2 className="text-xl font-black text-yellow-500 uppercase tracking-widest mb-2 drop-shadow-md">Acesso Divino</h2>
             <p className="text-[10px] text-yellow-500/60 uppercase tracking-[0.2em] mb-8">Credenciais de Mestre</p>
-            <input type="password" maxLength={4} className="w-full bg-black border border-yellow-500/30 p-4 rounded-xl text-yellow-500 font-black text-center text-2xl tracking-[1em] outline-none focus:border-yellow-500 transition-all mb-6 shadow-[inset_0_0_10px_rgba(234,179,8,0.05)]" value={pinDigitado} onChange={(e) => setPinDigitado(e.target.value.replace(/\D/g, ''))} onKeyDown={(e) => { if(e.key === 'Enter') { setPerfilAlvoParaBloqueio("Admin"); setTimeout(confirmarPin, 50); } }} autoFocus />
+            <input type="password" maxLength={6} className="w-full bg-black border border-yellow-500/30 p-4 rounded-xl text-yellow-500 font-black text-center text-2xl tracking-[1em] outline-none focus:border-yellow-500 transition-all mb-6 shadow-[inset_0_0_10px_rgba(234,179,8,0.05)]" value={pinDigitado} onChange={(e) => setPinDigitado(e.target.value.replace(/\D/g, ''))} onKeyDown={(e) => { if(e.key === 'Enter') { setPerfilAlvoParaBloqueio("Admin"); setTimeout(confirmarPin, 50); } }} autoFocus />
             <button onClick={() => { setPerfilAlvoParaBloqueio("Admin"); setTimeout(confirmarPin, 50); }} className="w-full py-4 rounded-xl font-black uppercase tracking-widest transition-all bg-yellow-500/10 text-yellow-500 border border-yellow-500/50 hover:bg-yellow-500 hover:text-black shadow-[0_0_15px_rgba(234,179,8,0.2)]">Assumir o Controle</button>
           </div>
         </div>

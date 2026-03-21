@@ -11,7 +11,7 @@ export default function AcessoMestre({ aoAutorizar }: { aoAutorizar: () => void 
     setValidando(true);
     
     try {
-      const res = await fetch('/api/auth', {
+      const res = await fetch('/api/auth/anilist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tipo: 'mestre', senhaDigitada })
