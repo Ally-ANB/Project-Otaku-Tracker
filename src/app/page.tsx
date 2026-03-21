@@ -54,11 +54,14 @@ export default function Home() {
   const [pinDigitado, setPinDigitado] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const [abaPrincipal, setAbaPrincipal] = useState<"MANGA" | "ANIME" | "FILME" | "LIVRO">("MANGA"); 
+  const [abaPrincipal, setAbaPrincipal] = useState<"MANGA" | "ANIME" | "FILME" | "LIVRO" | "SERIE" | "JOGO" | "MUSICA">("MANGA"); 
   const [mangas, setMangas] = useState<Manga[]>([]);
   const [animes, setAnimes] = useState<Manga[]>([]); 
   const [filmes, setFilmes] = useState<Manga[]>([]); 
   const [livros, setLivros] = useState<Manga[]>([]); 
+  const [series, setSeries] = useState<Manga[]>([]);
+  const [jogos, setJogos] = useState<Manga[]>([]);
+  const [musicas, setMusicas] = useState<Manga[]>([]);
   const [perfis, setPerfis] = useState<any[]>([]); 
   
   const [lojaItens, setLojaItens] = useState<any[]>([]);
@@ -142,6 +145,7 @@ export default function Home() {
     if (usuarioAtual) {
       setIsAdmin(usuarioAtual === "Admin");
       buscarMangas(); buscarAnimes(); buscarFilmes(); buscarLivros();
+      buscarSeries(); buscarJogos(); buscarMusicas();
       
       // ✅ SINCRONIZA OS DADOS DO CARD E COSMÉTICOS AO MUDAR DE USUÁRIO
       const pAtivo = perfis.find(p => p.nome_original === usuarioAtual);
@@ -194,6 +198,24 @@ export default function Home() {
     if (data) setLivros(data as Manga[]);
   }
 
+  async function buscarSeries() {
+    if (!usuarioAtual || usuarioAtual === "Admin") return;
+    const { data } = await supabase.from("series").select("*").eq("usuario", usuarioAtual).order("ultima_leitura", { ascending: false });
+    if (data) setSeries(data as Manga[]);
+  }
+
+  async function buscarJogos() {
+    if (!usuarioAtual || usuarioAtual === "Admin") return;
+    const { data } = await supabase.from("jogos").select("*").eq("usuario", usuarioAtual).order("ultima_leitura", { ascending: false });
+    if (data) setJogos(data as Manga[]);
+  }
+
+  async function buscarMusicas() {
+    if (!usuarioAtual || usuarioAtual === "Admin") return;
+    const { data } = await supabase.from("musicas").select("*").eq("usuario", usuarioAtual).order("ultima_leitura", { ascending: false });
+    if (data) setMusicas(data as Manga[]);
+  }
+
   async function buscarPerfis() {
     const { data } = await supabase.from("perfis").select("*");
     if (data) setPerfis(data);
@@ -223,8 +245,8 @@ export default function Home() {
   // ==========================================
   // 🔄 [SESSÃO 7] - SINCRONIZAÇÃO ANILIST
   // ==========================================
-  async function sincronizarComAniList(titulo: string, capitulo: number, statusLocal: string, token: string, acao: "SALVAR" | "DELETAR" = "SALVAR", tipoObra: "MANGA" | "ANIME" | "FILME" | "LIVRO" = "MANGA") {
-    if (tipoObra === "FILME" || tipoObra === "LIVRO") return;
+  async function sincronizarComAniList(titulo: string, capitulo: number, statusLocal: string, token: string, acao: "SALVAR" | "DELETAR" = "SALVAR", tipoObra: "MANGA" | "ANIME" | "FILME" | "LIVRO" | "SERIE" | "JOGO" | "MUSICA" = "MANGA") {
+    if (tipoObra === "FILME" || tipoObra === "LIVRO" || tipoObra === "SERIE" || tipoObra === "JOGO" || tipoObra === "MUSICA") return;
     try {
       const res = await fetch('/api/anilist/sync', {
         method: 'POST',
@@ -289,8 +311,8 @@ export default function Home() {
     let novoStatus = manga.status;
     if (manga.total_capitulos > 0 && novo >= manga.total_capitulos) novoStatus = "Completos";
     
-    const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : abaPrincipal === "ANIME" ? "animes" : abaPrincipal === "FILME" ? "filmes" : "livros";
-    const setLista = abaPrincipal === "MANGA" ? setMangas : abaPrincipal === "ANIME" ? setAnimes : abaPrincipal === "FILME" ? setFilmes : setLivros;
+    const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : abaPrincipal === "ANIME" ? "animes" : abaPrincipal === "FILME" ? "filmes" : abaPrincipal === "LIVRO" ? "livros" : abaPrincipal === "SERIE" ? "series" : abaPrincipal === "JOGO" ? "jogos" : "musicas";
+    const setLista = abaPrincipal === "MANGA" ? setMangas : abaPrincipal === "ANIME" ? setAnimes : abaPrincipal === "FILME" ? setFilmes : abaPrincipal === "LIVRO" ? setLivros : abaPrincipal === "SERIE" ? setSeries : abaPrincipal === "JOGO" ? setJogos : setMusicas;
     
     const agora = new Date().toISOString();
 
@@ -310,8 +332,8 @@ export default function Home() {
   }
 
   async function atualizarDados(id: number, campos: any) {
-    const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : abaPrincipal === "ANIME" ? "animes" : abaPrincipal === "FILME" ? "filmes" : "livros";
-    const setLista = abaPrincipal === "MANGA" ? setMangas : abaPrincipal === "ANIME" ? setAnimes : abaPrincipal === "FILME" ? setFilmes : setLivros;
+    const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : abaPrincipal === "ANIME" ? "animes" : abaPrincipal === "FILME" ? "filmes" : abaPrincipal === "LIVRO" ? "livros" : abaPrincipal === "SERIE" ? "series" : abaPrincipal === "JOGO" ? "jogos" : "musicas";
+    const setLista = abaPrincipal === "MANGA" ? setMangas : abaPrincipal === "ANIME" ? setAnimes : abaPrincipal === "FILME" ? setFilmes : abaPrincipal === "LIVRO" ? setLivros : abaPrincipal === "SERIE" ? setSeries : abaPrincipal === "JOGO" ? setJogos : setMusicas;
     
     const agora = new Date().toISOString();
     const dadosAtualizados = { ...campos, ultima_leitura: agora };
@@ -325,7 +347,7 @@ export default function Home() {
     await supabase.from(tabelaDb).update(dadosAtualizados).eq("id", id);
     mostrarToast("Configuração salva.", "sucesso");
 
-    const listaAtual = abaPrincipal === "MANGA" ? mangas : abaPrincipal === "ANIME" ? animes : abaPrincipal === "FILME" ? filmes : livros;
+    const listaAtual = abaPrincipal === "MANGA" ? mangas : abaPrincipal === "ANIME" ? animes : abaPrincipal === "FILME" ? filmes : abaPrincipal === "LIVRO" ? livros : abaPrincipal === "SERIE" ? series : abaPrincipal === "JOGO" ? jogos : musicas;
     if (campos.status || campos.capitulo_atual !== undefined) {
       const mangaAlterado = listaAtual.find(m => m.id === id);
       const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual);
@@ -338,13 +360,16 @@ export default function Home() {
   }
 
   async function deletarMangaDaEstante(id: number) {
-    const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : abaPrincipal === "ANIME" ? "animes" : abaPrincipal === "FILME" ? "filmes" : "livros";
+    const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : abaPrincipal === "ANIME" ? "animes" : abaPrincipal === "FILME" ? "filmes" : abaPrincipal === "LIVRO" ? "livros" : abaPrincipal === "SERIE" ? "series" : abaPrincipal === "JOGO" ? "jogos" : "musicas";
     if(confirm(`Remover da estante?`)) {
       await supabase.from(tabelaDb).delete().eq("id", id);
       if (abaPrincipal === "MANGA") buscarMangas();
       else if (abaPrincipal === "ANIME") buscarAnimes();
       else if (abaPrincipal === "FILME") buscarFilmes();
-      else buscarLivros();
+      else if (abaPrincipal === "LIVRO") buscarLivros();
+      else if (abaPrincipal === "SERIE") buscarSeries();
+      else if (abaPrincipal === "JOGO") buscarJogos();
+      else buscarMusicas();
       mostrarToast("Obra removida.", "aviso");
     }
   }
@@ -471,14 +496,21 @@ export default function Home() {
 
   const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual) || { nome_exibicao: usuarioAtual, avatar: "👤", cor_tema: "verde", custom_color: "#22c55e", cosmeticos: { ativos: {} } };
   const aura = perfilAtivo.cor_tema?.startsWith('#') ? TEMAS.custom : (TEMAS[perfilAtivo.cor_tema as keyof typeof TEMAS] || TEMAS.verde);
-  const listaExibicao = abaPrincipal === "MANGA" ? mangas : abaPrincipal === "ANIME" ? animes : abaPrincipal === "FILME" ? filmes : livros;
-  const filtrosAtuais = (abaPrincipal === "MANGA" || abaPrincipal === "LIVRO") ? ["Todos", "Lendo", "Completos", "Planejo Ler", "Pausados", "Dropados"] : ["Todos", "Assistindo", "Completos", "Planejo Assistir", "Pausados", "Dropados"];
+  const listaExibicao = abaPrincipal === "MANGA" ? mangas : abaPrincipal === "ANIME" ? animes : abaPrincipal === "FILME" ? filmes : abaPrincipal === "LIVRO" ? livros : abaPrincipal === "SERIE" ? series : abaPrincipal === "JOGO" ? jogos : musicas;
+  const filtrosAtuais = (abaPrincipal === "MANGA" || abaPrincipal === "LIVRO") ? ["Todos", "Lendo", "Completos", "Planejo Ler", "Pausados", "Dropados"] : abaPrincipal === "JOGO" ? ["Todos", "Jogando", "Completos", "Planejo Jogar", "Pausados", "Dropados"] : abaPrincipal === "MUSICA" ? ["Todos", "Ouvindo", "Favoritas", "Playlist", "Pausados", "Dropados"] : ["Todos", "Assistindo", "Completos", "Planejo Assistir", "Pausados", "Dropados"];
 
   const obrasFiltradas = listaExibicao.filter(m => {
     if (filtroAtivo === "Todos") return true;
-    if (abaPrincipal === "ANIME" || abaPrincipal === "FILME") {
+    if (abaPrincipal === "ANIME" || abaPrincipal === "FILME" || abaPrincipal === "SERIE") {
       if (filtroAtivo === "Assistindo") return m.status === "Lendo";
       if (filtroAtivo === "Planejo Assistir") return m.status === "Planejo Ler";
+    }
+    if (abaPrincipal === "JOGO") {
+      if (filtroAtivo === "Jogando") return m.status === "Lendo";
+      if (filtroAtivo === "Planejo Jogar") return m.status === "Planejo Ler";
+    }
+    if (abaPrincipal === "MUSICA") {
+      if (filtroAtivo === "Ouvindo") return m.status === "Lendo";
     }
     return m.status === filtroAtivo;
   }).filter(m => m.titulo.toLowerCase().includes(pesquisaInterna.toLowerCase()));
@@ -573,8 +605,8 @@ export default function Home() {
       </header>
 
       <nav className="flex gap-4 md:gap-8 mb-10 border-b border-zinc-800/50 pb-4 overflow-x-auto relative z-20">
-        {["MANGA", "ANIME", "FILME", "LIVRO"].map(aba => (
-          <button key={aba} onClick={() => { setAbaPrincipal(aba as any); setFiltroAtivo(aba === "ANIME" || aba === "FILME" ? "Assistindo" : "Lendo"); }} className={`text-xl md:text-2xl font-black uppercase tracking-widest transition-all ${abaPrincipal === aba ? `${aura.text} drop-shadow-[0_0_15px_currentColor]` : "text-zinc-600 hover:text-white"}`}>{aba === "MANGA" ? "📚 Mangás" : aba === "ANIME" ? "📺 Animes" : aba === "FILME" ? "🎬 Filmes" : "📖 Livros"}</button>
+        {(["MANGA", "ANIME", "FILME", "SERIE", "LIVRO", "JOGO", "MUSICA"] as const).map(aba => (
+          <button key={aba} onClick={() => { setAbaPrincipal(aba); setFiltroAtivo(aba === "ANIME" || aba === "FILME" || aba === "SERIE" ? "Assistindo" : aba === "JOGO" ? "Jogando" : aba === "MUSICA" ? "Ouvindo" : "Lendo"); }} className={`text-xl md:text-2xl font-black uppercase tracking-widest transition-all ${abaPrincipal === aba ? `${aura.text} drop-shadow-[0_0_15px_currentColor]` : "text-zinc-600 hover:text-white"}`}>{aba === "MANGA" ? "📚 Mangás" : aba === "ANIME" ? "📺 Animes" : aba === "FILME" ? "🎬 Filmes" : aba === "SERIE" ? "🍿 Séries" : aba === "LIVRO" ? "📖 Livros" : aba === "JOGO" ? "🎮 Jogos" : "🎵 Músicas"}</button>
         ))}
       </nav>
 
@@ -598,7 +630,7 @@ export default function Home() {
         </div>
       )}
 
-      <AddMangaModal estaAberto={estaAbertoAdd} fechar={() => setEstaAbertoAdd(false)} usuarioAtual={usuarioAtual} abaPrincipal={abaPrincipal} aoSalvar={() => { buscarMangas(); buscarAnimes(); buscarFilmes(); buscarLivros(); setEstaAbertoAdd(false); }} />
+      <AddMangaModal estaAberto={estaAbertoAdd} fechar={() => setEstaAbertoAdd(false)} usuarioAtual={usuarioAtual} abaPrincipal={abaPrincipal} aoSalvar={() => { buscarMangas(); buscarAnimes(); buscarFilmes(); buscarLivros(); buscarSeries(); buscarJogos(); buscarMusicas(); setEstaAbertoAdd(false); }} />
       
       {mangaDetalhe && (
         <MangaDetailsModal 

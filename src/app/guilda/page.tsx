@@ -161,11 +161,14 @@ export default function GuildaPage() {
     const { data: a } = await supabase.from("animes").select("usuario, capitulo_atual, favorito");
     const { data: f } = await supabase.from("filmes").select("usuario, capitulo_atual, status, favorito");
     const { data: l } = await supabase.from("livros").select("usuario, capitulo_atual, favorito");
+    const { data: s } = await supabase.from("series").select("usuario, capitulo_atual, status, favorito");
+    const { data: j } = await supabase.from("jogos").select("usuario, capitulo_atual, status, favorito");
+    const { data: mu } = await supabase.from("musicas").select("usuario, capitulo_atual, status, favorito");
 
     const statsByUser: Record<string, { obras: number, caps: number, tempoMin: number, favs: number, filmes: number, livros: number }> = {};
     perfis.forEach(p => { statsByUser[p.nome_original] = { obras: 0, caps: 0, tempoMin: 0, favs: 0, filmes: 0, livros: 0 }; });
 
-    const processarTabela = (dados: any[] | null, tipo: "anime" | "filme" | "livro" | "outro") => {
+    const processarTabela = (dados: any[] | null, tipo: "anime" | "filme" | "livro" | "outro" | "serie" | "jogo" | "musica") => {
       (dados || []).forEach(obra => {
         if (!statsByUser[obra.usuario]) statsByUser[obra.usuario] = { obras: 0, caps: 0, tempoMin: 0, favs: 0, filmes: 0, livros: 0 };
         const userStats = statsByUser[obra.usuario];
@@ -176,10 +179,14 @@ export default function GuildaPage() {
         else if (tipo === "filme" && obra.status === "Completos") { userStats.tempoMin += 120; userStats.filmes += 1; }
         else if (tipo === "filme") { userStats.filmes += 1; }
         else if (tipo === "livro") { userStats.livros += 1; }
+        else if (tipo === "serie") userStats.tempoMin += (obra.capitulo_atual || 0) * 45;
+        else if (tipo === "jogo") userStats.tempoMin += (obra.capitulo_atual || 0) * 60;
+        else if (tipo === "musica") userStats.tempoMin += (obra.capitulo_atual || 0) * 3;
       });
     };
 
     processarTabela(m, "outro"); processarTabela(a, "anime"); processarTabela(f, "filme"); processarTabela(l, "livro");
+    processarTabela(s, "serie"); processarTabela(j, "jogo"); processarTabela(mu, "musica");
 
     const statusCompletos = perfis.map(p => {
       const s = statsByUser[p.nome_original] || { obras: 0, caps: 0, tempoMin: 0, favs: 0, filmes: 0, livros: 0 };

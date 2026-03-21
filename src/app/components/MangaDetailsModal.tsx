@@ -8,7 +8,7 @@ interface Manga {
 
 interface MangaDetailsModalProps {
   manga: Manga;
-  abaPrincipal: "MANGA" | "ANIME" | "FILME" | "LIVRO";
+  abaPrincipal: "MANGA" | "ANIME" | "FILME" | "LIVRO" | "SERIE" | "JOGO" | "MUSICA";
   aoFechar: () => void;
   aoAtualizarCapitulo: (manga: Manga, novo: number) => void;
   aoAtualizarDados: (id: number, campos: any) => void;
@@ -103,11 +103,24 @@ export default function MangaDetailsModal({ manga, abaPrincipal, aoFechar, aoAtu
                 onChange={(e) => handleStatusChange(e.target.value)} 
                 className="w-full bg-black border border-zinc-800 p-4 rounded-xl text-sm font-bold text-white uppercase cursor-pointer outline-none focus:border-white/20 transition-all appearance-none"
               >
-                <option value="Lendo">{abaPrincipal === "ANIME" || abaPrincipal === "FILME" ? "Assistindo" : "Lendo"}</option>
-                <option value="Planejo Ler">{abaPrincipal === "ANIME" || abaPrincipal === "FILME" ? "Planejo Assistir" : "Planejo Ler"}</option>
-                <option value="Completos">Completos</option>
-                <option value="Pausados">Pausados</option>
-                <option value="Dropados">Dropados</option>
+                {abaPrincipal === "MUSICA" ? (
+                  <>
+                    <option value="Lendo">Ouvindo</option>
+                    <option value="Favoritas">Favoritas</option>
+                    <option value="Playlist">Playlist</option>
+                    <option value="Completos">Completos</option>
+                    <option value="Pausados">Pausados</option>
+                    <option value="Dropados">Dropados</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="Lendo">{abaPrincipal === "ANIME" || abaPrincipal === "FILME" || abaPrincipal === "SERIE" ? "Assistindo" : abaPrincipal === "JOGO" ? "Jogando" : "Lendo"}</option>
+                    <option value="Planejo Ler">{abaPrincipal === "ANIME" || abaPrincipal === "FILME" || abaPrincipal === "SERIE" ? "Planejo Assistir" : abaPrincipal === "JOGO" ? "Planejo Jogar" : "Planejo Ler"}</option>
+                    <option value="Completos">Completos</option>
+                    <option value="Pausados">Pausados</option>
+                    <option value="Dropados">Dropados</option>
+                  </>
+                )}
               </select>
             </div>
           </div>

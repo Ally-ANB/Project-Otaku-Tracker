@@ -76,20 +76,27 @@ export default function PerfilPage() {
     const { data: a } = await supabase.from("animes").select("*").eq("usuario", usuarioAtivo);
     const { data: f } = await supabase.from("filmes").select("*").eq("usuario", usuarioAtivo); 
     const { data: l } = await supabase.from("livros").select("*").eq("usuario", usuarioAtivo); 
+    const { data: s } = await supabase.from("series").select("*").eq("usuario", usuarioAtivo);
+    const { data: j } = await supabase.from("jogos").select("*").eq("usuario", usuarioAtivo);
+    const { data: mu } = await supabase.from("musicas").select("*").eq("usuario", usuarioAtivo);
     const { data: p } = await supabase.from("perfis").select("*").eq("nome_original", usuarioAtivo).single();
 
-    if (m || a || f || l) {
-      const all = [...(m || []), ...(a || []), ...(f || []), ...(l || [])];
+    if (m || a || f || l || s || j || mu) {
+      const all = [...(m || []), ...(a || []), ...(f || []), ...(l || []), ...(s || []), ...(j || []), ...(mu || [])];
       setObrasUsuario(all);
       
       const epsVistos = (a || []).reduce((acc, obj) => acc + (obj.capitulo_atual || 0), 0);
+      const seriesEps = (s || []).reduce((acc, obj) => acc + (obj.capitulo_atual || 0), 0);
+      const jogosHoras = (j || []).reduce((acc, obj) => acc + (obj.capitulo_atual || 0), 0);
+      const musicasMinutos = (mu || []).reduce((acc, obj) => acc + (obj.capitulo_atual || 0), 0);
       const minFilmes = (f || []).filter(obj => obj.status === "Completos").length * 120;
+      const totalMinutos = (epsVistos * 23) + (seriesEps * 45) + (jogosHoras * 60) + (musicasMinutos * 3) + minFilmes;
       
       setStats({
         obras: all.length, 
         caps: all.reduce((acc, obj) => acc + (obj.capitulo_atual || 0), 0), 
         finais: all.filter(obj => obj.status === "Completos").length,
-        horasVida: Math.floor(((epsVistos * 23) + minFilmes) / 60), 
+        horasVida: Math.floor(totalMinutos / 60), 
         favs: all.filter(o => o.favorito).length, 
         filmes: (f || []).length, 
         livros: (l || []).length

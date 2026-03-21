@@ -18,7 +18,7 @@ interface AddMangaModalProps {
   estaAberto: boolean;
   fechar: () => void;
   usuarioAtual: string;
-  abaPrincipal: "MANGA" | "ANIME" | "FILME" | "LIVRO";
+  abaPrincipal: "MANGA" | "ANIME" | "FILME" | "LIVRO" | "SERIE" | "JOGO" | "MUSICA";
   aoSalvar: (novoManga: any) => void;
 }
 
@@ -59,7 +59,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
       let termoFinal = termoAnilist;
 
       // 🛑 Lógica de IA e Cache (Restaurada)
-      if (abaPrincipal !== "FILME" && abaPrincipal !== "LIVRO") {
+      if (abaPrincipal !== "FILME" && abaPrincipal !== "LIVRO" && abaPrincipal !== "JOGO" && abaPrincipal !== "MUSICA") {
         const { data: cacheHit } = await supabase.from('search_cache').select('resultado_ia').ilike('termo_original', termoAnilist).maybeSingle();
 
         if (cacheHit) {
@@ -99,6 +99,27 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
           })));
         }
 
+      // 📺 Séries (TMDB TV)
+      } else if (abaPrincipal === "SERIE") {
+        const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
+        if (!TMDB_API_KEY) {
+          alert("⚠️ Hunter, a API Key do TMDB está faltando!");
+          setBuscando(false);
+          return;
+        }
+        const resTmdb = await fetch(`https://api.themoviedb.org/3/search/tv?api_key=${TMDB_API_KEY}&language=pt-BR&query=${encodeURIComponent(termoFinal)}`);
+        const jsonTmdb = await resTmdb.json();
+        if (jsonTmdb.results) {
+          setResultados(jsonTmdb.results.slice(0, 5).map((m: any): ResultadoBusca => ({
+            id: m.id,
+            titulo: m.name || m.original_name || "Sem Título",
+            capa: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://placehold.co/400x600/1f1f22/52525b.png?text=SEM+CAPA",
+            total: m.number_of_episodes || 1,
+            sinopse: m.overview || "Sem sinopse.",
+            fonte: "TMDB"
+          })));
+        }
+
       // 📖 Motor Google Books + Open Library (Restaurado)
       } else if (abaPrincipal === "LIVRO") {
         const GOOGLE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_BOOKS_API_KEY;
@@ -121,7 +142,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
         }
 
       // 🇯🇵 Motor AniList / MyAnimeList (Restaurado)
-      } else {
+      } else if (abaPrincipal === "MANGA" || abaPrincipal === "ANIME") {
         const resAni = await fetch("https://graphql.anilist.co", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -148,6 +169,8 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
             sinopse: m.synopsis || "", fonte: "MyAnimeList"
           })) || []);
         }
+      } else {
+        setResultados([]);
       }
     } catch (err) { console.error(err); } finally { setBuscando(false); }
   }
@@ -169,7 +192,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
   async function salvarObraFinal() {
     if (!usuarioAtual) return;
     setSalvando(true);
-    const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : abaPrincipal === "ANIME" ? "animes" : abaPrincipal === "FILME" ? "filmes" : "livros";
+    const tabelaDb = abaPrincipal === "MANGA" ? "mangas" : abaPrincipal === "ANIME" ? "animes" : abaPrincipal === "FILME" ? "filmes" : abaPrincipal === "LIVRO" ? "livros" : abaPrincipal === "SERIE" ? "series" : abaPrincipal === "JOGO" ? "jogos" : "musicas";
     let progressoFinal = novoManga.capitulo_atual;
     if (novoManga.status === "Completos" && novoManga.total_capitulos > 0) progressoFinal = novoManga.total_capitulos;
 
@@ -266,7 +289,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
             <div className="grid grid-cols-2 gap-6">
               <div>
                 <p className="text-[10px] font-bold text-zinc-500 uppercase mb-3 ml-1 tracking-widest">
-                  Parou em: ({abaPrincipal === "MANGA" ? "Cap" : abaPrincipal === "ANIME" ? "Ep" : "Pág"})
+                  Parou em: ({abaPrincipal === "MANGA" ? "Cap" : abaPrincipal === "ANIME" || abaPrincipal === "SERIE" ? "Ep" : abaPrincipal === "FILME" || abaPrincipal === "LIVRO" ? "Pág" : abaPrincipal === "JOGO" ? "Prog" : abaPrincipal === "MUSICA" ? "Faixa" : "—"})
                 </p>
                 <input type="number" className="w-full bg-zinc-950 p-5 rounded-2xl border border-zinc-800 outline-none text-2xl font-bold text-green-500" value={novoManga.capitulo_atual} onChange={e => setNovoManga({...novoManga, capitulo_atual: parseInt(e.target.value) || 0})} />
               </div>

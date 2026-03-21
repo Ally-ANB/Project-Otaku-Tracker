@@ -20,7 +20,7 @@ interface Manga {
 interface MangaCardProps {
   manga: Manga;
   aura: any;
-  abaPrincipal: "MANGA" | "ANIME" | "FILME" | "LIVRO";
+  abaPrincipal: "MANGA" | "ANIME" | "FILME" | "LIVRO" | "SERIE" | "JOGO" | "MUSICA";
   atualizarCapitulo: (manga: Manga, novo: number) => Promise<void>;
   deletarManga: (id: number) => Promise<void>;
   mudarStatusManual: (id: number, status: string) => Promise<void>;
@@ -36,9 +36,14 @@ export default function MangaCard({ manga, aura, abaPrincipal, atualizarCapitulo
     setValorInput(manga.capitulo_atual);
   }, [manga.capitulo_atual]);
 
-  const statusBadge = (abaPrincipal === "ANIME" || abaPrincipal === "FILME")
-    ? (manga.status === "Lendo" ? "Assistindo" : manga.status === "Planejo Ler" ? "Planejo Assistir" : manga.status)
-    : manga.status;
+  const statusBadge =
+    abaPrincipal === "ANIME" || abaPrincipal === "FILME" || abaPrincipal === "SERIE"
+      ? (manga.status === "Lendo" ? "Assistindo" : manga.status === "Planejo Ler" ? "Planejo Assistir" : manga.status)
+      : abaPrincipal === "JOGO"
+        ? (manga.status === "Lendo" ? "Jogando" : manga.status === "Planejo Ler" ? "Planejo Jogar" : manga.status)
+        : abaPrincipal === "MUSICA" && manga.status === "Lendo"
+          ? "Ouvindo"
+          : manga.status;
 
   const progresso = manga.total_capitulos > 0 
     ? Math.round((manga.capitulo_atual / manga.total_capitulos) * 100) 
