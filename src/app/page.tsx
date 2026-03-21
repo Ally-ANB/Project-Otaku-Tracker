@@ -433,27 +433,62 @@ export default function Home() {
   async function confirmarPin() {
     if (!perfilAlvoParaBloqueio) return;
 
+    // ✅ VALIDAÇÃO BLINDADA DO ADMIN VIA BACKEND
     if (perfilAlvoParaBloqueio === "Admin") {
-      const { data: adminDb } = await supabase.from("perfis").select("pin").eq("nome_original", "Admin").maybeSingle();
-      const pinDeFabrica = process.env.NEXT_PUBLIC_ADMIN_PIN;
-      const pinCorreto = adminDb?.pin || pinDeFabrica; 
+      const { data: adminDb } = await supabase
+        .from("perfis")
+        .select("pin")
+        .eq("nome_original", "Admin")
+        .maybeSingle();
 
-      if (pinDigitado === pinCorreto) {
-        sessionStorage.setItem("hunter_ativo", "Admin");
-        setUsuarioAtual("Admin"); setPerfilAlvoParaBloqueio(null);
-        window.dispatchEvent(new CustomEvent("hunter_cosmeticos_update", { detail: { nome: "Admin" } }));
-      } else {
-        mostrarToast("Acesso Negado: PIN de Administrador Incorreto!", "erro");
+      // Se o Admin tiver um PIN personalizado salvo no Supabase, usa ele.
+      if (adminDb?.pin) {
+        if (pinDigitado === adminDb.pin) {
+          sessionStorage.setItem("hunter_ativo", "Admin");
+          setUsuarioAtual("Admin"); setPerfilAlvoParaBloqueio(null);
+          window.dispatchEvent(new CustomEvent("hunter_cosmeticos_update", { detail: { nome: "Admin" } }));
+        } else {
+          mostrarToast("Acesso Negado: PIN de Administrador Incorreto!", "erro");
+        }
+        return;
+      }
+
+      // Se NÃO tiver PIN no banco, vai perguntar pro Cofre do Servidor (.env)
+      try {
+        const res = await fetch("/api/auth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tipo: "admin_pin", senhaDigitada: pinDigitado })
+        });
+        const data = await res.json();
+
+        if (data.autorizado) {
+          sessionStorage.setItem("hunter_ativo", "Admin");
+          setUsuarioAtual("Admin"); setPerfilAlvoParaBloqueio(null);
+          window.dispatchEvent(new CustomEvent("hunter_cosmeticos_update", { detail: { nome: "Admin" } }));
+        } else {
+          mostrarToast("Acesso Negado: PIN de Administrador Incorreto!", "erro");
+        }
+      } catch {
+        mostrarToast("Erro ao validar PIN no servidor.", "erro");
       }
       return;
     }
 
-    const { data: perfil } = await supabase.from("perfis").select("pin").eq("nome_original", perfilAlvoParaBloqueio).single();
+    // ✅ VALIDAÇÃO DE USUÁRIOS COMUNS (Continua igual, lê do Supabase)
+    const { data: perfil } = await supabase
+      .from("perfis")
+      .select("pin")
+      .eq("nome_original", perfilAlvoParaBloqueio)
+      .single();
+
     if (perfil?.pin === pinDigitado) {
       sessionStorage.setItem("hunter_ativo", perfilAlvoParaBloqueio);
       setUsuarioAtual(perfilAlvoParaBloqueio); setPerfilAlvoParaBloqueio(null);
       window.dispatchEvent(new CustomEvent("hunter_cosmeticos_update", { detail: { nome: perfilAlvoParaBloqueio } }));
-    } else { mostrarToast("PIN Incorreto!", "erro"); }
+    } else {
+      mostrarToast("PIN Incorreto!", "erro");
+    }
   }
 
   function tentarMudarPerfil(nome: string) {

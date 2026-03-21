@@ -6,23 +6,33 @@ export default function AcessoMestre({ aoAutorizar }: { aoAutorizar: () => void 
   const [erro, setErro] = useState(false);
   const [validando, setValidando] = useState(false);
 
-  // ✅ CORREÇÃO APLICADA: Validação instantânea via Cofre (.env)
-  function verificarSenha() {
+  // ✅ CORREÇÃO S+: Validação blindada via Backend Route
+  async function verificarSenha() {
     setValidando(true);
     
-    // Puxa a senha direto do arquivo .env.local ou do Vercel
-    const senhaCorreta = process.env.NEXT_PUBLIC_SENHA_MESTRA;
-    
-    // Verifica se a senha do cofre existe e bate com a digitada
-    if (senhaCorreta && senhaDigitada === senhaCorreta) {
-      sessionStorage.setItem("acesso_mestre", "true");
-      aoAutorizar();
-    } else {
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo: 'mestre', senhaDigitada })
+      });
+      
+      const data = await res.json();
+
+      if (data.autorizado) {
+        sessionStorage.setItem("acesso_mestre", "true");
+        aoAutorizar();
+      } else {
+        setErro(true);
+        setSenhaDigitada("");
+        setTimeout(() => setErro(false), 2000);
+      }
+    } catch (error) {
       setErro(true);
-      setSenhaDigitada("");
       setTimeout(() => setErro(false), 2000);
+    } finally {
+      setValidando(false);
     }
-    setValidando(false);
   }
 
   return (

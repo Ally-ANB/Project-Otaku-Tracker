@@ -143,8 +143,12 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
 
       // 🎮 Motor RAWG (Jogos)
       } else if (abaPrincipal === "JOGO") {
-        // Usando uma API Key pública de testes do RAWG (ideal é substituir depois)
-        const RAWG_KEY = process.env.NEXT_PUBLIC_RAWG_API_KEY || "ca32dbdb75514f76b53cb1a415ff6a42";
+        const RAWG_KEY = process.env.NEXT_PUBLIC_RAWG_API_KEY;
+        if (!RAWG_KEY) {
+          alert("⚠️ Hunter, a API Key do RAWG está faltando no arquivo .env!");
+          setBuscando(false);
+          return;
+        }
         const resRawg = await fetch(`https://api.rawg.io/api/games?key=${RAWG_KEY}&search=${encodeURIComponent(termoFinal)}&page_size=5`);
         const jsonRawg = await resRawg.json();
 
