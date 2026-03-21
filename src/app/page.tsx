@@ -34,6 +34,7 @@ interface Manga {
   ultima_leitura: string; 
   favorito: boolean;
   link_url?: string | null;
+  capa_url?: string | null;
   provider_data?: unknown;
 }
 

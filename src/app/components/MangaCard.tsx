@@ -16,6 +16,7 @@ interface Manga {
   ultima_leitura: string;
   favorito: boolean;
   link_url?: string | null;
+  capa_url?: string | null;
   provider_data?: unknown;
 }
 
@@ -51,6 +52,8 @@ export default function MangaCard({ manga, aura, abaPrincipal, atualizarCapitulo
     ? Math.round((manga.capitulo_atual / manga.total_capitulos) * 100) 
     : 0;
 
+  const capaSrc = manga.capa_url?.trim() || manga.capa;
+
   // ✅ Função para processar a mudança manual (Enter ou Blur)
   const handleBlurOuEnter = () => {
     if (valorInput !== manga.capitulo_atual) {
@@ -69,7 +72,7 @@ export default function MangaCard({ manga, aura, abaPrincipal, atualizarCapitulo
 
       <div className="cursor-pointer" onClick={() => abrirDetalhes(manga)}>
         <img 
-          src={manga.capa} 
+          src={capaSrc} 
           className="w-full aspect-[2/3] object-cover rounded-[1.5rem] mb-4 shadow-2xl group-hover:scale-[1.02] transition-transform" 
           alt={manga.titulo} 
         />

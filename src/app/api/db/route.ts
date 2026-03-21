@@ -1,6 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
+function mensagemErroSupabase(error: unknown): string {
+  if (error && typeof error === 'object' && 'message' in error) {
+    const m = (error as { message?: string }).message;
+    if (typeof m === 'string' && m.trim()) return m;
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return 'Falha na operacao de banco.';
+}
+
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -56,7 +65,9 @@ export async function POST(request: Request) {
     if (error) throw error;
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ error: 'Falha na operacao de banco.' }, { status: 500 });
+    const msg = mensagemErroSupabase(error);
+    console.error('[api/db POST]', error);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
@@ -100,6 +111,8 @@ export async function DELETE(request: Request) {
     if (error) throw error;
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ error: 'Erro ao deletar.' }, { status: 500 });
+    const msg = mensagemErroSupabase(error);
+    console.error('[api/db DELETE]', error);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
