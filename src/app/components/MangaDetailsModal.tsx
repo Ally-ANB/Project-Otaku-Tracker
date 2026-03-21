@@ -11,7 +11,7 @@ import {
 } from "@/lib/watchProviders";
 import WatchProviderStrip from "./WatchProviderStrip";
 
-interface Manga {
+export interface Manga {
   id: number;
   titulo: string;
   capa: string;
@@ -49,6 +49,8 @@ interface MangaDetailsModalProps {
   tabelaObra: string;
   abaPrincipal: "MANGA" | "ANIME" | "FILME" | "LIVRO" | "SERIE" | "JOGO" | "MUSICA";
   podeEditarPrivilegiado: boolean;
+  /** Quando true, oculta ações de escrita (favorito, edição, status, comentários, exclusão). */
+  somenteLeitura?: boolean;
   solicitarSenhaMestre: () => Promise<string | null>;
   aoFechar: () => void;
   aoAtualizarCapitulo: (manga: Manga, novo: number) => void;
@@ -90,6 +92,7 @@ export default function MangaDetailsModal({
   tabelaObra,
   abaPrincipal,
   podeEditarPrivilegiado,
+  somenteLeitura = false,
   solicitarSenhaMestre,
   aoFechar,
   aoAtualizarCapitulo,
@@ -120,6 +123,10 @@ export default function MangaDetailsModal({
     setModoEdicao(false);
     setIsExpanded(false);
   }, [manga.id]);
+
+  useEffect(() => {
+    if (somenteLeitura) setModoEdicao(false);
+  }, [somenteLeitura, manga.id]);
 
   useEffect(() => {
     if (modoEdicao) return;
@@ -154,6 +161,7 @@ export default function MangaDetailsModal({
   );
 
   const handleStatusChange = (novoStatus: string) => {
+    if (somenteLeitura) return;
     const campos: Record<string, unknown> = { status: novoStatus };
 
     if (novoStatus === "Completos" && manga.total_capitulos > 0) {
@@ -340,20 +348,24 @@ export default function MangaDetailsModal({
                 {abaPrincipal} • {manga.status}
               </span>
 
-              <button
-                type="button"
-                onClick={() => aoAtualizarDados(manga.id, { favorito: !manga.favorito })}
-                className={`absolute right-0 top-0 flex h-12 w-12 items-center justify-center rounded-xl border border-zinc-800 transition-all ${manga.favorito ? "bg-zinc-800 text-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)]" : "text-zinc-600 hover:text-white"}`}
-              >
-                <span className="text-2xl">{manga.favorito ? "⭐" : "☆"}</span>
-              </button>
+              {!somenteLeitura && (
+                <button
+                  type="button"
+                  onClick={() => aoAtualizarDados(manga.id, { favorito: !manga.favorito })}
+                  className={`absolute right-0 top-0 flex h-12 w-12 items-center justify-center rounded-xl border border-zinc-800 transition-all ${manga.favorito ? "bg-zinc-800 text-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.2)]" : "text-zinc-600 hover:text-white"}`}
+                >
+                  <span className="text-2xl">{manga.favorito ? "⭐" : "☆"}</span>
+                </button>
+              )}
 
-              <h2 className="pr-14 text-2xl font-black italic leading-none tracking-tighter text-white md:text-4xl xl:text-5xl">
+              <h2
+                className={`text-2xl font-black italic leading-none tracking-tighter text-white md:text-4xl xl:text-5xl ${somenteLeitura ? "" : "pr-14"}`}
+              >
                 {manga.titulo}
               </h2>
             </div>
             <div className="absolute right-4 top-4 flex items-center gap-1.5 md:right-8 md:top-8 md:gap-2">
-              {podeEditarPrivilegiado && (
+              {podeEditarPrivilegiado && !somenteLeitura && (
                 <button
                   type="button"
                   disabled={salvando}
@@ -450,42 +462,48 @@ export default function MangaDetailsModal({
 
               <div className="rounded-3xl border border-zinc-800 bg-zinc-900/50 p-6">
                 <p className="mb-4 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Estado da Jornada</p>
-                <select
-                  value={manga.status}
-                  onChange={(e) => handleStatusChange(e.target.value)}
-                  className="w-full cursor-pointer appearance-none rounded-xl border border-zinc-800 bg-black p-4 text-sm font-bold uppercase text-white outline-none transition-all focus:border-white/20"
-                >
-                  {abaPrincipal === "MUSICA" ? (
-                    <>
-                      <option value="Lendo">Ouvindo</option>
-                      <option value="Favoritas">Favoritas</option>
-                      <option value="Playlist">Playlist</option>
-                      <option value="Completos">Completos</option>
-                      <option value="Pausados">Pausados</option>
-                      <option value="Dropados">Dropados</option>
-                    </>
-                  ) : (
-                    <>
-                      <option value="Lendo">
-                        {abaPrincipal === "ANIME" || abaPrincipal === "FILME" || abaPrincipal === "SERIE"
-                          ? "Assistindo"
-                          : abaPrincipal === "JOGO"
-                            ? "Jogando"
-                            : "Lendo"}
-                      </option>
-                      <option value="Planejo Ler">
-                        {abaPrincipal === "ANIME" || abaPrincipal === "FILME" || abaPrincipal === "SERIE"
-                          ? "Planejo Assistir"
-                          : abaPrincipal === "JOGO"
-                            ? "Planejo Jogar"
-                            : "Planejo Ler"}
-                      </option>
-                      <option value="Completos">Completos</option>
-                      <option value="Pausados">Pausados</option>
-                      <option value="Dropados">Dropados</option>
-                    </>
-                  )}
-                </select>
+                {somenteLeitura ? (
+                  <p className="rounded-xl border border-zinc-800/80 bg-black/40 px-4 py-4 text-sm font-bold uppercase text-zinc-200">
+                    {manga.status}
+                  </p>
+                ) : (
+                  <select
+                    value={manga.status}
+                    onChange={(e) => handleStatusChange(e.target.value)}
+                    className="w-full cursor-pointer appearance-none rounded-xl border border-zinc-800 bg-black p-4 text-sm font-bold uppercase text-white outline-none transition-all focus:border-white/20"
+                  >
+                    {abaPrincipal === "MUSICA" ? (
+                      <>
+                        <option value="Lendo">Ouvindo</option>
+                        <option value="Favoritas">Favoritas</option>
+                        <option value="Playlist">Playlist</option>
+                        <option value="Completos">Completos</option>
+                        <option value="Pausados">Pausados</option>
+                        <option value="Dropados">Dropados</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="Lendo">
+                          {abaPrincipal === "ANIME" || abaPrincipal === "FILME" || abaPrincipal === "SERIE"
+                            ? "Assistindo"
+                            : abaPrincipal === "JOGO"
+                              ? "Jogando"
+                              : "Lendo"}
+                        </option>
+                        <option value="Planejo Ler">
+                          {abaPrincipal === "ANIME" || abaPrincipal === "FILME" || abaPrincipal === "SERIE"
+                            ? "Planejo Assistir"
+                            : abaPrincipal === "JOGO"
+                              ? "Planejo Jogar"
+                              : "Planejo Ler"}
+                        </option>
+                        <option value="Completos">Completos</option>
+                        <option value="Pausados">Pausados</option>
+                        <option value="Dropados">Dropados</option>
+                      </>
+                    )}
+                  </select>
+                )}
               </div>
 
               {modoEdicao && (
@@ -637,23 +655,31 @@ export default function MangaDetailsModal({
 
               <div>
                 <p className="mb-4 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Notas de Campo</p>
-                <textarea
-                  className="min-h-[120px] w-full resize-none rounded-[2rem] border border-zinc-800 bg-zinc-950/50 p-6 text-sm text-zinc-300 outline-none transition-all focus:border-zinc-600 custom-scrollbar"
-                  placeholder="Escreva suas anotações sobre esta obra..."
-                  value={manga.comentarios || ""}
-                  onChange={(e) => aoAtualizarDados(manga.id, { comentarios: e.target.value })}
-                />
+                {somenteLeitura ? (
+                  <div className="min-h-[120px] w-full rounded-[2rem] border border-zinc-800/80 bg-zinc-950/50 p-6 text-sm text-zinc-400 custom-scrollbar">
+                    {manga.comentarios?.trim() ? manga.comentarios : "—"}
+                  </div>
+                ) : (
+                  <textarea
+                    className="min-h-[120px] w-full resize-none rounded-[2rem] border border-zinc-800 bg-zinc-950/50 p-6 text-sm text-zinc-300 outline-none transition-all focus:border-zinc-600 custom-scrollbar"
+                    placeholder="Escreva suas anotações sobre esta obra..."
+                    value={manga.comentarios || ""}
+                    onChange={(e) => aoAtualizarDados(manga.id, { comentarios: e.target.value })}
+                  />
+                )}
               </div>
 
-              <div className="flex justify-end pt-4">
-                <button
-                  type="button"
-                  onClick={() => aoDeletar(manga.id)}
-                  className="rounded-2xl border border-red-500/20 px-8 py-4 text-[10px] font-black uppercase text-red-500 transition-all hover:bg-red-500 hover:text-white hover:shadow-[0_0_20px_rgba(239,68,68,0.2)]"
-                >
-                  Eliminar Registro da Estante
-                </button>
-              </div>
+              {!somenteLeitura && (
+                <div className="flex justify-end pt-4">
+                  <button
+                    type="button"
+                    onClick={() => aoDeletar(manga.id)}
+                    className="rounded-2xl border border-red-500/20 px-8 py-4 text-[10px] font-black uppercase text-red-500 transition-all hover:bg-red-500 hover:text-white hover:shadow-[0_0_20px_rgba(239,68,68,0.2)]"
+                  >
+                    Eliminar Registro da Estante
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -1,14 +1,22 @@
 "use client";
 
 import { supabase } from "../supabase";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
+import { Mic } from "lucide-react";
+import MangaDetailsModal, { type Manga as MangaObraModal } from "../components/MangaDetailsModal";
+import MemberPopout from "./components/MemberPopout";
+import SintoniaIndicator from "./components/SintoniaIndicator";
+import { useSenhaMestraInterativa } from "../hooks/useSenhaMestraInterativa";
 // ✅ MOLDURAS IMPORTADAS DO PERFIL
 import { MOLDURAS_DISCORD } from "../perfil/page";
 // ✅ COMPONENTE DE IDENTIDADE UNIFICADO
 import HunterAvatar from "../components/HunterAvatar";
 // ✅ NOVO: Player Card
 import HunterCard from "../components/HunterCard";
+import Podium from "./components/Podium";
+import HuntersList from "./components/HuntersList";
+import type { Mensagem, Perfil, EstatisticasHunter, FiltroRanking, AbaPrincipalObra, FavoritoComTipo } from "./types";
 
 // ==========================================
 // 🎨 DICIONÁRIO DE COSMÉTICOS DO CHAT
@@ -29,35 +37,6 @@ const BALOES_CHAT: any = {
   chat_balao_void: "bg-black border-zinc-900 shadow-[inset_0_0_30px_rgba(0,0,0,1)]"
 };
 
-interface Mensagem {
-  id: number;
-  usuario: string;
-  mensagem: string;
-  tipo: string;
-  criado_em: string;
-}
-
-interface Perfil {
-  nome_original: string;
-  nome_exibicao: string;
-  avatar: string;
-  cor_tema: string;
-  custom_color?: string;
-  esmolas: number;
-  figurinhas?: string[];
-  cosmeticos?: { ativos: Record<string, any> };
-  chat_farm_diario?: { data: string, ganhos: number };
-}
-
-interface EstatisticasHunter extends Perfil {
-  total_obras: number;
-  total_capitulos: number;
-  tempo_vida: number;
-  total_favoritos: number;
-  elo: string;
-  total_conquistas: number;
-}
-
 export default function GuildaPage() {
   const [usuarioAtivo, setUsuarioAtivo] = useState<string | null>(null);
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
@@ -66,8 +45,8 @@ export default function GuildaPage() {
   const [enviando, setEnviando] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const [abaAtiva, setAbaAtiva] = useState<"CHAT" | "RANKING">("CHAT");
-  const [filtroRanking, setFiltroRanking] = useState<"OBRAS" | "ESMOLAS" | "TEMPO" | "CAPITULOS" | "FAVORITOS" | "CONQUISTAS">("OBRAS");
+  const [vistaCentral, setVistaCentral] = useState<"chat-geral" | "podio-hunters">("chat-geral");
+  const [filtroRanking, setFiltroRanking] = useState<FiltroRanking>("OBRAS");
   const [estatisticas, setEstatisticas] = useState<EstatisticasHunter[]>([]);
   const [carregandoRanking, setCarregandoRanking] = useState(false);
 
@@ -93,6 +72,33 @@ export default function GuildaPage() {
   // ✅ NOVO ESTADO: INSPEÇÃO DE PERFIL
   const [inspecionandoHunter, setInspecionandoHunter] = useState<EstatisticasHunter | null>(null);
 
+  const { obterSenhaMestreInterativa, modalSenhaMestra } = useSenhaMestraInterativa();
+
+  const [popoutMembro, setPopoutMembro] = useState<Perfil | null>(null);
+  const [popoutAnchorRect, setPopoutAnchorRect] = useState<DOMRect | null>(null);
+  const [obraGuildaModal, setObraGuildaModal] = useState<{
+    manga: MangaObraModal;
+    tabelaObra: string;
+    abaPrincipal: AbaPrincipalObra;
+  } | null>(null);
+
+  const [sintoniaVozAtiva, setSintoniaVozAtiva] = useState(false);
+
+  const [toastsGuilda, setToastsGuilda] = useState<
+    { id: number; mensagem: string; tipo: "sucesso" | "erro" | "aviso" | "anilist" }[]
+  >([]);
+
+  const fecharPopoutMembro = useCallback(() => {
+    setPopoutMembro(null);
+    setPopoutAnchorRect(null);
+  }, []);
+
+  function mostrarFeedbackGuilda(mensagem: string, tipo: "sucesso" | "erro" | "aviso" | "anilist" = "sucesso") {
+    const id = Date.now() + Math.random();
+    setToastsGuilda((prev) => [...prev, { id, mensagem, tipo }]);
+    setTimeout(() => setToastsGuilda((prev) => prev.filter((t) => t.id !== id)), 4000);
+  }
+
   async function requisicaoDb(method: "POST" | "DELETE", payload: Record<string, any>) {
     const res = await fetch("/api/db", {
       method,
@@ -112,6 +118,10 @@ export default function GuildaPage() {
     return () => clearInterval(intervalo);
   }, [limiteMensagens]);
 
+  useEffect(() => {
+    setSintoniaVozAtiva(sessionStorage.getItem("guilda_sintonia_voz") === "1");
+  }, []);
+
   const meuPerfilAtivo = perfis.find(p => p.nome_original === usuarioAtivo);
 
   useEffect(() => {
@@ -121,10 +131,10 @@ export default function GuildaPage() {
   }, [meuPerfilAtivo]);
 
   useEffect(() => {
-    if (scrollRef.current && abaAtiva === "CHAT" && limiteMensagens === 50) {
+    if (scrollRef.current && vistaCentral === "chat-geral" && limiteMensagens === 50) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [mensagens, abaAtiva]);
+  }, [mensagens, vistaCentral]);
 
   // ✅ DISPARA O CÁLCULO SEMPRE QUE OS PERFIS CARREGAREM
   useEffect(() => {
@@ -372,6 +382,24 @@ export default function GuildaPage() {
     return lojaItens.find(i => i.id === idItem);
   }
 
+  const statsPopoutMembro = popoutMembro
+    ? estatisticas.find((s) => s.nome_original === popoutMembro.nome_original) ?? null
+    : null;
+
+  function abrirPopoutMembro(perfil: Perfil, anchor: DOMRect) {
+    setPopoutAnchorRect(anchor);
+    setPopoutMembro(perfil);
+  }
+
+  function aoSelecionarObraNoPopout(item: FavoritoComTipo) {
+    fecharPopoutMembro();
+    setObraGuildaModal({
+      manga: item.obra as MangaObraModal,
+      tabelaObra: item.tabelaObra,
+      abaPrincipal: item.abaPrincipal,
+    });
+  }
+
   const huntersOrdenados = [...estatisticas].sort((a, b) => {
     if (filtroRanking === "CONQUISTAS") return b.total_conquistas - a.total_conquistas;
     if (filtroRanking === "OBRAS") return b.total_obras - a.total_obras;
@@ -394,70 +422,69 @@ export default function GuildaPage() {
         </Link>
       </header>
 
-      <div className="flex flex-col lg:flex-row gap-8 flex-1 min-h-0 relative z-20">
-        <aside className="lg:w-80 flex flex-col gap-4">
-          <div className="bg-[#0e0e11]/95 border border-zinc-800 rounded-[2rem] p-6 flex-1 flex flex-col gap-6">
-            
-            {meuPerfilAtivo && (
-              <div className="flex flex-col gap-3">
-                <h2 className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Meu Card de Hunter</h2>
-                <HunterCard 
-                  perfil={meuPerfilAtivo} 
-                  customizacao={meuPerfilAtivo.cosmeticos?.ativos?.card_config} 
-                />
-                <button 
-                  onClick={() => setEditandoCard(true)}
-                  className="w-full py-2 bg-zinc-900 hover:bg-zinc-800 border border-white/5 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all"
-                >
-                  ⚙️ Customizar Identidade
-                </button>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,15rem)_minmax(0,1fr)_minmax(0,18rem)] gap-6 lg:gap-8 flex-1 min-h-0 relative z-20 items-stretch">
+        <nav className="flex flex-row xl:flex-col gap-3 min-h-0 shrink-0" aria-label="Navegação da Guilda">
+          <div className="bg-[#0e0e11]/95 border border-zinc-800 rounded-[2rem] p-5 flex flex-col gap-3 flex-1 xl:flex-none shadow-[0_0_28px_rgba(59,130,246,0.08)]">
+            <h2 className="text-[10px] font-black text-cyan-400 uppercase tracking-[0.35em] border-b border-zinc-800/80 pb-3 drop-shadow-[0_0_8px_rgba(34,211,238,0.35)]">
+              Navegação
+            </h2>
+            <button
+              type="button"
+              onClick={() => setVistaCentral("chat-geral")}
+              className={`w-full text-left rounded-2xl border px-4 py-4 transition-all ${
+                vistaCentral === "chat-geral"
+                  ? "border-cyan-500/50 bg-cyan-500/10 text-white shadow-[0_0_20px_rgba(34,211,238,0.2)]"
+                  : "border-white/5 bg-black/40 text-zinc-500 hover:border-blue-500/30 hover:text-zinc-200"
+              }`}
+            >
+              <span className="block text-[8px] font-mono text-cyan-500/80 tracking-tight mb-1">#chat-geral</span>
+              <span className="text-[10px] font-black uppercase tracking-widest">💬 Chat Global</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setVistaCentral("podio-hunters")}
+              className={`w-full text-left rounded-2xl border px-4 py-4 transition-all ${
+                vistaCentral === "podio-hunters"
+                  ? "border-amber-500/50 bg-amber-500/10 text-white shadow-[0_0_20px_rgba(245,158,11,0.2)]"
+                  : "border-white/5 bg-black/40 text-zinc-500 hover:border-amber-500/30 hover:text-zinc-200"
+              }`}
+            >
+              <span className="block text-[8px] font-mono text-amber-500/80 tracking-tight mb-1">#pódio-hunters</span>
+              <span className="text-[10px] font-black uppercase tracking-widest">🏆 Pódio Hunters</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSintoniaVozAtiva((v) => {
+                  const next = !v;
+                  sessionStorage.setItem("guilda_sintonia_voz", next ? "1" : "0");
+                  return next;
+                });
+              }}
+              className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-4 text-left transition-all ${
+                sintoniaVozAtiva
+                  ? "border-emerald-500/50 bg-emerald-500/10 text-white shadow-[0_0_22px_rgba(52,211,153,0.28)]"
+                  : "border-white/5 bg-black/40 text-zinc-500 hover:border-emerald-500/35 hover:text-zinc-200"
+              }`}
+            >
+              <Mic
+                className={`h-5 w-5 shrink-0 ${sintoniaVozAtiva ? "text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.85)]" : "text-zinc-500"}`}
+                strokeWidth={2.25}
+              />
+              <div>
+                <span className="block text-[8px] font-mono text-emerald-500/80 tracking-tight mb-1">Jami / Voz</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">
+                  {sintoniaVozAtiva ? "● Em sintonia" : "Entrar em sintonia"}
+                </span>
               </div>
-            )}
-
-            <div className="flex flex-col flex-1 min-h-0">
-              <h2 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-6 border-b border-zinc-800 pb-4">Hunters Registrados</h2>
-              <div className="space-y-4 overflow-y-auto custom-scrollbar pr-2 flex-1">
-                {perfis.map(p => {
-                  const molduraSidebar = getMolduraPng(p.cosmeticos?.ativos?.moldura);
-                  const tituloSidebar = getTituloItem(p.cosmeticos?.ativos?.titulo);
-                  return (
-                    <div 
-                      key={p.nome_original} 
-                      onClick={() => abrirInspecao(p.nome_original)}
-                      className="flex items-center gap-4 bg-black/40 p-3 rounded-2xl border border-white/5 cursor-pointer hover:bg-white/5 transition-all"
-                    >
-                      <HunterAvatar 
-                        avatarUrl={p.avatar} 
-                        idMoldura={p.cosmeticos?.ativos?.moldura} 
-                        imagemMolduraUrl={molduraSidebar || undefined}
-                        tamanho="sm"
-                        temaCor={p.cor_tema?.startsWith('#') ? p.cor_tema : p.custom_color}
-                      />
-                      <div className="overflow-hidden">
-                        <p className={`font-black text-xs truncate ${p.cor_tema?.startsWith('#') ? '' : getCor(p.nome_original)}`} style={p.cor_tema?.startsWith('#') ? { color: p.cor_tema } : {}}>{p.nome_exibicao}</p>
-                        {tituloSidebar && (
-                          <p className={`text-[7px] font-black uppercase tracking-[0.2em] truncate mt-0.5 ${tituloSidebar.imagem_url || tituloSidebar.id}`}>
-                            « {tituloSidebar.nome.replace("Título: ", "")} »
-                          </p>
-                        )}
-                        <p className="text-[8px] text-zinc-500 uppercase tracking-widest mt-1">ID: {p.nome_original}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            </button>
           </div>
-        </aside>
+        </nav>
 
-        <section className="flex-1 bg-[#0e0e11]/95 border border-zinc-800 rounded-[2.5rem] flex flex-col overflow-hidden relative">
-          <div className="flex gap-4 p-6 border-b border-zinc-800 bg-black/20">
-            <button onClick={() => setAbaAtiva("CHAT")} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${abaAtiva === "CHAT" ? 'bg-blue-600 text-white' : 'bg-zinc-900 text-zinc-500 hover:text-white'}`}>💬 Chat Global</button>
-            <button onClick={() => setAbaAtiva("RANKING")} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${abaAtiva === "RANKING" ? 'bg-yellow-600 text-white' : 'bg-zinc-900 text-zinc-500 hover:text-white'}`}>🏆 Pódio / Ranks</button>
-          </div>
-
-          {abaAtiva === "CHAT" && (
-            <div className="flex flex-col h-full flex-1 min-h-0">
+        <section className="min-w-0 min-h-[min(70vh,720px)] xl:min-h-0 flex flex-col bg-[#0e0e11]/95 border border-zinc-800 rounded-[2.5rem] overflow-hidden relative shadow-[0_0_32px_rgba(59,130,246,0.06)]">
+          {vistaCentral === "chat-geral" && (
+            <div id="chat-geral" className="flex flex-col h-full flex-1 min-h-0">
               <div ref={scrollRef} className="flex-1 p-8 overflow-y-auto custom-scrollbar flex flex-col gap-1">
                 {mensagens.length >= limiteMensagens && (
                   <div className="flex justify-center mb-6">
@@ -560,61 +587,166 @@ export default function GuildaPage() {
             </div>
           )}
 
-          {abaAtiva === "RANKING" && (
-            <div className="flex-1 p-8 overflow-y-auto custom-scrollbar flex flex-col gap-6">
-              <div className="flex flex-wrap justify-center gap-3 mb-4">
-                <button onClick={() => setFiltroRanking("OBRAS")} className={`px-4 py-2 rounded-xl border text-[9px] font-black uppercase transition-all ${filtroRanking === "OBRAS" ? 'bg-indigo-600/20 border-indigo-500 text-indigo-400' : 'bg-black/50 border-zinc-800 text-zinc-500 hover:text-white'}`}>📚 Mais Viciados</button>
-                <button onClick={() => setFiltroRanking("ESMOLAS")} className={`px-4 py-2 rounded-xl border text-[9px] font-black uppercase transition-all ${filtroRanking === "ESMOLAS" ? 'bg-yellow-600/20 border-yellow-500 text-yellow-400' : 'bg-black/50 border-zinc-800 text-zinc-500 hover:text-white'}`}>🪙 Mais Ricos</button>
-                <button onClick={() => setFiltroRanking("TEMPO")} className={`px-4 py-2 rounded-xl border text-[9px] font-black uppercase transition-all ${filtroRanking === "TEMPO" ? 'bg-purple-600/20 border-purple-500 text-purple-400' : 'bg-black/50 border-zinc-800 text-zinc-500 hover:text-white'}`}>⏳ Veteranos (Horas)</button>
-                <button onClick={() => setFiltroRanking("CAPITULOS")} className={`px-4 py-2 rounded-xl border text-[9px] font-black uppercase transition-all ${filtroRanking === "CAPITULOS" ? 'bg-red-600/20 border-red-500 text-red-400' : 'bg-black/50 border-zinc-800 text-zinc-500 hover:text-white'}`}>🔥 Devoradores (Caps)</button>
-                <button onClick={() => setFiltroRanking("FAVORITOS")} className={`px-4 py-2 rounded-xl border text-[9px] font-black uppercase transition-all ${filtroRanking === "FAVORITOS" ? 'bg-green-600/20 border-green-500 text-green-400' : 'bg-black/50 border-zinc-800 text-zinc-500 hover:text-white'}`}>⭐ Curadores</button>
-                <button onClick={() => setFiltroRanking("CONQUISTAS")} className={`px-4 py-2 rounded-xl border text-[9px] font-black uppercase transition-all ${filtroRanking === "CONQUISTAS" ? 'bg-cyan-600/20 border-cyan-500 text-cyan-400' : 'bg-black/50 border-zinc-800 text-zinc-500 hover:text-white'}`}>🏆 Platinadores</button>
+          {vistaCentral === "podio-hunters" && (
+            <div id="podio-hunters" className="flex flex-col flex-1 min-h-0 h-full overflow-hidden">
+              <div className="shrink-0 px-6 pt-6 pb-3 border-b border-zinc-800/80 bg-black/20">
+                <h2 className="text-[10px] font-black uppercase tracking-[0.35em] text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.35)]">
+                  Pódio Hunters
+                </h2>
+                <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest mt-1">#pódio-hunters</p>
               </div>
-              <div className="flex flex-col gap-4">
-                {huntersOrdenados.map((hunter: EstatisticasHunter, index: number) => {
-                  const isTop1 = index === 0; const isTop2 = index === 1; const isTop3 = index === 2;
-                  let medalha = "🏅"; if (isTop1) medalha = "👑"; else if (isTop2) medalha = "🥈"; else if (isTop3) medalha = "🥉";
-                  let corTexto = "text-indigo-400"; let valor = hunter.total_obras; let label = "Obras Lidas";
-                  if (filtroRanking === "ESMOLAS") { corTexto = "text-yellow-500"; valor = hunter.esmolas; label = "Esmolas"; }
-                  if (filtroRanking === "TEMPO") { corTexto = "text-purple-400"; valor = hunter.tempo_vida; label = "Horas Consumidas"; }
-                  if (filtroRanking === "CAPITULOS") { corTexto = "text-red-400"; valor = hunter.total_capitulos; label = "Caps / Episódios"; }
-                  if (filtroRanking === "FAVORITOS") { corTexto = "text-green-400"; valor = hunter.total_favoritos; label = "Obras Favoritas"; }
-                  if (filtroRanking === "CONQUISTAS") { corTexto = "text-cyan-400"; valor = hunter.total_conquistas; label = "Troféus Desbloqueados"; }
-                  const molduraRank = getMolduraPng(hunter.cosmeticos?.ativos?.moldura);
-                  const tituloRank = getTituloItem(hunter.cosmeticos?.ativos?.titulo);
+              <div className="flex-1 flex flex-col gap-6 min-h-0 overflow-y-auto custom-scrollbar p-6">
+                <Podium
+                  hunters={huntersOrdenados}
+                  filtroRanking={filtroRanking}
+                  onInspect={abrirInspecao}
+                  getMolduraPng={getMolduraPng}
+                  getTituloItem={getTituloItem}
+                />
+                <div className="border-t border-zinc-800 pt-6 flex flex-col flex-1 min-h-[12rem]">
+                  <h3 className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-4">Demais posições</h3>
+                  <HuntersList
+                    hunters={huntersOrdenados}
+                    filtroRanking={filtroRanking}
+                    onFiltroChange={setFiltroRanking}
+                    onInspect={abrirInspecao}
+                    getMolduraPng={getMolduraPng}
+                    getTituloItem={getTituloItem}
+                    startIndex={3}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
+        <aside className="flex flex-col gap-4 min-h-0">
+          <div className="bg-[#0e0e11]/95 border border-zinc-800 rounded-[2rem] p-6 flex-1 flex flex-col gap-6 min-h-0 max-h-[70vh] xl:max-h-none shadow-[0_0_28px_rgba(168,85,247,0.07)]">
+            <h2 className="text-[10px] font-black text-violet-400 uppercase tracking-widest border-b border-zinc-800 pb-3 drop-shadow-[0_0_8px_rgba(167,139,250,0.35)]">
+              Membros
+            </h2>
+
+            {meuPerfilAtivo && (
+              <div className="flex flex-col gap-3 shrink-0">
+                <h3 className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Meu Card de Hunter</h3>
+                <HunterCard
+                  perfil={meuPerfilAtivo}
+                  customizacao={meuPerfilAtivo.cosmeticos?.ativos?.card_config}
+                />
+                <button
+                  type="button"
+                  onClick={() => setEditandoCard(true)}
+                  className="w-full py-2 bg-zinc-900 hover:bg-zinc-800 border border-white/5 rounded-xl text-[8px] font-black uppercase tracking-widest transition-all"
+                >
+                  ⚙️ Customizar Identidade
+                </button>
+              </div>
+            )}
+
+            <div className="flex flex-col flex-1 min-h-0">
+              <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4 border-b border-zinc-800 pb-3">
+                Hunters registrados
+              </h3>
+              <div className="space-y-4 overflow-y-auto custom-scrollbar pr-2 flex-1 min-h-0">
+                {perfis.map((p) => {
+                  const molduraSidebar = getMolduraPng(p.cosmeticos?.ativos?.moldura as string | undefined);
+                  const tituloSidebar = getTituloItem(p.cosmeticos?.ativos?.titulo as string | undefined);
                   return (
-                    <div 
-                      key={hunter.nome_original} 
-                      onClick={() => abrirInspecao(hunter.nome_original)}
-                      className={`flex items-center justify-between p-5 rounded-3xl border transition-all cursor-pointer ${isTop1 ? 'bg-yellow-900/10 border-yellow-500/50 shadow-[0_0_30px_rgba(234,179,8,0.1)]' : isTop2 ? 'bg-zinc-800/20 border-zinc-400/50' : isTop3 ? 'bg-orange-900/10 border-orange-700/50' : 'bg-zinc-900/30 border-zinc-800'}`}
+                    <div
+                      key={p.nome_original}
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) =>
+                        abrirPopoutMembro(p, (e.currentTarget as HTMLDivElement).getBoundingClientRect())
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          abrirPopoutMembro(p, (e.currentTarget as HTMLDivElement).getBoundingClientRect());
+                        }
+                      }}
+                      className="flex items-center gap-4 bg-black/40 p-3 rounded-2xl border border-white/5 cursor-pointer hover:bg-white/5 hover:border-violet-500/20 transition-all"
                     >
-                      <div className="flex items-center gap-6">
-                        <span className={`text-3xl font-black italic w-10 text-center ${isTop1 ? 'text-yellow-500 drop-shadow-md' : isTop2 ? 'text-zinc-300' : isTop3 ? 'text-orange-500' : 'text-zinc-600'}`}>#{index + 1}</span>
-                        <HunterAvatar 
-                          avatarUrl={hunter.avatar} 
-                          idMoldura={hunter.cosmeticos?.ativos?.moldura} 
-                          imagemMolduraUrl={molduraRank || undefined}
-                          tamanho="md"
-                          temaCor={hunter.cor_tema?.startsWith('#') ? hunter.cor_tema : hunter.custom_color}
-                        />
-                        <div>
-                          <p className="font-black text-lg uppercase flex items-center gap-2">{hunter.nome_exibicao} {isTop1 || isTop2 || isTop3 ? <span className="text-xl">{medalha}</span> : ""}</p>
-                          {tituloRank && <p className={`text-[9px] font-black uppercase tracking-[0.2em] mt-0.5 ${tituloRank.id}`}>« {tituloRank.nome.replace("Título: ", "")} »</p>}
-                          <p className="text-[9px] text-zinc-500 uppercase tracking-widest mt-1">RANK: <span className="text-white">{hunter.elo}</span></p>
+                      <HunterAvatar
+                        avatarUrl={p.avatar}
+                        idMoldura={p.cosmeticos?.ativos?.moldura as string | undefined}
+                        imagemMolduraUrl={molduraSidebar || undefined}
+                        tamanho="sm"
+                        temaCor={p.cor_tema?.startsWith("#") ? p.cor_tema : p.custom_color}
+                      />
+                      <div className="overflow-hidden min-w-0 flex-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <p
+                            className={`font-black text-xs truncate min-w-0 ${p.cor_tema?.startsWith("#") ? "" : getCor(p.nome_original)}`}
+                            style={p.cor_tema?.startsWith("#") ? { color: p.cor_tema } : {}}
+                          >
+                            {p.nome_exibicao}
+                          </p>
+                          {p.nome_original === usuarioAtivo && sintoniaVozAtiva && (
+                            <SintoniaIndicator />
+                          )}
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <p className={`text-3xl font-black italic ${corTexto}`}>{valor}</p>
-                        <p className="text-[8px] text-zinc-500 uppercase tracking-widest">{label}</p>
+                        {tituloSidebar && (
+                          <p
+                            className={`text-[7px] font-black uppercase tracking-[0.2em] truncate mt-0.5 ${tituloSidebar.imagem_url || tituloSidebar.id}`}
+                          >
+                            « {tituloSidebar.nome.replace("Título: ", "")} »
+                          </p>
+                        )}
+                        <p className="text-[8px] text-zinc-500 uppercase tracking-widest mt-1">ID: {p.nome_original}</p>
                       </div>
                     </div>
                   );
                 })}
               </div>
             </div>
-          )}
-        </section>
+          </div>
+        </aside>
       </div>
+
+      <MemberPopout
+        member={popoutMembro}
+        stats={statsPopoutMembro}
+        anchorRect={popoutAnchorRect}
+        membroEmSintonia={
+          !!popoutMembro &&
+          popoutMembro.nome_original === usuarioAtivo &&
+          sintoniaVozAtiva
+        }
+        onClose={fecharPopoutMembro}
+        onSelectObra={aoSelecionarObraNoPopout}
+        onInspecionar={() => {
+          if (popoutMembro) abrirInspecao(popoutMembro.nome_original);
+        }}
+        getMolduraPng={getMolduraPng}
+        getTituloItem={getTituloItem}
+        getCor={getCor}
+      />
+
+      {obraGuildaModal && (
+        <MangaDetailsModal
+          manga={obraGuildaModal.manga}
+          tabelaObra={obraGuildaModal.tabelaObra}
+          abaPrincipal={obraGuildaModal.abaPrincipal}
+          podeEditarPrivilegiado={false}
+          somenteLeitura
+          solicitarSenhaMestre={obterSenhaMestreInterativa}
+          aoFechar={() => setObraGuildaModal(null)}
+          aoAtualizarCapitulo={() => {}}
+          aoAtualizarDados={() => {}}
+          aoDeletar={() => {}}
+          aoTraduzir={() =>
+            window.open(
+              `https://translate.google.com/?sl=auto&tl=pt&text=${encodeURIComponent(obraGuildaModal.manga.sinopse || "")}`,
+              "_blank"
+            )
+          }
+          aoEdicaoSalva={() => {}}
+          mostrarFeedback={mostrarFeedbackGuilda}
+        />
+      )}
+
+      {modalSenhaMestra}
 
       {editandoCard && meuPerfilAtivo && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/90 backdrop-blur-sm">
@@ -750,6 +882,28 @@ export default function GuildaPage() {
           </div>
         );
       })()}
+
+      <div className="fixed bottom-10 right-10 z-[620] flex flex-col gap-3 pointer-events-none">
+        {toastsGuilda.map((t) => (
+          <div
+            key={t.id}
+            className={`pointer-events-auto flex items-center gap-4 px-6 py-4 rounded-2xl border backdrop-blur-md shadow-2xl animate-in slide-in-from-right-8 fade-in duration-300 ${
+              t.tipo === "sucesso"
+                ? "bg-green-500/10 border-green-500/50 text-green-400"
+                : t.tipo === "erro"
+                  ? "bg-red-500/10 border-red-500/50 text-red-400"
+                  : t.tipo === "aviso"
+                    ? "bg-orange-500/10 border-orange-500/50 text-orange-400"
+                    : "bg-blue-500/10 border-blue-500/50 text-blue-400"
+            }`}
+          >
+            <span className="text-2xl">
+              {t.tipo === "sucesso" ? "✅" : t.tipo === "erro" ? "❌" : t.tipo === "aviso" ? "⚠️" : "🌐"}
+            </span>
+            <span className="text-[10px] font-black uppercase tracking-widest">{t.mensagem}</span>
+          </div>
+        ))}
+      </div>
     </main>
   );
 }
