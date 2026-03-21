@@ -17,6 +17,7 @@ import { dbClient, requisicaoDbApi } from "@/lib/dbClient";
 // ✅ ADICIONADO: Componente de Identidade Universal e Player Card
 import HunterAvatar from "./components/HunterAvatar";
 import HunterCard from "./components/HunterCard";
+import { BookOpen, Film, Tv, Gamepad2, Music, Book } from "lucide-react";
 
 interface Manga { 
   id: number; 
@@ -31,7 +32,9 @@ interface Manga {
   comentarios: string; 
   usuario: string; 
   ultima_leitura: string; 
-  favorito: boolean; 
+  favorito: boolean;
+  link_url?: string | null;
+  provider_data?: unknown;
 }
 
 // ==========================================
@@ -392,6 +395,25 @@ export default function Home() {
     }
   }
 
+  function refletirMangaNoEstado(id: number, campos: Partial<Manga>) {
+    const setLista =
+      abaPrincipal === "MANGA"
+        ? setMangas
+        : abaPrincipal === "ANIME"
+          ? setAnimes
+          : abaPrincipal === "FILME"
+            ? setFilmes
+            : abaPrincipal === "LIVRO"
+              ? setLivros
+              : abaPrincipal === "SERIE"
+                ? setSeries
+                : abaPrincipal === "JOGO"
+                  ? setJogos
+                  : setMusicas;
+    setLista((prev: Manga[]) => prev.map((m) => (m.id === id ? { ...m, ...campos } : m)));
+    setMangaDetalhe((prev) => (prev?.id === id ? { ...prev, ...campos } : prev));
+  }
+
   async function deletarMangaDaEstante(id: number) {
     if (!confirm(`Remover da estante?`)) return;
     const tabela = abaPrincipal === "MANGA" ? "mangas" : abaPrincipal === "ANIME" ? "animes" : abaPrincipal === "FILME" ? "filmes" : abaPrincipal === "LIVRO" ? "livros" : abaPrincipal === "SERIE" ? "series" : abaPrincipal === "JOGO" ? "jogos" : "musicas";
@@ -625,6 +647,20 @@ export default function Home() {
   const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual) || { nome_exibicao: usuarioAtual, avatar: "👤", cor_tema: "verde", custom_color: "#22c55e", cosmeticos: { ativos: {} } };
   const aura = perfilAtivo.cor_tema?.startsWith('#') ? TEMAS.custom : (TEMAS[perfilAtivo.cor_tema as keyof typeof TEMAS] || TEMAS.verde);
   const listaExibicao = abaPrincipal === "MANGA" ? mangas : abaPrincipal === "ANIME" ? animes : abaPrincipal === "FILME" ? filmes : abaPrincipal === "LIVRO" ? livros : abaPrincipal === "SERIE" ? series : abaPrincipal === "JOGO" ? jogos : musicas;
+  const tabelaObraAtual =
+    abaPrincipal === "MANGA"
+      ? "mangas"
+      : abaPrincipal === "ANIME"
+        ? "animes"
+        : abaPrincipal === "FILME"
+          ? "filmes"
+          : abaPrincipal === "LIVRO"
+            ? "livros"
+            : abaPrincipal === "SERIE"
+              ? "series"
+              : abaPrincipal === "JOGO"
+                ? "jogos"
+                : "musicas";
   const filtrosAtuais = (abaPrincipal === "MANGA" || abaPrincipal === "LIVRO") ? ["Todos", "Lendo", "Completos", "Planejo Ler", "Pausados", "Dropados"] : abaPrincipal === "JOGO" ? ["Todos", "Jogando", "Completos", "Planejo Jogar", "Pausados", "Dropados"] : abaPrincipal === "MUSICA" ? ["Todos", "Ouvindo", "Favoritas", "Playlist", "Pausados", "Dropados"] : ["Todos", "Assistindo", "Completos", "Planejo Assistir", "Pausados", "Dropados"];
 
   const obrasFiltradas = listaExibicao.filter(m => {
@@ -732,9 +768,42 @@ export default function Home() {
         </div>
       </header>
 
-      <nav className="flex gap-4 md:gap-8 mb-10 border-b border-zinc-800/50 pb-4 overflow-x-auto relative z-20">
-        {(["MANGA", "ANIME", "FILME", "SERIE", "LIVRO", "JOGO", "MUSICA"] as const).map(aba => (
-          <button key={aba} onClick={() => { setAbaPrincipal(aba); setFiltroAtivo(aba === "ANIME" || aba === "FILME" || aba === "SERIE" ? "Assistindo" : aba === "JOGO" ? "Jogando" : aba === "MUSICA" ? "Ouvindo" : "Lendo"); }} className={`text-xl md:text-2xl font-black uppercase tracking-widest transition-all ${abaPrincipal === aba ? `${aura.text} drop-shadow-[0_0_15px_currentColor]` : "text-zinc-600 hover:text-white"}`}>{aba === "MANGA" ? "📚 Mangás" : aba === "ANIME" ? "📺 Animes" : aba === "FILME" ? "🎬 Filmes" : aba === "SERIE" ? "🍿 Séries" : aba === "LIVRO" ? "📖 Livros" : aba === "JOGO" ? "🎮 Jogos" : "🎵 Músicas"}</button>
+      <nav className="flex gap-3 md:gap-4 mb-10 border-b border-zinc-800/50 pb-4 overflow-x-auto relative z-20">
+        {(
+          [
+            { id: "MANGA" as const, label: "Mangás", Icon: BookOpen },
+            { id: "ANIME" as const, label: "Animes", Icon: Tv },
+            { id: "FILME" as const, label: "Filmes", Icon: Film },
+            { id: "SERIE" as const, label: "Séries", Icon: Tv },
+            { id: "LIVRO" as const, label: "Livros", Icon: Book },
+            { id: "JOGO" as const, label: "Jogos", Icon: Gamepad2 },
+            { id: "MUSICA" as const, label: "Músicas", Icon: Music },
+          ] as const
+        ).map(({ id: aba, label, Icon }) => (
+          <button
+            key={aba}
+            type="button"
+            onClick={() => {
+              setAbaPrincipal(aba);
+              setFiltroAtivo(
+                aba === "ANIME" || aba === "FILME" || aba === "SERIE"
+                  ? "Assistindo"
+                  : aba === "JOGO"
+                    ? "Jogando"
+                    : aba === "MUSICA"
+                      ? "Ouvindo"
+                      : "Lendo"
+              );
+            }}
+            className={`flex shrink-0 items-center gap-2 rounded-2xl border px-4 py-2.5 text-[10px] md:text-xs font-black uppercase tracking-widest transition-all duration-300 ${
+              abaPrincipal === aba
+                ? "border-cyan-400 bg-zinc-950/95 text-cyan-200 shadow-[0_0_22px_rgba(34,211,238,0.45)]"
+                : "border-zinc-800 bg-zinc-950/70 text-zinc-500 hover:border-cyan-500/55 hover:text-cyan-100 hover:shadow-[0_0_18px_rgba(34,211,238,0.28)]"
+            }`}
+          >
+            <Icon className={`h-4 w-4 md:h-5 md:w-5 ${abaPrincipal === aba ? "text-cyan-300" : ""}`} strokeWidth={2.25} />
+            {label}
+          </button>
         ))}
       </nav>
 
@@ -768,11 +837,44 @@ export default function Home() {
       />
       
       {mangaDetalhe && (
-        <MangaDetailsModal 
-          manga={mangaDetalhe} abaPrincipal={abaPrincipal} aoFechar={() => setMangaDetalhe(null)} 
-          aoAtualizarCapitulo={atualizarCapitulo} aoAtualizarDados={atualizarDados} 
-          aoDeletar={(id) => { setMangaDetalhe(null); deletarMangaDaEstante(id); }} 
-          aoTraduzir={() => window.open(`https://translate.google.com/?sl=auto&tl=pt&text=${encodeURIComponent(mangaDetalhe.sinopse)}`, '_blank')} 
+        <MangaDetailsModal
+          manga={mangaDetalhe}
+          tabelaObra={tabelaObraAtual}
+          abaPrincipal={abaPrincipal}
+          podeEditarPrivilegiado={mestreAutorizado || isAdmin}
+          solicitarSenhaMestre={obterSenhaMestreInterativa}
+          aoFechar={() => setMangaDetalhe(null)}
+          aoAtualizarCapitulo={atualizarCapitulo}
+          aoAtualizarDados={atualizarDados}
+          aoDeletar={(id) => {
+            setMangaDetalhe(null);
+            deletarMangaDaEstante(id);
+          }}
+          aoTraduzir={() =>
+            window.open(
+              `https://translate.google.com/?sl=auto&tl=pt&text=${encodeURIComponent(mangaDetalhe.sinopse)}`,
+              "_blank"
+            )
+          }
+          aoEdicaoSalva={(campos) => {
+            if (!mangaDetalhe) return;
+            refletirMangaNoEstado(mangaDetalhe.id, campos);
+            const perfilAtivo = perfis.find((p) => p.nome_original === usuarioAtual);
+            if (
+              perfilAtivo?.anilist_token &&
+              (abaPrincipal === "MANGA" || abaPrincipal === "ANIME")
+            ) {
+              sincronizarComAniList(
+                mangaDetalhe.titulo,
+                campos.capitulo_atual ?? mangaDetalhe.capitulo_atual,
+                campos.status ?? mangaDetalhe.status,
+                perfilAtivo.anilist_token,
+                "SALVAR",
+                abaPrincipal
+              );
+            }
+          }}
+          mostrarFeedback={mostrarToast}
         />
       )} 
 

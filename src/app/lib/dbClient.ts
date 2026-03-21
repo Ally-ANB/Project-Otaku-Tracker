@@ -54,6 +54,41 @@ export async function requisicaoDbApi(
 }
 
 export const dbClient = {
+  async update(tabela: string, id: number, dados: Record<string, unknown>) {
+    const senhaMestre = lerSenhaMestreArmazenada();
+    if (!senhaMestre) {
+      return {
+        success: false,
+        error: "Senha mestra necessária para esta operação.",
+        precisaSenhaMestre: true as const,
+      };
+    }
+
+    try {
+      const res = await fetch("/api/db", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tabela, id, dados, senhaMestre }),
+      });
+
+      const data = await res.json();
+      if (res.status === 401) {
+        limparSenhaMestreNaSessao();
+        return {
+          success: false,
+          error: data.error || "Acesso negado.",
+          precisaSenhaMestre: true as const,
+        };
+      }
+      if (!res.ok) throw new Error(data.error || "Erro na atualização");
+
+      return { success: true as const };
+    } catch (error: any) {
+      console.error("Erro no dbClient:", error.message);
+      return { success: false, error: error.message };
+    }
+  },
+
   async delete(tabela: string, id: number) {
     const senhaMestre = lerSenhaMestreArmazenada();
     if (!senhaMestre) {

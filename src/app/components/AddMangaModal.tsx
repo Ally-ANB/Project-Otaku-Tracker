@@ -2,6 +2,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { limparSenhaMestreNaSessao, obterSenhaMestreRevelada } from "@/lib/dbClient";
+import { anilistExternalToProviders, type WatchProvider } from "@/lib/watchProviders";
+import WatchProviderStrip from "./WatchProviderStrip";
 
 // ==========================================
 // 📦 SESSÃO 1: INTERFACES
@@ -13,6 +15,7 @@ interface ResultadoBusca {
   total: number;
   sinopse: string;
   fonte: "AniList" | "MyAnimeList" | "TMDB" | "Google Books" | "RAWG" | "Apple Music";
+  providers?: WatchProvider[];
 }
 
 interface AddMangaModalProps {
@@ -35,8 +38,16 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
   const [traduzindo, setTraduzindo] = useState(false);
   const [salvando, setSalvando] = useState(false);
   
-  const [novoManga, setNovoManga] = useState({ 
-    titulo: "", capa: "", capitulo_atual: 0, total_capitulos: 0, status: "Planejo Ler", sinopse: "", favorito: false 
+  const [novoManga, setNovoManga] = useState({
+    titulo: "",
+    capa: "",
+    capitulo_atual: 0,
+    total_capitulos: 0,
+    status: "Planejo Ler",
+    sinopse: "",
+    favorito: false,
+    link_url: "",
+    provider_data: [] as WatchProvider[],
   });
 
   async function obterSenhaMestreCacheada() {
@@ -67,7 +78,17 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
       setModoManual(false);
       setTermoAnilist("");
       setResultados([]);
-      setNovoManga({ titulo: "", capa: "", capitulo_atual: 0, total_capitulos: 0, status: "Planejo Ler", sinopse: "", favorito: false });
+      setNovoManga({
+        titulo: "",
+        capa: "",
+        capitulo_atual: 0,
+        total_capitulos: 0,
+        status: "Planejo Ler",
+        sinopse: "",
+        favorito: false,
+        link_url: "",
+        provider_data: [],
+      });
     }
   }, [estaAberto]);
 
@@ -114,12 +135,13 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
         
         if (json.results) {
           setResultados(json.results.slice(0, 5).map((m: any): ResultadoBusca => ({
-            id: m.id, 
-            titulo: m.title || m.name || m.original_name, 
+            id: m.id,
+            titulo: m.title || m.name || m.original_name,
             capa: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://placehold.co/400x600/1f1f22/52525b.png?text=SEM+CAPA",
-            total: m.number_of_episodes || 1, 
-            sinopse: m.overview || "Sem sinopse.", 
-            fonte: "TMDB"
+            total: m.number_of_episodes || 1,
+            sinopse: m.overview || "Sem sinopse.",
+            fonte: "TMDB",
+            providers: Array.isArray(m.providers) ? m.providers : [],
           })));
         }
 
@@ -181,19 +203,35 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
         const resAni = await fetch("https://graphql.anilist.co", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            query: `query ($search: String, $type: MediaType) { Page(perPage: 5) { media(search: $search, type: $type) { id title { romaji english } coverImage { large } chapters episodes description } } }`,
-            variables: { search: termoFinal, type: abaPrincipal }
-          })
+          body: JSON.stringify({
+            query: `query ($search: String, $type: MediaType) {
+              Page(perPage: 5) {
+                media(search: $search, type: $type) {
+                  id
+                  title { romaji english }
+                  coverImage { large }
+                  chapters
+                  episodes
+                  description
+                  externalLinks { url site type }
+                }
+              }
+            }`,
+            variables: { search: termoFinal, type: abaPrincipal },
+          }),
         });
         const jsonAni = await resAni.json();
         const listaAni = jsonAni.data?.Page?.media || [];
 
         if (listaAni.length > 0) {
           setResultados(listaAni.map((m: any): ResultadoBusca => ({
-            id: m.id, titulo: m.title.romaji || m.title.english, capa: m.coverImage.large,
+            id: m.id,
+            titulo: m.title.romaji || m.title.english,
+            capa: m.coverImage.large,
             total: abaPrincipal === "MANGA" ? (m.chapters || 0) : (m.episodes || 0),
-            sinopse: m.description || "", fonte: "AniList"
+            sinopse: m.description || "",
+            fonte: "AniList",
+            providers: anilistExternalToProviders(m.externalLinks),
           })));
         } else {
           const resMal = await fetch(`https://api.jikan.moe/v4/${abaPrincipal === "MANGA" ? "manga" : "anime"}?q=${encodeURIComponent(termoFinal)}&limit=5`);
@@ -231,7 +269,15 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
     let progressoFinal = novoManga.capitulo_atual;
     if (novoManga.status === "Completos" && novoManga.total_capitulos > 0) progressoFinal = novoManga.total_capitulos;
 
-    const obraParaSalvar = { ...novoManga, capitulo_atual: progressoFinal, usuario: usuarioAtual, ultima_leitura: new Date().toISOString() };
+    const linkTrim = novoManga.link_url?.trim() || "";
+    const obraParaSalvar = {
+      ...novoManga,
+      capitulo_atual: progressoFinal,
+      usuario: usuarioAtual,
+      ultima_leitura: new Date().toISOString(),
+      link_url: linkTrim || null,
+      provider_data: novoManga.provider_data?.length ? novoManga.provider_data : null,
+    };
     const resultado = await requisicaoDbInsertSegura(tabelaDb, obraParaSalvar, true);
     if (resultado.ok) { aoSalvar(obraParaSalvar); fechar(); }
     else { alert("Erro ao salvar: " + (resultado.data?.error || resultado.error || "Falha desconhecida.")); }
@@ -272,11 +318,38 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
               Não encontrou? Registro Manual
             </button>
 
-            <div className="mt-4 max-h-64 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+            <div className="mt-4 max-h-72 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
               {resultados.map((m) => (
-                <div key={m.id} onClick={() => setNovoManga({ ...novoManga, titulo: m.titulo, capa: m.capa, total_capitulos: m.total, sinopse: m.sinopse })} className="p-4 bg-zinc-900/50 rounded-2xl hover:bg-zinc-800 cursor-pointer flex gap-4 items-center border border-zinc-800 group transition-all">
-                  <div className="relative"><img src={m.capa} className="w-12 h-16 object-cover rounded-xl" /><span className="absolute -top-2 -left-2 bg-black text-[6px] px-2 py-1 rounded-md border border-zinc-700 text-zinc-500 font-black">{m.fonte}</span></div>
-                  <p className="font-bold text-sm group-hover:text-green-500">{m.titulo}</p>
+                <div
+                  key={`${m.fonte}-${m.id}`}
+                  onClick={() =>
+                    setNovoManga({
+                      ...novoManga,
+                      titulo: m.titulo,
+                      capa: m.capa,
+                      total_capitulos: m.total,
+                      sinopse: m.sinopse,
+                      link_url: "",
+                      provider_data: m.providers || [],
+                    })
+                  }
+                  className="flex cursor-pointer flex-col gap-2 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 transition-all hover:bg-zinc-800 group"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="relative shrink-0">
+                      <img src={m.capa} className="h-16 w-12 rounded-xl object-cover" alt="" />
+                      <span className="absolute -left-2 -top-2 rounded-md border border-zinc-700 bg-black px-2 py-1 text-[6px] font-black text-zinc-500">
+                        {m.fonte}
+                      </span>
+                    </div>
+                    <p className="text-sm font-bold group-hover:text-green-500">{m.titulo}</p>
+                  </div>
+                  {m.providers && m.providers.length > 0 && (
+                    <div className="pl-[4.5rem]">
+                      <p className="mb-1 text-[7px] font-black uppercase tracking-widest text-zinc-600">Onde assistir / ler</p>
+                      <WatchProviderStrip providers={m.providers} size="sm" />
+                    </div>
+                  )}
                 </div>
               ))}
               {buscando && <div className="text-center p-4 text-green-500 animate-pulse font-black text-[10px] uppercase">Rastreando sinal...</div>}
@@ -310,14 +383,34 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
         {novoManga.titulo && (
           <div className="space-y-8 animate-in slide-in-from-bottom-6 duration-500">
             <div className="flex gap-6 p-6 bg-zinc-900/50 rounded-3xl border border-zinc-800">
-              <img src={novoManga.capa || "https://placehold.co/400x600/1f1f22/52525b.png?text=SEM+CAPA"} className="w-28 h-40 object-cover rounded-2xl shadow-2xl" />
-              <div className="flex-1">
+              <img src={novoManga.capa || "https://placehold.co/400x600/1f1f22/52525b.png?text=SEM+CAPA"} className="w-28 h-40 object-cover rounded-2xl shadow-2xl" alt="" />
+              <div className="flex-1 min-w-0">
                 <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Confirmar Entrada</p>
                 <h2 className="text-2xl font-bold text-white mb-2 italic leading-tight">{novoManga.titulo}</h2>
                 <button onClick={traduzirSinopse} disabled={traduzindo} className="text-[9px] font-black uppercase text-green-500 hover:text-white transition-colors">
                   {traduzindo ? "Traduzindo..." : "🌐 Traduzir Sinopse"}
                 </button>
+                {(novoManga.provider_data?.length ?? 0) > 0 && (
+                  <div className="mt-4">
+                    <p className="text-[8px] font-black uppercase tracking-widest text-zinc-600 mb-2">Plataformas (salvas na estante)</p>
+                    <WatchProviderStrip providers={novoManga.provider_data} size="md" />
+                  </div>
+                )}
               </div>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-bold text-zinc-500 uppercase mb-2 ml-1 tracking-widest">Link manual (opcional — prioridade na estante)</p>
+              <input
+                type="url"
+                placeholder="https://…"
+                className="w-full bg-zinc-950 p-4 rounded-2xl border border-zinc-800 outline-none text-white text-xs"
+                value={novoManga.link_url}
+                onChange={(e) => setNovoManga({ ...novoManga, link_url: e.target.value })}
+              />
+              <p className="text-[8px] text-zinc-600 mt-2 ml-1 font-bold uppercase tracking-tighter">
+                Se preenchido, aparece primeiro nos ícones do card, junto das plataformas automáticas.
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-6">
@@ -340,7 +433,7 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
             </div>
 
             <div className="flex gap-4">
-              <button onClick={() => setNovoManga({titulo:"", capa:"", capitulo_atual:0, total_capitulos:0, status:"Planejo Ler", sinopse:"", favorito: false})} className="flex-1 py-5 bg-zinc-800 text-zinc-400 rounded-2xl font-bold uppercase text-xs hover:bg-zinc-700 transition-colors">Cancelar</button>
+              <button onClick={() => setNovoManga({ titulo: "", capa: "", capitulo_atual: 0, total_capitulos: 0, status: "Planejo Ler", sinopse: "", favorito: false, link_url: "", provider_data: [] })} className="flex-1 py-5 bg-zinc-800 text-zinc-400 rounded-2xl font-bold uppercase text-xs hover:bg-zinc-700 transition-colors">Cancelar</button>
               <button onClick={salvarObraFinal} disabled={salvando} className="flex-[2] py-5 bg-green-600 text-white rounded-2xl font-bold uppercase text-xs shadow-lg shadow-green-600/20 active:scale-95 transition-all">
                 {salvando ? "Salvando..." : "Sincronizar Estante"}
               </button>

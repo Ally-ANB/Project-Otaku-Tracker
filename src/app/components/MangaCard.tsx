@@ -1,20 +1,22 @@
 "use client";
 import { useState, useEffect } from "react"; // ✅ Adicionado para gerenciar o input local
 
-interface Manga { 
-  id: number; 
-  titulo: string; 
-  capa: string; 
-  capitulo_atual: number; 
-  total_capitulos: number; 
-  status: string; 
-  sinopse: string; 
-  nota_pessoal: number; 
-  nota_amigos: number; 
-  comentarios: string; 
-  usuario: string; 
-  ultima_leitura: string; 
-  favorito: boolean; 
+interface Manga {
+  id: number;
+  titulo: string;
+  capa: string;
+  capitulo_atual: number;
+  total_capitulos: number;
+  status: string;
+  sinopse: string;
+  nota_pessoal: number;
+  nota_amigos: number;
+  comentarios: string;
+  usuario: string;
+  ultima_leitura: string;
+  favorito: boolean;
+  link_url?: string | null;
+  provider_data?: unknown;
 }
 
 interface MangaCardProps {
