@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 
-// Força a Vercel a usar o ambiente Node completo
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
@@ -8,26 +7,14 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q');
 
-  if (!query) {
-    return NextResponse.json({ results: [] });
-  }
+  if (!query) return NextResponse.json({ results: [] });
 
   try {
-    /**
-     * ESTRATÉGIA DE ISOLAMENTO:
-     * Usamos 'require' dentro da função para que o bundler não tente
-     * analisar a biblioteca durante a fase de build/estática.
-     */
-    const yts = require('yt-search');
+    // Import dinâmico com cast para contornar a checagem de tipo e de ambiente
+    const yts = await import('yt-search').then(mod => mod.default || mod);
+    const r = await yts(query);
 
-    // Executa a busca
-    const searchResult = await yts(query);
-
-    if (!searchResult || !searchResult.videos) {
-      return NextResponse.json({ results: [] });
-    }
-
-    const videos = searchResult.videos.slice(0, 5).map((v: any) => ({
+    const videos = (r.videos || []).slice(0, 5).map((v: any) => ({
       titulo: v.title,
       url: v.url,
       duracao: v.timestamp,
@@ -36,12 +23,9 @@ export async function GET(request: Request) {
     }));
 
     return NextResponse.json({ results: videos });
-
   } catch (error: any) {
-    console.error("[RadioHunter] Erro no Servidor:", error.message);
-    return NextResponse.json(
-      { error: "Erro ao buscar", details: error.message },
-      { status: 200 } // Retornamos 200 para o rádio não 'morrer' no front
-    );
+    console.error("Erro na API de Busca:", error.message);
+    // Se o YouTube bloquear o IP da Vercel, retornamos vazio em vez de erro 500
+    return NextResponse.json({ results: [], error: "Busca limitada pelo YouTube" });
   }
 }

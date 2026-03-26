@@ -1,3 +1,4 @@
+import { urlApiDb } from "@/lib/dbClient";
 import { supabase } from "../supabase";
 import {
   type GuildaRank,
@@ -13,7 +14,7 @@ import {
 } from "./rankUtils";
 
 async function apiAtualizarPerfil(nome_original: string, dados: Record<string, unknown>) {
-  const res = await fetch("/api/db", {
+  const res = await fetch(urlApiDb(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ tabela: "perfis", nome_original, dados }),

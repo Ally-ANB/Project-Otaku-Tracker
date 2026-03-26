@@ -1,5 +1,22 @@
 // src/app/lib/dbClient.ts
 
+/** Rota em `src/app/api/db/route.ts` — sempre com barra inicial (path absoluto no host). */
+export const API_DB_PATH = "/api/db" as const;
+
+/**
+ * URL absoluta para a API DB. No browser usa a origem atual; no servidor usa
+ * NEXT_PUBLIC_APP_URL ou VERCEL_URL para evitar fetch sem host (404 em alguns ambientes).
+ */
+export function urlApiDb(): string {
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return new URL(API_DB_PATH, window.location.origin).href;
+  }
+  const base =
+    (process.env.NEXT_PUBLIC_APP_URL && process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")) ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
+  return base ? `${base}${API_DB_PATH}` : API_DB_PATH;
+}
+
 function disfarcarSenha(senha: string): string {
   return btoa(senha);
 }
@@ -38,7 +55,7 @@ export async function requisicaoDbApi(
   method: "POST" | "DELETE",
   body: Record<string, unknown>
 ): Promise<{ ok: boolean; data?: any }> {
-  const res = await fetch("/api/db", {
+  const res = await fetch(urlApiDb(), {
     method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -65,7 +82,7 @@ export const dbClient = {
     }
 
     try {
-      const res = await fetch("/api/db", {
+      const res = await fetch(urlApiDb(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tabela, id, dados, senhaMestre }),
@@ -100,7 +117,7 @@ export const dbClient = {
     }
 
     try {
-      const res = await fetch("/api/db", {
+      const res = await fetch(urlApiDb(), {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, tabela, senhaMestre }),
