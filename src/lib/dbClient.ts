@@ -5,5 +5,4 @@ export {
   limparSenhaMestreNaSessao,
   obterSenhaMestreRevelada,
   requisicaoDbApi,
-  urlApiDb,
 } from "@/app/lib/dbClient";

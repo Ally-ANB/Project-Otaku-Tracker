@@ -8,7 +8,7 @@ import MangaDetailsModal, { type Manga as MangaObraModal } from "../components/M
 import MemberPopout from "./components/MemberPopout";
 import SintoniaIndicator from "./components/SintoniaIndicator";
 import { useSenhaMestraInterativa } from "../hooks/useSenhaMestraInterativa";
-import { urlApiDb } from "@/lib/dbClient";
+import { API_DB_PATH } from "@/lib/dbClient";
 // ✅ MOLDURAS IMPORTADAS DO PERFIL
 import { MOLDURAS_DISCORD } from "../perfil/page";
 // ✅ COMPONENTE DE IDENTIDADE UNIFICADO
@@ -117,7 +117,7 @@ export default function GuildaPage() {
   }
 
   async function requisicaoDb(method: "POST" | "DELETE", payload: Record<string, any>) {
-    const res = await fetch(urlApiDb(), {
+    const res = await fetch(API_DB_PATH, {
       method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)

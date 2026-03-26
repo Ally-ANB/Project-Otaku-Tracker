@@ -1,8 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   reactCompiler: true,
+  /** Evita empacotar scrapers/HTTP no bundle do servidor (Node resolve em runtime). */
+  serverExternalPackages: ['@distube/ytsr', 'undici'],
 };
 
 export default nextConfig;

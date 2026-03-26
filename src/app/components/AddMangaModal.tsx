@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
-import { limparSenhaMestreNaSessao, obterSenhaMestreRevelada, urlApiDb } from "@/lib/dbClient";
+import { API_DB_PATH, limparSenhaMestreNaSessao, obterSenhaMestreRevelada } from "@/lib/dbClient";
 import { anilistExternalToProviders, type WatchProvider } from "@/lib/watchProviders";
 import WatchProviderStrip from "./WatchProviderStrip";
 import { aplicarEconomiaPosAdicaoEstante } from "@/app/guilda/guildaRankEconomia";
@@ -72,7 +72,7 @@ export default function AddMangaModal({
     const senhaMestre = exigirSenhaMestre ? await obterSenhaMestreCacheada() : undefined;
     if (exigirSenhaMestre && !senhaMestre) return { ok: false, error: "Operação cancelada." };
 
-    const res = await fetch(urlApiDb(), {
+    const res = await fetch(API_DB_PATH, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tabela, operacao: "insert", dados, ...(exigirSenhaMestre ? { senhaMestre } : {}) })

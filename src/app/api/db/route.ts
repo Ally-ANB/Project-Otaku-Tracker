@@ -1,5 +1,8 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 function mensagemErroSupabase(error: unknown): string {
   if (error && typeof error === 'object' && 'message' in error) {
@@ -10,10 +13,24 @@ function mensagemErroSupabase(error: unknown): string {
   return 'Falha na operacao de banco.';
 }
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+let supabaseAdmin: SupabaseClient | null = null;
+
+function getSupabaseAdmin(): SupabaseClient {
+  if (!supabaseAdmin) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url?.trim() || !key?.trim()) {
+      throw new Error('Variaveis NEXT_PUBLIC_SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY ausentes.');
+    }
+    supabaseAdmin = createClient(url, key);
+  }
+  return supabaseAdmin;
+}
+
+/** Confirma que a rota existe em producao (GET costuma ser usado em health checks / navegador). */
+export async function GET() {
+  return NextResponse.json({ ok: true, route: 'api/db' });
+}
 
 function idUuidValido(id: unknown): id is string {
   return typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id.trim());
@@ -24,6 +41,7 @@ const TABELAS_PERMITIDAS = ['mangas', 'animes', 'filmes', 'series', 'livros', 'j
 
 export async function POST(request: Request) {
   try {
+    const admin = getSupabaseAdmin();
     const { tabela, id, nome_original, dados, senhaMestre, operacao = 'update' } = await request.json();
 
     if (!tabela || typeof tabela !== 'string') {
@@ -50,7 +68,7 @@ export async function POST(request: Request) {
 
     if (operacao === 'insert') {
       const payload = Array.isArray(dados) ? dados : [dados];
-      const { data, error } = await supabaseAdmin.from(tabela).insert(payload).select();
+      const { data, error } = await admin.from(tabela).insert(payload).select();
       if (error) throw error;
       return NextResponse.json({ success: true, data });
     }
@@ -62,7 +80,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Identificador ausente (id, id uuid ou nome_original).' }, { status: 400 });
     }
 
-    let query = supabaseAdmin.from(tabela).update(dados);
+    let query = admin.from(tabela).update(dados);
     if (idValido) query = query.eq('id', id);
     else if (uuidValido) query = query.eq('id', id.trim());
     else if (nomeValido) query = query.eq('nome_original', nome_original);
@@ -80,6 +98,7 @@ export async function POST(request: Request) {
 // Mantemos o DELETE que voce ja tem, mas ajustado para a nova estrutura
 export async function DELETE(request: Request) {
   try {
+    const admin = getSupabaseAdmin();
     const { id, nome_original, senhaMestre, tabela, limparTudo } = await request.json();
 
     if (!tabela || typeof tabela !== 'string') {
@@ -98,7 +117,7 @@ export async function DELETE(request: Request) {
       if (tabela !== 'search_cache' || senhaMestre !== process.env.SENHA_MESTRA) {
         return NextResponse.json({ error: 'Operacao de limpeza nao permitida.' }, { status: 403 });
       }
-      const { error } = await supabaseAdmin.from('search_cache').delete().neq('termo_original', '');
+      const { error } = await admin.from('search_cache').delete().neq('termo_original', '');
       if (error) throw error;
       return NextResponse.json({ success: true });
     }
@@ -110,7 +129,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Identificador ausente (id, id uuid ou nome_original).' }, { status: 400 });
     }
 
-    let query = supabaseAdmin.from(tabela).delete();
+    let query = admin.from(tabela).delete();
     if (idValido) query = query.eq('id', id);
     else if (uuidValido) query = query.eq('id', id.trim());
     else if (nomeValido) query = query.eq('nome_original', nome_original);
