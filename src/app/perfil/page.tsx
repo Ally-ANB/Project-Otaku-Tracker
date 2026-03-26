@@ -1,7 +1,7 @@
 "use client";
 
 import { supabase } from "../supabase";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useSenhaMestraInterativa } from "../hooks/useSenhaMestraInterativa";
@@ -65,7 +65,7 @@ function itemLojaNaCategoria(item: { tipo?: string }, cat: CategoriaLoja): boole
   return true;
 }
 
-export default function PerfilPage() {
+function PerfilContent() {
   const searchParams = useSearchParams();
   const [usuarioAtivo, setUsuarioAtivo] = useState<string | null>(null);
   const [abaAtiva, setAbaAtiva] = useState("STATUS");
@@ -794,5 +794,13 @@ export default function PerfilPage() {
         ))}
       </div>
     </main>
+  );
+}
+
+export default function PerfilPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#040405] flex items-center justify-center text-white italic animate-pulse">SINCRONIZANDO HUB...</div>}>
+      <PerfilContent />
+    </Suspense>
   );
 }
