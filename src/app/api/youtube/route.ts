@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import ytSearch from 'yt-search';
 
-export const runtime = 'nodejs'; // Mantém o ambiente Node.js
-export const dynamic = 'force-dynamic'; // Garante que não tente gerar estático no build
+// Força a Vercel a usar o ambiente Node completo
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -12,18 +12,22 @@ export async function GET(request: Request) {
     return NextResponse.json({ results: [] });
   }
 
-  console.log(`[RadioHunter] Iniciando busca para: "${query}"`);
-
   try {
-    // Executa a busca com um limite de tempo ou tratamento de erro
-    const searchResult = await ytSearch(query);
-    
+    /**
+     * ESTRATÉGIA DE ISOLAMENTO:
+     * Usamos 'require' dentro da função para que o bundler não tente
+     * analisar a biblioteca durante a fase de build/estática.
+     */
+    const yts = require('yt-search');
+
+    // Executa a busca
+    const searchResult = await yts(query);
+
     if (!searchResult || !searchResult.videos) {
-      console.error("[RadioHunter] Nenhum resultado retornado pelo yt-search");
       return NextResponse.json({ results: [] });
     }
 
-    const videos = searchResult.videos.slice(0, 5).map((v) => ({
+    const videos = searchResult.videos.slice(0, 5).map((v: any) => ({
       titulo: v.title,
       url: v.url,
       duracao: v.timestamp,
@@ -31,17 +35,13 @@ export async function GET(request: Request) {
       id: v.videoId
     }));
 
-    console.log(`[RadioHunter] Busca concluída com sucesso. Itens: ${videos.length}`);
     return NextResponse.json({ results: videos });
 
   } catch (error: any) {
-    // Log detalhado no servidor da Vercel
-    console.error("[RadioHunter] Erro crítico na API:", error.message);
-    
-    // Retorna um erro amigável em vez de um 500 seco
+    console.error("[RadioHunter] Erro no Servidor:", error.message);
     return NextResponse.json(
-      { error: "Erro ao buscar no YouTube", details: error.message }, 
-      { status: 200 } // Retornamos 200 com erro no corpo para não quebrar o fetch do front
+      { error: "Erro ao buscar", details: error.message },
+      { status: 200 } // Retornamos 200 para o rádio não 'morrer' no front
     );
   }
 }
