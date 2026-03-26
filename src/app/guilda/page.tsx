@@ -79,7 +79,8 @@ export default function GuildaPage() {
     banner_url: '',
     tag_texto: 'HUNTER',
     tag_cor: '#3b82f6',
-    fonte_cor: '#ffffff'
+    fonte_cor: '#ffffff',
+    playlist_url: '',
   });
 
   // ✅ NOVO ESTADO: INSPEÇÃO DE PERFIL
@@ -144,7 +145,14 @@ export default function GuildaPage() {
 
   useEffect(() => {
     if (meuPerfilAtivo?.cosmeticos?.ativos?.card_config) {
-      setCardDados(meuPerfilAtivo.cosmeticos.ativos.card_config);
+      const cc = meuPerfilAtivo.cosmeticos.ativos.card_config as Record<string, unknown>;
+      setCardDados({
+        banner_url: String(cc.banner_url ?? ""),
+        tag_texto: String(cc.tag_texto ?? "HUNTER").toUpperCase(),
+        tag_cor: String(cc.tag_cor ?? "#3b82f6"),
+        fonte_cor: String(cc.fonte_cor ?? "#ffffff"),
+        playlist_url: String(cc.playlist_url ?? ""),
+      });
     }
   }, [meuPerfilAtivo]);
 
@@ -393,6 +401,7 @@ export default function GuildaPage() {
     
     setEditandoCard(false);
     buscarPerfis();
+    window.dispatchEvent(new Event("hunter_cosmeticos_update"));
     alert("Identidade Atualizada!");
   }
 
@@ -871,6 +880,18 @@ export default function GuildaPage() {
                     onChange={(e) => setCardDados({...cardDados, tag_cor: e.target.value})}
                   />
                 </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase text-zinc-500 ml-2">
+                  Frequência de Rádio (URL Playlist YouTube)
+                </label>
+                <input
+                  type="text"
+                  placeholder="https://www.youtube.com/playlist?list=..."
+                  className="w-full bg-black border border-zinc-800 p-4 rounded-2xl text-xs outline-none focus:border-blue-500 mt-1 text-white"
+                  value={cardDados.playlist_url}
+                  onChange={(e) => setCardDados({ ...cardDados, playlist_url: e.target.value })}
+                />
               </div>
             </div>
             <div className="flex gap-3 mt-4">

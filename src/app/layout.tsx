@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 // ✅ IMPORTAREMOS O GERENCIADOR DE EFEITOS QUE VAMOS CRIAR
 import GlobalVFXManager from "./components/GlobalVFXManager";
+import RadioHunter from "./components/RadioHunter";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,6 +32,8 @@ export default function RootLayout({
       >
         {/* ✅ COMPONENTE QUE GERE O FUNDO (GIF/VIDEO/PARTÍCULAS) EM TODAS AS TELAS */}
         <GlobalVFXManager />
+
+        <RadioHunter />
 
         {/* ✅ DIV QUE GARANTE QUE O CONTEÚDO FIQUE ACIMA DO FUNDO ANIMADO E SEJA CLICÁVEL */}
         <div className="relative z-10">

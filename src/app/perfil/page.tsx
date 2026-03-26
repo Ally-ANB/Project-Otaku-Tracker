@@ -50,6 +50,7 @@ const CARD_CONFIG_PADRAO = {
   tag_texto: "HUNTER",
   tag_cor: "#3b82f6",
   fonte_cor: "#ffffff",
+  playlist_url: "",
 };
 
 type CardConfigHunter = typeof CARD_CONFIG_PADRAO;
@@ -263,6 +264,7 @@ function PerfilContent() {
         tag_texto: (cc?.tag_texto ?? CARD_CONFIG_PADRAO.tag_texto).toUpperCase(),
         tag_cor: cc?.tag_cor ?? CARD_CONFIG_PADRAO.tag_cor,
         fonte_cor: cc?.fonte_cor ?? CARD_CONFIG_PADRAO.fonte_cor,
+        playlist_url: cc?.playlist_url ?? CARD_CONFIG_PADRAO.playlist_url,
       };
       setCardDados(cardInicial);
       setCardDadosSalvos(cardInicial);
@@ -753,6 +755,18 @@ function PerfilContent() {
                   className="w-full h-[50px] bg-black border border-zinc-800 p-2 rounded-2xl cursor-pointer mt-1"
                   value={cardDados.fonte_cor}
                   onChange={(e) => setCardDados({ ...cardDados, fonte_cor: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase text-zinc-500 ml-2">
+                  Frequência de Rádio (URL Playlist YouTube)
+                </label>
+                <input
+                  type="text"
+                  placeholder="https://www.youtube.com/playlist?list=..."
+                  className="w-full bg-black border border-zinc-800 p-4 rounded-2xl text-xs outline-none focus:border-cyan-500/60 mt-1 text-white"
+                  value={cardDados.playlist_url}
+                  onChange={(e) => setCardDados({ ...cardDados, playlist_url: e.target.value })}
                 />
               </div>
             </div>

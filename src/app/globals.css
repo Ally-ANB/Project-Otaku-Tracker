@@ -24,3 +24,18 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes radio-hunter-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.radio-hunter-marquee-track {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: radio-hunter-marquee 16s linear infinite;
+}

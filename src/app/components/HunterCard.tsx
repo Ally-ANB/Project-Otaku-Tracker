@@ -9,6 +9,8 @@ interface HunterCardProps {
     tag_texto?: string;
     tag_cor?: string;
     fonte_cor?: string;
+    /** URL da playlist do YouTube para o Rádio Hunter (opcional). */
+    playlist_url?: string;
   };
 }
 
