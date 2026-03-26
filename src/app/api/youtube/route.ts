@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import ytSearch from "yt-search";
+
+export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -9,6 +10,7 @@ export async function GET(request: Request) {
   }
 
   try {
+    const { default: ytSearch } = await import("yt-search");
     const result = await ytSearch(q);
     const items = result.videos.slice(0, 5).map((v) => ({
       titulo: v.title,
@@ -18,8 +20,8 @@ export async function GET(request: Request) {
       id: v.videoId,
     }));
     return NextResponse.json({ results: items });
-  } catch (e) {
-    console.error("[api/youtube]", e);
-    return NextResponse.json({ error: "Falha na busca no YouTube." }, { status: 500 });
+  } catch (error) {
+    console.error("Erro na busca do YouTube:", error);
+    return NextResponse.json({ error: "Falha na busca" }, { status: 500 });
   }
 }
