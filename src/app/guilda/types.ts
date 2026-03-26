@@ -16,6 +16,9 @@ export interface Perfil {
   figurinhas?: string[];
   cosmeticos?: { ativos: Record<string, any> };
   chat_farm_diario?: { data: string; ganhos: number };
+  xp_missoes?: number;
+  guilda_ultimo_rank_id?: string | null;
+  estante_adicoes_hoje?: { data: string; count: number } | null;
 }
 
 export interface EstatisticasHunter extends Perfil {
@@ -23,7 +26,12 @@ export interface EstatisticasHunter extends Perfil {
   total_capitulos: number;
   tempo_vida: number;
   total_favoritos: number;
-  elo: string;
+  /** XP total de ascensão (obras + missões + troféus), alinhado a `guilda_ranks`. */
+  total_xp_ascensao: number;
+  /** Nome do rank atual (ex.: Rank S). */
+  rank_nome: string;
+  /** Campo `classes_tailwind` do rank na tabela `guilda_ranks`. */
+  rank_classes_tailwind: string;
   total_conquistas: number;
 }
 

@@ -1,10 +1,27 @@
 "use client";
 
 import { supabase } from "../supabase";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useSenhaMestraInterativa } from "../hooks/useSenhaMestraInterativa";
 import { requisicaoDbApi } from "@/lib/dbClient";
+import { preverRecompensaRank } from "../guilda/guildaRankEconomia";
+import {
+  XP_POR_MISSAO_COMPLETA,
+  type GuildaRank,
+  acumularObraNasStats,
+  calcularXpTotalHunter,
+  classesTailwindContornoRank,
+  classesTailwindNomeRank,
+  ordenarRanksPorXpMinimoAsc,
+  ordenarRanksPorXpMinimoDesc,
+  percentualAscensaoAteProximoRank,
+  proximoRankPorXp,
+  rankAtualDeListaOrdenada,
+  statsVazio,
+} from "../guilda/rankUtils";
+import HunterCard from "../components/HunterCard";
 
 const TEMAS = {
   verde: { bg: "bg-green-500", text: "text-green-500", border: "border-green-500", glow: "shadow-green-500/20", btn: "bg-green-500/10 border-green-500/50 hover:bg-green-500 hover:text-black" },
@@ -28,23 +45,62 @@ const LOJA_ITENS_FALLBACK = [
   { id: "particula_fogo_cinematic", nome: "Fogueira Hunter", tipo: "particula", preco: 1800, icone: "🔥", desc_texto: "Fogueira real cinematográfica (VFX)." }
 ];
 
+const CARD_CONFIG_PADRAO = {
+  banner_url: "",
+  tag_texto: "HUNTER",
+  tag_cor: "#3b82f6",
+  fonte_cor: "#ffffff",
+};
+
+type CardConfigHunter = typeof CARD_CONFIG_PADRAO;
+
+type CategoriaLoja = "Todos" | "Molduras" | "Títulos" | "VFX";
+
+function itemLojaNaCategoria(item: { tipo?: string }, cat: CategoriaLoja): boolean {
+  if (cat === "Todos") return true;
+  const t = String(item.tipo || "").toLowerCase();
+  if (cat === "Molduras") return t === "moldura";
+  if (cat === "Títulos") return t === "titulo";
+  if (cat === "VFX") return t === "particula" || t === "vfx";
+  return true;
+}
+
 export default function PerfilPage() {
+  const searchParams = useSearchParams();
   const [usuarioAtivo, setUsuarioAtivo] = useState<string | null>(null);
   const [abaAtiva, setAbaAtiva] = useState("STATUS");
   const [telaCheia, setTelaCheia] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [fazendoUpload, setFazendoUpload] = useState(false);
   const [esmolas, setEsmolas] = useState(0);
-  
+  const [xpMissoes, setXpMissoes] = useState(0);
+  const [guildaUltimoRankId, setGuildaUltimoRankId] = useState<string | null>(null);
+
+  const [toastsPerfil, setToastsPerfil] = useState<
+    { id: number; mensagem: string; tipo: "sucesso" | "erro" | "aviso" }[]
+  >([]);
+
   const [missoesProgresso, setMissoesProgresso] = useState<boolean[]>([false, false, false, false, false, false]);
   const [condicoesMissoes, setCondicoesMissoes] = useState<boolean[]>([true, false, false, false, false, false]); 
   
   const [inventario, setInventario] = useState<string[]>([]);
-  const [equipados, setEquipados] = useState<Record<string, string>>({ moldura: "", particula: "", titulo: "", chat_cor: "", chat_balao: "" });
+  const [equipados, setEquipados] = useState<Record<string, string>>({
+    moldura: "",
+    particula: "",
+    vfx: "",
+    titulo: "",
+    chat_cor: "",
+    chat_balao: "",
+  });
   const [dadosPerfil, setDadosPerfil] = useState({ nome: "", avatar: "", bio: "", tema: "azul", custom_color: "#3b82f6", pin: "", anilist_token: "" });
   const [obrasUsuario, setObrasUsuario] = useState<any[]>([]);
   const [stats, setStats] = useState({ obras: 0, caps: 0, finais: 0, horasVida: 0, favs: 0, filmes: 0, livros: 0 });
-  const [elo, setElo] = useState({ tier: "BRONZE", cor: "from-orange-800 to-orange-500", glow: "shadow-orange-900/40" });
+  const [guildaRanks, setGuildaRanks] = useState<GuildaRank[]>([]);
+  const [xpBaseObraTrofeus, setXpBaseObraTrofeus] = useState(0);
+  const [categoriaAtiva, setCategoriaAtiva] = useState<CategoriaLoja>("Todos");
+  const [editandoCard, setEditandoCard] = useState(false);
+  const [cardDados, setCardDados] = useState<CardConfigHunter>(CARD_CONFIG_PADRAO);
+  const [cardDadosSalvos, setCardDadosSalvos] = useState<CardConfigHunter>(CARD_CONFIG_PADRAO);
 
   const [lojaItens, setLojaItens] = useState<any[]>(LOJA_ITENS_FALLBACK);
 
@@ -63,6 +119,12 @@ export default function PerfilPage() {
     });
   }
 
+  function mostrarToastPerfil(mensagem: string, tipo: "sucesso" | "erro" | "aviso" = "sucesso") {
+    const id = Date.now() + Math.random();
+    setToastsPerfil((prev) => [...prev, { id, mensagem, tipo }]);
+    setTimeout(() => setToastsPerfil((prev) => prev.filter((t) => t.id !== id)), 4000);
+  }
+
   useEffect(() => {
     const hunter = sessionStorage.getItem("hunter_ativo");
     if (!hunter) { 
@@ -72,6 +134,35 @@ export default function PerfilPage() {
     setUsuarioAtivo(hunter);
     buscarItensLoja();
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get("aba") === "config") setAbaAtiva("CONFIG");
+  }, [searchParams]);
+
+  const ranksDescPerfil = useMemo(() => ordenarRanksPorXpMinimoDesc(guildaRanks), [guildaRanks]);
+  const ranksAscPerfil = useMemo(() => ordenarRanksPorXpMinimoAsc(guildaRanks), [guildaRanks]);
+  const totalXpAscensaoPerfil = xpBaseObraTrofeus + xpMissoes;
+  const rankAtualPerfil = rankAtualDeListaOrdenada(ranksDescPerfil, totalXpAscensaoPerfil);
+  const proximoRankPerfil = proximoRankPorXp(ranksAscPerfil, totalXpAscensaoPerfil);
+  const progressoAscensaoPerfil = percentualAscensaoAteProximoRank(
+    totalXpAscensaoPerfil,
+    rankAtualPerfil,
+    proximoRankPerfil
+  );
+  const twRankPerfil = rankAtualPerfil?.classes_tailwind ?? "";
+  const contornoRankPerfil = classesTailwindContornoRank(twRankPerfil);
+  const lojaItensFiltrados = lojaItens.filter((item) => itemLojaNaCategoria(item, categoriaAtiva));
+
+  const perfilParaHunterCard = useMemo(
+    () => ({
+      nome_exibicao: dadosPerfil.nome,
+      avatar: dadosPerfil.avatar,
+      cor_tema: dadosPerfil.tema,
+      custom_color: dadosPerfil.custom_color,
+      cosmeticos: { ativos: equipados },
+    }),
+    [dadosPerfil.nome, dadosPerfil.avatar, dadosPerfil.tema, dadosPerfil.custom_color, equipados]
+  );
 
   useEffect(() => {
     if (usuarioAtivo) carregarDados();
@@ -98,6 +189,16 @@ export default function PerfilPage() {
     const { data: mu } = await supabase.from("musicas").select("*").eq("usuario", usuarioAtivo);
     const { data: p } = await supabase.from("perfis").select("*").eq("nome_original", usuarioAtivo).single();
 
+    const agg = statsVazio();
+    (m || []).forEach((obra) => acumularObraNasStats(agg, obra, "outro"));
+    (a || []).forEach((obra) => acumularObraNasStats(agg, obra, "anime"));
+    (f || []).forEach((obra) => acumularObraNasStats(agg, obra, "filme"));
+    (l || []).forEach((obra) => acumularObraNasStats(agg, obra, "livro"));
+    (s || []).forEach((obra) => acumularObraNasStats(agg, obra, "serie"));
+    (j || []).forEach((obra) => acumularObraNasStats(agg, obra, "jogo"));
+    (mu || []).forEach((obra) => acumularObraNasStats(agg, obra, "musica"));
+    setXpBaseObraTrofeus(calcularXpTotalHunter(agg, 0));
+
     if (m || a || f || l || s || j || mu) {
       const all = [...(m || []), ...(a || []), ...(f || []), ...(l || []), ...(s || []), ...(j || []), ...(mu || [])];
       setObrasUsuario(all);
@@ -118,13 +219,6 @@ export default function PerfilPage() {
         filmes: (f || []).length, 
         livros: (l || []).length
       });
-      
-      const t = all.length;
-      if (t >= 1000) setElo({ tier: "DIVINDADE", cor: "from-white via-cyan-200 to-white", glow: "shadow-white/60 shadow-[0_0_40px_white]" });
-      else if (t >= 500) setElo({ tier: "DESAFIANTE", cor: "from-red-600 via-purple-600 to-blue-600", glow: "shadow-purple-500/40" });
-      else if (t >= 200) setElo({ tier: "MESTRE", cor: "from-purple-400 to-purple-900", glow: "shadow-purple-500/30" });
-      else if (t >= 100) setElo({ tier: "DIAMANTE", cor: "from-blue-400 to-indigo-600", glow: "shadow-blue-500/20" });
-      else setElo({ tier: "BRONZE", cor: "from-orange-800 to-orange-500", glow: "shadow-orange-900/20" });
 
       const hoje = new Date().toISOString().split('T')[0];
       const chatFarm = p?.chat_farm_diario || { data: "", ganhos: 0 };
@@ -151,9 +245,28 @@ export default function PerfilPage() {
         anilist_token: p.anilist_token || "" 
       });
       setEsmolas(p.esmolas || 0);
+      setXpMissoes(p.xp_missoes || 0);
+      setGuildaUltimoRankId(p.guilda_ultimo_rank_id || null);
       setInventario(p.cosmeticos?.comprados || []);
-      setEquipados(p.cosmeticos?.ativos || { moldura: "", particula: "", titulo: "", chat_cor: "", chat_balao: "" });
-      
+      const ativos = (p.cosmeticos?.ativos || {}) as Record<string, unknown>;
+      setEquipados({
+        moldura: String(ativos.moldura ?? ""),
+        particula: String(ativos.particula ?? ""),
+        vfx: String(ativos.vfx ?? ""),
+        titulo: String(ativos.titulo ?? ""),
+        chat_cor: String(ativos.chat_cor ?? ""),
+        chat_balao: String(ativos.chat_balao ?? ""),
+      });
+      const cc = ativos.card_config as CardConfigHunter | undefined;
+      const cardInicial: CardConfigHunter = {
+        banner_url: cc?.banner_url ?? CARD_CONFIG_PADRAO.banner_url,
+        tag_texto: (cc?.tag_texto ?? CARD_CONFIG_PADRAO.tag_texto).toUpperCase(),
+        tag_cor: cc?.tag_cor ?? CARD_CONFIG_PADRAO.tag_cor,
+        fonte_cor: cc?.fonte_cor ?? CARD_CONFIG_PADRAO.fonte_cor,
+      };
+      setCardDados(cardInicial);
+      setCardDadosSalvos(cardInicial);
+
       const hoje = new Date().toISOString().split('T')[0];
       if (p.ultima_missao_data !== hoje) {
         const resetProgress = [false, false, false, false, false, false];
@@ -167,6 +280,10 @@ export default function PerfilPage() {
         setMissoesProgresso(p.missoes_progresso || [false, false, false, false, false, false]);
       }
     }
+
+    const { data: ranksData } = await supabase.from("guilda_ranks").select("*");
+    if (ranksData?.length) setGuildaRanks(ranksData as GuildaRank[]);
+
     setCarregando(false);
   }
 
@@ -191,18 +308,63 @@ export default function PerfilPage() {
   }
 
   async function completarMissao(index: number, recompensa: number) {
-    if (missoesProgresso[index]) return; 
-    const nProg = [...missoesProgresso]; 
-    nProg[index] = true; 
-    const nSaldo = esmolas + recompensa;
-    setMissoesProgresso(nProg); 
-    setEsmolas(nSaldo);
-    const hoje = new Date().toISOString().split('T')[0];
-    await requisicaoDb({
+    if (missoesProgresso[index] || !usuarioAtivo) return;
+    const nProg = [...missoesProgresso];
+    nProg[index] = true;
+    const novoXpMissoes = xpMissoes + XP_POR_MISSAO_COMPLETA;
+    const rankRes = await preverRecompensaRank(usuarioAtivo, novoXpMissoes, guildaUltimoRankId);
+    const nSaldo = esmolas + recompensa + rankRes.esmolasExtras;
+    const hoje = new Date().toISOString().split("T")[0];
+
+    const dados: Record<string, unknown> = {
+      missoes_progresso: nProg,
+      esmolas: nSaldo,
+      ultima_missao_data: hoje,
+      xp_missoes: novoXpMissoes,
+    };
+    if (rankRes.novoUltimoRankId !== guildaUltimoRankId) {
+      dados.guilda_ultimo_rank_id = rankRes.novoUltimoRankId;
+    }
+
+    const res = await requisicaoDb({
       tabela: "perfis",
       nome_original: usuarioAtivo,
-      dados: { missoes_progresso: nProg, esmolas: nSaldo, ultima_missao_data: hoje }
+      dados,
     });
+    if (!res.ok) {
+      mostrarToastPerfil(res.data?.error || "Falha ao registrar missão.", "erro");
+      return;
+    }
+
+    setMissoesProgresso(nProg);
+    setEsmolas(nSaldo);
+    setXpMissoes(novoXpMissoes);
+    setGuildaUltimoRankId(rankRes.novoUltimoRankId);
+    mostrarToastPerfil(`Missão concluída! +${recompensa} Esmolas`, "sucesso");
+    if (rankRes.mensagemToast) mostrarToastPerfil(rankRes.mensagemToast, "sucesso");
+  }
+
+  function fecharModalCartaoSemSalvar() {
+    setCardDados({ ...cardDadosSalvos });
+    setEditandoCard(false);
+  }
+
+  async function salvarPlayerCardPerfil() {
+    if (!usuarioAtivo) return;
+    const ativosPayload = { ...equipados, card_config: cardDados };
+    const res = await requisicaoDb({
+      tabela: "perfis",
+      nome_original: usuarioAtivo,
+      dados: { cosmeticos: { comprados: inventario, ativos: ativosPayload } },
+    });
+    if (!res.ok) {
+      mostrarToastPerfil(res.data?.error || "Falha ao salvar o cartão.", "erro");
+      return;
+    }
+    setCardDadosSalvos({ ...cardDados });
+    setEditandoCard(false);
+    window.dispatchEvent(new Event("hunter_cosmeticos_update"));
+    mostrarToastPerfil("Cartão de Caçador atualizado!", "sucesso");
   }
 
   async function comprarCosmetico(item: any) {
@@ -213,7 +375,10 @@ export default function PerfilPage() {
       await requisicaoDb({
         tabela: "perfis",
         nome_original: usuarioAtivo,
-        dados: { esmolas: nSaldo, cosmeticos: { comprados: nInv, ativos: equipados } }
+        dados: {
+          esmolas: nSaldo,
+          cosmeticos: { comprados: nInv, ativos: { ...equipados, card_config: cardDadosSalvos } },
+        },
       });
       setEsmolas(nSaldo); 
       setInventario(nInv);
@@ -225,7 +390,9 @@ export default function PerfilPage() {
     await requisicaoDb({
       tabela: "perfis",
       nome_original: usuarioAtivo,
-      dados: { cosmeticos: { comprados: inventario, ativos: nEquip } }
+      dados: {
+        cosmeticos: { comprados: inventario, ativos: { ...nEquip, card_config: cardDadosSalvos } },
+      },
     });
     setEquipados(nEquip);
 
@@ -324,7 +491,7 @@ export default function PerfilPage() {
             <img src={imagemMolduraUrl} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-[140%] h-[140%] max-w-none object-contain pointer-events-none" alt="Moldura PNG" />
           )}
           <div className={`w-28 h-28 bg-zinc-950 rounded-[2.5rem] overflow-hidden flex items-center justify-center relative z-10 
-            ${!MOLDURAS_DISCORD[equipados.moldura] && !imagemMolduraUrl ? 'border-2 ' + aura.border + ' ' + elo.glow : ''} 
+            ${!MOLDURAS_DISCORD[equipados.moldura] && !imagemMolduraUrl ? 'border-2 ' + aura.border + (contornoRankPerfil ? ' ' + contornoRankPerfil : '') : ''} 
             ${MOLDURAS_DISCORD[equipados.moldura] || (!imagemMolduraUrl ? equipados.moldura : '')}
           `}>
             {dadosPerfil.avatar?.startsWith('http') ? <img src={dadosPerfil.avatar} className="w-full h-full object-cover rounded-[2.5rem]" /> : <span className="text-5xl">{dadosPerfil.avatar}</span>}
@@ -339,9 +506,17 @@ export default function PerfilPage() {
           </p>
         )}
         
-        <p className={`text-[10px] font-black bg-gradient-to-r ${elo.cor} bg-clip-text text-transparent uppercase tracking-[0.5em] mb-10`}>
-          RANK: {elo.tier}
+        <p className={`text-[10px] font-black uppercase tracking-[0.5em] mb-2 ${classesTailwindNomeRank(twRankPerfil)}`}>
+          RANK: {rankAtualPerfil?.nome ?? "—"}
         </p>
+        <div className={`w-full max-w-xs mx-auto mb-10 ${classesTailwindNomeRank(twRankPerfil)}`}>
+          <div className={`h-1 rounded-full overflow-hidden bg-black/50 border border-white/10 ${contornoRankPerfil}`}>
+            <div
+              className="h-full bg-current opacity-90 transition-all duration-500 max-w-full"
+              style={{ width: `${progressoAscensaoPerfil}%` }}
+            />
+          </div>
+        </div>
 
         <div className="flex gap-4 md:gap-8 border-b border-white/5 w-full justify-center pb-6 mb-10">
           {["STATUS", "MISSÕES", "TROFÉUS", "LOJA", "CONFIG"].map(aba => (
@@ -354,6 +529,27 @@ export default function PerfilPage() {
         <div className="w-full h-[320px] overflow-y-auto custom-scrollbar px-2">
           {abaAtiva === "STATUS" && (
             <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2 bg-gradient-to-r from-zinc-900 to-black p-5 rounded-3xl border border-white/5 space-y-3">
+                <div className="flex justify-between items-end gap-2">
+                  <span className="text-[8px] font-black uppercase text-zinc-500 tracking-widest">Nível de Ascensão</span>
+                  <span className={`text-[10px] font-black italic uppercase text-right ${classesTailwindNomeRank(twRankPerfil)}`}>
+                    {rankAtualPerfil?.nome ?? "—"}
+                  </span>
+                </div>
+                <div className={classesTailwindNomeRank(twRankPerfil)}>
+                  <div className={`h-1.5 w-full rounded-full overflow-hidden bg-black/50 ${contornoRankPerfil}`}>
+                    <div
+                      className="h-full bg-current opacity-95 transition-all duration-500 max-w-full"
+                      style={{ width: `${progressoAscensaoPerfil}%` }}
+                    />
+                  </div>
+                </div>
+                <p className="text-[7px] font-bold text-zinc-600 uppercase tracking-wider">
+                  {proximoRankPerfil
+                    ? `Próximo: ${proximoRankPerfil.nome} (${proximoRankPerfil.xp_minimo.toLocaleString()} XP)`
+                    : "Rank máximo da guilda"}
+                </p>
+              </div>
               <div className="bg-black/40 border border-white/5 p-6 rounded-3xl flex flex-col items-center">
                 <span className="text-3xl font-black text-white italic">{stats.obras}</span>
                 <span className="text-[7px] font-black text-zinc-600 uppercase mt-2">Obras Totais</span>
@@ -407,12 +603,36 @@ export default function PerfilPage() {
           )}
 
           {abaAtiva === "LOJA" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-10">
-              {lojaItens.map(item => {
+            <div className="space-y-4 pb-10">
+              <div className="flex flex-wrap gap-2 justify-center">
+                {(
+                  [
+                    { id: "Todos" as const, label: "Todos" },
+                    { id: "Molduras" as const, label: "Molduras" },
+                    { id: "Títulos" as const, label: "Títulos" },
+                    { id: "VFX" as const, label: "Partículas (VFX)" },
+                  ] as const
+                ).map(({ id, label }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setCategoriaAtiva(id)}
+                    className={`px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all ${
+                      categoriaAtiva === id
+                        ? `${aura.btn} border-opacity-80`
+                        : "bg-black/40 border-white/10 text-zinc-500 hover:text-zinc-300 hover:border-white/20"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 auto-rows-fr">
+              {lojaItensFiltrados.map(item => {
                 const comprado = inventario.includes(item.id); 
                 const equipado = equipados[item.tipo] === item.id;
                 return (
-                  <div key={item.id} className={`p-4 rounded-3xl border flex flex-col gap-4 ${comprado ? 'bg-zinc-900 border-zinc-700' : 'bg-black/50 border-zinc-800'}`}>
+                  <div key={item.id} className={`p-4 rounded-3xl border flex flex-col gap-4 min-h-[140px] ${comprado ? 'bg-zinc-900 border-zinc-700' : 'bg-black/50 border-zinc-800'}`}>
                     <div className="flex items-center gap-4">
                       {item.imagem_url && !item.imagem_url.includes('.mp4') && !item.imagem_url.includes('.webm') && item.tipo !== 'titulo' ? (
                         <div className="w-14 h-14 bg-zinc-950 p-2 rounded-2xl border border-white/5 flex items-center justify-center">
@@ -438,6 +658,7 @@ export default function PerfilPage() {
                   </div>
                 );
               })}
+              </div>
             </div>
           )}
 
@@ -474,6 +695,104 @@ export default function PerfilPage() {
       </div>
 
       {modalSenhaMestra}
+
+      {editandoCard && (
+        <div
+          className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/90 backdrop-blur-sm"
+          onClick={fecharModalCartaoSemSalvar}
+          role="presentation"
+        >
+          <div
+            className="bg-[#0e0e11] border border-zinc-800 w-full max-w-md rounded-[2.5rem] p-8 flex flex-col gap-6 shadow-2xl animate-in fade-in zoom-in duration-300"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-labelledby="perfil-cartao-titulo"
+          >
+            <h2 id="perfil-cartao-titulo" className="text-xl font-black italic uppercase tracking-tighter text-blue-500">
+              Configurar Player Card
+            </h2>
+            <div className="border border-white/5 rounded-2xl overflow-hidden origin-center scale-[0.92] mb-1">
+              <HunterCard perfil={perfilParaHunterCard} customizacao={cardDados} />
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black uppercase text-zinc-500 ml-2">URL do Banner (Fundo)</label>
+                <input
+                  type="text"
+                  placeholder="Link da imagem..."
+                  className="w-full bg-black border border-zinc-800 p-4 rounded-2xl text-xs outline-none focus:border-cyan-500/60 mt-1 text-white"
+                  value={cardDados.banner_url}
+                  onChange={(e) => setCardDados({ ...cardDados, banner_url: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-black uppercase text-zinc-500 ml-2">Texto da Tag</label>
+                  <input
+                    type="text"
+                    className="w-full bg-black border border-zinc-800 p-4 rounded-2xl text-xs outline-none focus:border-cyan-500/60 mt-1 text-white"
+                    value={cardDados.tag_texto}
+                    maxLength={8}
+                    onChange={(e) => setCardDados({ ...cardDados, tag_texto: e.target.value.toUpperCase() })}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase text-zinc-500 ml-2">Cor da Tag</label>
+                  <input
+                    type="color"
+                    className="w-full h-[50px] bg-black border border-zinc-800 p-2 rounded-2xl cursor-pointer mt-1"
+                    value={cardDados.tag_cor}
+                    onChange={(e) => setCardDados({ ...cardDados, tag_cor: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-black uppercase text-zinc-500 ml-2">Cor do Nome</label>
+                <input
+                  type="color"
+                  className="w-full h-[50px] bg-black border border-zinc-800 p-2 rounded-2xl cursor-pointer mt-1"
+                  value={cardDados.fonte_cor}
+                  onChange={(e) => setCardDados({ ...cardDados, fonte_cor: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-2">
+              <button
+                type="button"
+                onClick={salvarPlayerCardPerfil}
+                className="flex-1 bg-cyan-600 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest text-white hover:bg-cyan-500 transition-colors shadow-[0_0_20px_rgba(8,145,178,0.25)]"
+              >
+                Salvar Alterações
+              </button>
+              <button
+                type="button"
+                onClick={fecharModalCartaoSemSalvar}
+                className="px-6 bg-zinc-900 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest text-zinc-400 hover:bg-zinc-800 transition-colors"
+              >
+                Voltar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="fixed bottom-10 right-10 z-[300] flex flex-col gap-3 pointer-events-none">
+        {toastsPerfil.map((t) => (
+          <div
+            key={t.id}
+            className={`flex items-center gap-4 px-6 py-4 rounded-2xl border backdrop-blur-md shadow-2xl animate-in slide-in-from-right-8 fade-in duration-300 ${
+              t.tipo === "sucesso"
+                ? "bg-green-500/10 border-green-500/50 text-green-400"
+                : t.tipo === "erro"
+                  ? "bg-red-500/10 border-red-500/50 text-red-400"
+                  : "bg-orange-500/10 border-orange-500/50 text-orange-400"
+            }`}
+          >
+            <span className="text-2xl">{t.tipo === "sucesso" ? "✅" : t.tipo === "erro" ? "❌" : "⚠️"}</span>
+            <span className="text-[10px] font-black uppercase tracking-widest mt-1">{t.mensagem}</span>
+          </div>
+        ))}
+      </div>
     </main>
   );
 }

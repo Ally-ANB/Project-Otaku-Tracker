@@ -1,7 +1,7 @@
 "use client";
 
 import { supabase } from "../supabase";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { Mic } from "lucide-react";
 import MangaDetailsModal, { type Manga as MangaObraModal } from "../components/MangaDetailsModal";
@@ -17,6 +17,19 @@ import HunterCard from "../components/HunterCard";
 import Podium from "./components/Podium";
 import HuntersList from "./components/HuntersList";
 import type { Mensagem, Perfil, EstatisticasHunter, FiltroRanking, AbaPrincipalObra, FavoritoComTipo } from "./types";
+import {
+  type GuildaRank,
+  type StatsHunterAgregado,
+  ordenarRanksPorXpMinimoAsc,
+  ordenarRanksPorXpMinimoDesc,
+  rankAtualDeListaOrdenada,
+  proximoRankPorXp,
+  totalXpAscensaoHunter,
+  classesTailwindNomeRank,
+  calcularXpTotalHunter,
+  percentualAscensaoAteProximoRank,
+  classesTailwindContornoRank,
+} from "./rankUtils";
 
 // ==========================================
 // 🎨 DICIONÁRIO DE COSMÉTICOS DO CHAT
@@ -84,6 +97,8 @@ export default function GuildaPage() {
 
   const [sintoniaVozAtiva, setSintoniaVozAtiva] = useState(false);
 
+  const [guildaRanks, setGuildaRanks] = useState<GuildaRank[]>([]);
+
   const [toastsGuilda, setToastsGuilda] = useState<
     { id: number; mensagem: string; tipo: "sucesso" | "erro" | "aviso" | "anilist" }[]
   >([]);
@@ -124,6 +139,9 @@ export default function GuildaPage() {
 
   const meuPerfilAtivo = perfis.find(p => p.nome_original === usuarioAtivo);
 
+  const ranksAsc = useMemo(() => ordenarRanksPorXpMinimoAsc(guildaRanks), [guildaRanks]);
+  const ranksDesc = useMemo(() => ordenarRanksPorXpMinimoDesc(guildaRanks), [guildaRanks]);
+
   useEffect(() => {
     if (meuPerfilAtivo?.cosmeticos?.ativos?.card_config) {
       setCardDados(meuPerfilAtivo.cosmeticos.ativos.card_config);
@@ -148,6 +166,8 @@ export default function GuildaPage() {
     await buscarMensagens();
     const { data: itensDB } = await supabase.from("loja_itens").select("*");
     if (itensDB) setLojaItens(itensDB);
+    const { data: ranksRows } = await supabase.from("guilda_ranks").select("*");
+    if (ranksRows) setGuildaRanks(ranksRows as GuildaRank[]);
   }
 
   async function buscarPerfis() {
@@ -171,12 +191,34 @@ export default function GuildaPage() {
       setInspecionandoHunter(stats);
     } else {
       const basico = perfis.find(p => p.nome_original === nomeOriginal);
-      if (basico) setInspecionandoHunter({ ...basico, total_obras: 0, total_capitulos: 0, tempo_vida: 0, total_favoritos: 0, elo: 'BRONZE', total_conquistas: 0 } as EstatisticasHunter);
+      if (basico) {
+        const txp = totalXpAscensaoHunter({
+          total_obras: 0,
+          total_conquistas: 0,
+          xp_missoes: basico.xp_missoes,
+        });
+        setInspecionandoHunter({
+          ...basico,
+          total_obras: 0,
+          total_capitulos: 0,
+          tempo_vida: 0,
+          total_favoritos: 0,
+          total_conquistas: 0,
+          total_xp_ascensao: txp,
+          rank_nome: "—",
+          rank_classes_tailwind: "",
+        } as EstatisticasHunter);
+      }
     }
   };
 
   async function gerarRanking() {
     setCarregandoRanking(true);
+    const { data: ranksRows } = await supabase.from("guilda_ranks").select("*");
+    const ranksArr = (ranksRows || []) as GuildaRank[];
+    const ranksDesc = ordenarRanksPorXpMinimoDesc(ranksArr);
+    const ranksAsc = ordenarRanksPorXpMinimoAsc(ranksArr);
+
     const { data: m } = await supabase.from("mangas").select("usuario, capitulo_atual, favorito");
     const { data: a } = await supabase.from("animes").select("usuario, capitulo_atual, favorito");
     const { data: f } = await supabase.from("filmes").select("usuario, capitulo_atual, status, favorito");
@@ -210,11 +252,6 @@ export default function GuildaPage() {
 
     const statusCompletos = perfis.map(p => {
       const s = statsByUser[p.nome_original] || { obras: 0, caps: 0, tempoMin: 0, favs: 0, filmes: 0, livros: 0 };
-      let eloTier = "BRONZE";
-      if (s.obras >= 1000) eloTier = "DIVINDADE"; 
-      else if (s.obras >= 500) eloTier = "DESAFIANTE";
-      else if (s.obras >= 200) eloTier = "MESTRE"; 
-      else if (s.obras >= 100) eloTier = "DIAMANTE";
       let trofeus = 0;
       for (let id = 1; id <= 85; id++) {
         let check = false;
@@ -233,25 +270,33 @@ export default function GuildaPage() {
         if (check) trofeus++;
       }
 
+      const agg: StatsHunterAgregado = {
+        obras: s.obras,
+        caps: s.caps,
+        tempoMin: s.tempoMin,
+        favs: s.favs,
+        filmes: s.filmes,
+        livros: s.livros,
+      };
+      const total_xp_ascensao = calcularXpTotalHunter(agg, p.xp_missoes || 0);
+      const rankAtual = rankAtualDeListaOrdenada(ranksDesc, total_xp_ascensao);
+
       return {
-        ...p, esmolas: p.esmolas || 0, total_obras: s.obras, total_capitulos: s.caps,
-        tempo_vida: Math.floor(s.tempoMin / 60), total_favoritos: s.favs, elo: eloTier, total_conquistas: trofeus
+        ...p,
+        esmolas: p.esmolas || 0,
+        total_obras: s.obras,
+        total_capitulos: s.caps,
+        tempo_vida: Math.floor(s.tempoMin / 60),
+        total_favoritos: s.favs,
+        total_conquistas: trofeus,
+        total_xp_ascensao,
+        rank_nome: rankAtual?.nome ?? "—",
+        rank_classes_tailwind: rankAtual?.classes_tailwind ?? "",
       };
     });
     setEstatisticas(statusCompletos);
     setCarregandoRanking(false);
   }
-
-  // ✅ FUNÇÃO: CALCULAR PROGRESSO DO ELO
-  const calcularProgressoElo = (obras: number) => {
-    let atual = 0; let prox = 100;
-    if (obras >= 1000) return 100;
-    if (obras >= 500) { atual = 500; prox = 1000; }
-    else if (obras >= 200) { atual = 200; prox = 500; }
-    else if (obras >= 100) { atual = 100; prox = 200; }
-    const percent = ((obras - atual) / (prox - atual)) * 100;
-    return Math.min(Math.max(percent, 5), 100);
-  };
 
   async function enviarMensagem(e?: React.FormEvent, urlFigurinha?: string) {
     if (e) e.preventDefault();
@@ -385,6 +430,27 @@ export default function GuildaPage() {
   const statsPopoutMembro = popoutMembro
     ? estatisticas.find((s) => s.nome_original === popoutMembro.nome_original) ?? null
     : null;
+
+  const popoutGuildaRank =
+    popoutMembro && guildaRanks.length > 0
+      ? (() => {
+          const totalXp =
+            statsPopoutMembro?.total_xp_ascensao ??
+            totalXpAscensaoHunter({
+              total_obras: statsPopoutMembro?.total_obras,
+              total_conquistas: statsPopoutMembro?.total_conquistas,
+              xp_missoes: popoutMembro.xp_missoes,
+            });
+          const atual = rankAtualDeListaOrdenada(ranksDesc, totalXp);
+          const proximo = proximoRankPorXp(ranksAsc, totalXp);
+          return {
+            nome: atual?.nome ?? "",
+            nomeClasses: classesTailwindNomeRank(atual?.classes_tailwind ?? ""),
+            rankTailwind: atual?.classes_tailwind ?? "",
+            xpMinProximo: proximo?.xp_minimo ?? null,
+          };
+        })()
+      : null;
 
   function abrirPopoutMembro(perfil: Perfil, anchor: DOMRect) {
     setPopoutAnchorRect(anchor);
@@ -602,6 +668,7 @@ export default function GuildaPage() {
                   onInspect={abrirInspecao}
                   getMolduraPng={getMolduraPng}
                   getTituloItem={getTituloItem}
+                  guildaRanks={guildaRanks}
                 />
                 <div className="border-t border-zinc-800 pt-6 flex flex-col flex-1 min-h-[12rem]">
                   <h3 className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-4">Demais posições</h3>
@@ -613,6 +680,7 @@ export default function GuildaPage() {
                     getMolduraPng={getMolduraPng}
                     getTituloItem={getTituloItem}
                     startIndex={3}
+                    guildaRanks={guildaRanks}
                   />
                 </div>
               </div>
@@ -651,6 +719,18 @@ export default function GuildaPage() {
                 {perfis.map((p) => {
                   const molduraSidebar = getMolduraPng(p.cosmeticos?.ativos?.moldura as string | undefined);
                   const tituloSidebar = getTituloItem(p.cosmeticos?.ativos?.titulo as string | undefined);
+                  const statsP = estatisticas.find((s) => s.nome_original === p.nome_original);
+                  const totalXpSidebar =
+                    statsP?.total_xp_ascensao ??
+                    totalXpAscensaoHunter({
+                      total_obras: statsP?.total_obras,
+                      total_conquistas: statsP?.total_conquistas,
+                      xp_missoes: p.xp_missoes,
+                    });
+                  const rankSidebar =
+                    guildaRanks.length > 0 ? rankAtualDeListaOrdenada(ranksDesc, totalXpSidebar) : null;
+                  const rankClassesSidebar =
+                    guildaRanks.length > 0 ? (rankSidebar?.classes_tailwind ?? "") : undefined;
                   return (
                     <div
                       key={p.nome_original}
@@ -673,6 +753,7 @@ export default function GuildaPage() {
                         imagemMolduraUrl={molduraSidebar || undefined}
                         tamanho="sm"
                         temaCor={p.cor_tema?.startsWith("#") ? p.cor_tema : p.custom_color}
+                        rankTailwindClasses={rankClassesSidebar}
                       />
                       <div className="overflow-hidden min-w-0 flex-1">
                         <div className="flex items-center gap-2 min-w-0">
@@ -721,6 +802,13 @@ export default function GuildaPage() {
         getMolduraPng={getMolduraPng}
         getTituloItem={getTituloItem}
         getCor={getCor}
+        guildaRankNome={popoutGuildaRank?.nome}
+        guildaRankNomeClasses={popoutGuildaRank?.nomeClasses}
+        rankTailwindClasses={
+          popoutGuildaRank ? popoutGuildaRank.rankTailwind || "" : undefined
+        }
+        xpMissoesAtual={popoutMembro?.xp_missoes ?? 0}
+        xpMinimoProximoRank={popoutGuildaRank?.xpMinProximo ?? null}
       />
 
       {obraGuildaModal && (
@@ -801,7 +889,15 @@ export default function GuildaPage() {
         const corAura = inspecionandoHunter.cor_tema?.startsWith('#') 
           ? inspecionandoHunter.cor_tema 
           : (inspecionandoHunter.custom_color || "#3b82f6");
-        const progresso = calcularProgressoElo(inspecionandoHunter.total_obras);
+        const totalXpInsp = inspecionandoHunter.total_xp_ascensao;
+        const rankAtualInsp = guildaRanks.length
+          ? rankAtualDeListaOrdenada(ranksDesc, totalXpInsp)
+          : null;
+        const proximoInsp = guildaRanks.length ? proximoRankPorXp(ranksAsc, totalXpInsp) : null;
+        const progresso = percentualAscensaoAteProximoRank(totalXpInsp, rankAtualInsp, proximoInsp);
+        const nomeRankInsp = rankAtualInsp?.nome ?? inspecionandoHunter.rank_nome;
+        const twRankInsp = rankAtualInsp?.classes_tailwind ?? inspecionandoHunter.rank_classes_tailwind;
+        const contornoBarra = classesTailwindContornoRank(twRankInsp);
 
         return (
           <div className="fixed inset-0 z-[600] flex items-center justify-center p-6 bg-black/95 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setInspecionandoHunter(null)}>
@@ -837,17 +933,21 @@ export default function GuildaPage() {
                   )}
                 </div>
 
-                {/* BARRA DE PROGRESSO DE ELO */}
-                <div className="mt-6 mb-2">
-                  <div className="flex justify-between items-end mb-2">
+                {/* BARRA DE PROGRESSO (rank dinâmico guilda_ranks) */}
+                <div className="mt-6 mb-2 space-y-2">
+                  <div className="flex justify-between items-end gap-2">
                     <span className="text-[8px] font-black uppercase text-zinc-500 tracking-widest">Nível de Ascensão</span>
-                    <span className="text-[10px] font-black text-white italic">{inspecionandoHunter.elo}</span>
+                    <span className={`text-[10px] font-black italic uppercase tracking-wide text-right ${classesTailwindNomeRank(twRankInsp)}`}>
+                      {nomeRankInsp}
+                    </span>
                   </div>
-                  <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden border border-white/5">
-                    <div 
-                      className="h-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-all duration-1000" 
-                      style={{ width: `${progresso}%`, boxShadow: '0 0 10px rgba(37, 99, 235, 0.5)' }} 
-                    />
+                  <div className={`w-full ${classesTailwindNomeRank(twRankInsp)}`}>
+                    <div className={`h-1.5 w-full rounded-full overflow-hidden bg-black/50 ${contornoBarra}`}>
+                      <div
+                        className="h-full bg-current opacity-95 transition-all duration-1000 max-w-full"
+                        style={{ width: `${progresso}%` }}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

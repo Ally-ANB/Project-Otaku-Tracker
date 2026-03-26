@@ -1,8 +1,16 @@
 "use client";
 
+import { useMemo } from "react";
 import HunterAvatar from "../../components/HunterAvatar";
 import type { EstatisticasHunter, FiltroRanking } from "../types";
-import { metricaRanking } from "../rankUtils";
+import {
+  metricaRanking,
+  type GuildaRank,
+  ordenarRanksPorXpMinimoDesc,
+  rankAtualDeListaOrdenada,
+  totalXpAscensaoHunter,
+  classesTailwindNomeRank,
+} from "../rankUtils";
 
 type LojaTitulo = { id: string; nome: string; imagem_url?: string };
 
@@ -12,6 +20,7 @@ interface PodiumProps {
   onInspect: (nomeOriginal: string) => void;
   getMolduraPng: (idItem?: string) => string | null;
   getTituloItem: (idItem?: string) => LojaTitulo | null | undefined;
+  guildaRanks: GuildaRank[];
 }
 
 const ORDEM_PODIO: [number, number, number] = [1, 0, 2];
@@ -21,8 +30,10 @@ export default function Podium({
   filtroRanking,
   onInspect,
   getMolduraPng,
-  getTituloItem
+  getTituloItem,
+  guildaRanks,
 }: PodiumProps) {
+  const ranksDesc = useMemo(() => ordenarRanksPorXpMinimoDesc(guildaRanks), [guildaRanks]);
   const slots = ORDEM_PODIO.map((i) => hunters[i]).filter(Boolean) as EstatisticasHunter[];
   if (slots.length === 0) {
     return (
@@ -56,6 +67,11 @@ export default function Podium({
         const { corTexto, valor, label } = metricaRanking(filtroRanking, hunter);
         const altura =
           isTop1 ? "min-h-[200px] sm:min-h-[240px]" : isTop2 ? "min-h-[160px] sm:min-h-[190px]" : "min-h-[140px] sm:min-h-[170px]";
+        const totalXp = totalXpAscensaoHunter(hunter);
+        const rankGuilda =
+          guildaRanks.length > 0 ? rankAtualDeListaOrdenada(ranksDesc, totalXp) : null;
+        const rankClassesAvatar =
+          guildaRanks.length > 0 ? (rankGuilda?.classes_tailwind ?? "") : undefined;
 
         return (
           <button
@@ -83,10 +99,18 @@ export default function Podium({
               imagemMolduraUrl={molduraRank || undefined}
               tamanho={isTop1 ? "lg" : "md"}
               temaCor={hunter.cor_tema?.startsWith("#") ? hunter.cor_tema : hunter.custom_color}
+              rankTailwindClasses={rankClassesAvatar}
             />
             <p className="mt-2 text-center font-black text-xs uppercase tracking-tight text-white">
               {hunter.nome_exibicao} <span className="text-base">{medalha}</span>
             </p>
+            {rankGuilda && (
+              <p
+                className={`mt-0.5 text-center text-[8px] font-black uppercase tracking-[0.2em] ${classesTailwindNomeRank(rankGuilda.classes_tailwind)}`}
+              >
+                {rankGuilda.nome}
+              </p>
+            )}
             {tituloRank && (
               <p className={`text-[7px] font-black uppercase tracking-[0.2em] text-zinc-400 ${tituloRank.id}`}>
                 « {tituloRank.nome.replace("Título: ", "")} »

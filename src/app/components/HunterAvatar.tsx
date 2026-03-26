@@ -8,6 +8,12 @@ interface HunterAvatarProps {
   imagemMolduraUrl?: string;
   tamanho?: "sm" | "md" | "lg" | "xl";
   temaCor?: string; // Hexadecimal da aura
+  /**
+   * Quando definido (ex.: lista da Guilda / popout), substitui borda simples por `classes_tailwind` do rank.
+   * String vazia = sem tier aplicável → fallback neutro `border-slate-800`.
+   * Omitir = comportamento legado (borda por temaCor / moldura).
+   */
+  rankTailwindClasses?: string;
 }
 
 export default function HunterAvatar({ 
@@ -15,7 +21,8 @@ export default function HunterAvatar({
   idMoldura, 
   imagemMolduraUrl, 
   tamanho = "md",
-  temaCor = "#3b82f6" 
+  temaCor = "#3b82f6",
+  rankTailwindClasses,
 }: HunterAvatarProps) {
   
   // Definição de tamanhos dinâmicos
@@ -27,6 +34,11 @@ export default function HunterAvatar({
   };
 
   const tamanhoClasse = tamanhos[tamanho];
+
+  const usaRankGuilda = rankTailwindClasses !== undefined;
+  const rankBordaGlow = usaRankGuilda
+    ? (rankTailwindClasses!.trim() || "border-slate-800 shadow-none")
+    : null;
 
   return (
     <div className={`relative flex items-center justify-center shrink-0 ${tamanhoClasse.split(' ')[0]} ${tamanhoClasse.split(' ')[1]}`}>
@@ -44,10 +56,18 @@ export default function HunterAvatar({
       <div 
         className={`
           ${tamanhoClasse} bg-zinc-950 overflow-hidden flex items-center justify-center relative z-10 border-2
-          ${!MOLDURAS_DISCORD[idMoldura || ""] && !imagemMolduraUrl ? 'border-white/10' : 'border-transparent'} 
-          ${idMoldura ? MOLDURAS_DISCORD[idMoldura] : ''}
+          ${
+            usaRankGuilda
+              ? rankBordaGlow
+              : !MOLDURAS_DISCORD[idMoldura || ""] && !imagemMolduraUrl
+                ? "border-white/10"
+                : "border-transparent"
+          }
+          ${idMoldura && !usaRankGuilda ? MOLDURAS_DISCORD[idMoldura] : ""}
         `}
-        style={(!idMoldura && !imagemMolduraUrl) ? { borderColor: `${temaCor}40` } : {}}
+        style={
+          !usaRankGuilda && !idMoldura && !imagemMolduraUrl ? { borderColor: `${temaCor}40` } : {}
+        }
       >
         {avatarUrl?.startsWith('http') ? (
           <img src={avatarUrl} className="w-full h-full object-cover" alt="Avatar" />

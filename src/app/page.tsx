@@ -5,7 +5,7 @@
 // ==========================================
 import AcessoMestre from "./components/AcessoMestre";
 import { supabase } from "./supabase";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import MangaCard from "./components/MangaCard";
 import AddMangaModal from "./components/AddMangaModal";
@@ -16,7 +16,6 @@ import { useSenhaMestraInterativa } from "./hooks/useSenhaMestraInterativa";
 import { dbClient, requisicaoDbApi } from "@/lib/dbClient";
 // ✅ ADICIONADO: Componente de Identidade Universal e Player Card
 import HunterAvatar from "./components/HunterAvatar";
-import HunterCard from "./components/HunterCard";
 import { BookOpen, Film, Tv, Gamepad2, Music, Book } from "lucide-react";
 
 interface Manga { 
@@ -98,14 +97,8 @@ export default function Home() {
   const [pinAdminAberto, setPinAdminAberto] = useState(false);
   const { obterSenhaMestreInterativa, modalSenhaMestra } = useSenhaMestraInterativa();
 
-  // ✅ ESTADOS DO PLAYER CARD (IDENTIDADE)
-  const [editandoCard, setEditandoCard] = useState(false);
-  const [cardDados, setCardDados] = useState({
-    banner_url: '',
-    tag_texto: 'HUNTER',
-    tag_cor: '#3b82f6',
-    fonte_cor: '#ffffff'
-  });
+  const [menuHubAberto, setMenuHubAberto] = useState(false);
+  const menuHubRef = useRef<HTMLDivElement>(null);
 
   // ==========================================
   // 🔔 [SESSÃO 4] - SISTEMA DE NOTIFICAÇÕES
@@ -149,6 +142,15 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (!menuHubAberto) return;
+    const fechar = (e: MouseEvent) => {
+      if (menuHubRef.current && !menuHubRef.current.contains(e.target as Node)) setMenuHubAberto(false);
+    };
+    document.addEventListener("mousedown", fechar);
+    return () => document.removeEventListener("mousedown", fechar);
+  }, [menuHubAberto]);
+
+  useEffect(() => {
     if (usuarioAtual) {
       setIsAdmin(usuarioAtual === "Admin");
       buscarMangas(); buscarAnimes(); buscarFilmes(); buscarLivros();
@@ -157,9 +159,6 @@ export default function Home() {
       // ✅ SINCRONIZA OS DADOS DO CARD E COSMÉTICOS AO MUDAR DE USUÁRIO
       const pAtivo = perfis.find(p => p.nome_original === usuarioAtual);
       if (pAtivo) {
-        if (pAtivo.cosmeticos?.ativos?.card_config) {
-          setCardDados(pAtivo.cosmeticos.ativos.card_config);
-        }
         setInventario(pAtivo.cosmeticos?.comprados || []);
         setEquipados(pAtivo.cosmeticos?.ativos || { moldura: "", particula: "", vfx: "", titulo: "" });
       }
@@ -239,30 +238,6 @@ export default function Home() {
   }
 
   // ✅ FUNÇÃO PARA SALVAR O PLAYER CARD
-  async function salvarPlayerCard() {
-    const pAtivo = perfis.find(p => p.nome_original === usuarioAtual);
-    if (!pAtivo) return;
-    
-    const novosAtivos = { 
-      ...(pAtivo.cosmeticos?.ativos || {}), 
-      card_config: cardDados 
-    };
-
-    const resultado = await requisicaoDbSegura("POST", {
-      tabela: "perfis",
-      nome_original: usuarioAtual,
-      dados: { cosmeticos: { ...(pAtivo.cosmeticos || {}), ativos: novosAtivos } }
-    }, false);
-
-    if (resultado.ok) {
-      setEditandoCard(false);
-      buscarPerfis();
-      mostrarToast("Card de Identidade Atualizado!", "sucesso");
-    } else {
-      mostrarToast(resultado.data?.error || "Falha ao atualizar card.", "erro");
-    }
-  }
-
   // ==========================================
   // 🔄 [SESSÃO 7] - SINCRONIZAÇÃO ANILIST
   // ==========================================
@@ -757,13 +732,38 @@ export default function Home() {
 
               <div className="w-px h-4 bg-white/10 mx-1 hidden sm:block" />
               
-              <button 
-                onClick={() => setEditandoCard(true)}
-                className="p-1.5 text-zinc-600 group-hover:text-white group-hover:rotate-90 transition-all duration-500"
-                title="Configurar Identidade"
-              >
-                ⚙️
-              </button>
+              <div className="relative" ref={menuHubRef}>
+                <button
+                  type="button"
+                  onClick={() => setMenuHubAberto((v) => !v)}
+                  className="p-1.5 text-zinc-600 group-hover:text-white group-hover:rotate-90 transition-all duration-500"
+                  title="Menu"
+                  aria-expanded={menuHubAberto}
+                >
+                  ⚙️
+                </button>
+                {menuHubAberto && (
+                  <div className="absolute right-0 top-full mt-2 z-[400] min-w-[210px] rounded-2xl border border-cyan-500/25 bg-zinc-950/98 backdrop-blur-md shadow-[0_0_28px_rgba(34,211,238,0.18)] py-1 overflow-hidden pointer-events-auto">
+                    <Link
+                      href="/perfil?aba=config"
+                      className="block px-4 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-300 hover:bg-cyan-500/10 hover:text-cyan-300 transition-colors"
+                      onClick={() => setMenuHubAberto(false)}
+                    >
+                      Configurações
+                    </Link>
+                    <button
+                      type="button"
+                      className="w-full text-left px-4 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:bg-red-500/10 hover:text-red-400 transition-colors border-t border-white/5"
+                      onClick={() => {
+                        sessionStorage.removeItem("hunter_ativo");
+                        window.location.href = "/";
+                      }}
+                    >
+                      Encerrar Sessão
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -834,6 +834,7 @@ export default function Home() {
         usuarioAtual={usuarioAtual}
         abaPrincipal={abaPrincipal}
         solicitarSenhaMestre={obterSenhaMestreInterativa}
+        mostrarFeedback={mostrarToast}
         aoSalvar={() => { buscarMangas(); buscarAnimes(); buscarFilmes(); buscarLivros(); buscarSeries(); buscarJogos(); buscarMusicas(); setEstaAbertoAdd(false); }}
       />
       
@@ -879,37 +880,6 @@ export default function Home() {
         />
       )} 
 
-      {editandoCard && perfilAtivo && (
-        <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/95 backdrop-blur-md">
-          <div className="bg-[#0e0e11] border border-zinc-800 w-full max-w-md rounded-[2.5rem] p-8 flex flex-col gap-6 shadow-2xl animate-in zoom-in duration-300">
-            <h2 className="text-2xl font-black italic uppercase tracking-tighter text-blue-500">Player Card Identity</h2>
-            <div className="border border-white/5 rounded-2xl overflow-hidden scale-90 origin-center mb-2">
-              <HunterCard perfil={perfilAtivo} customizacao={cardDados} />
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="text-[10px] font-black uppercase text-zinc-500 ml-2">Banner URL (Fundo)</label>
-                <input type="text" placeholder="https://exemplo.com/imagem.jpg" className="w-full bg-black border border-zinc-800 p-4 rounded-2xl text-xs outline-none focus:border-blue-500 transition-all mt-1" value={cardDados.banner_url} onChange={(e) => setCardDados({...cardDados, banner_url: e.target.value})} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[10px] font-black uppercase text-zinc-500 ml-2">Tag Texto</label>
-                  <input type="text" className="w-full bg-black border border-zinc-800 p-4 rounded-2xl text-xs outline-none focus:border-blue-500 transition-all mt-1 text-center" value={cardDados.tag_texto} maxLength={8} onChange={(e) => setCardDados({...cardDados, tag_texto: e.target.value.toUpperCase()})} />
-                </div>
-                <div>
-                  <label className="text-[10px] font-black uppercase text-zinc-500 ml-2">Tag Color</label>
-                  <input type="color" className="w-full h-[50px] bg-black border border-zinc-800 p-2 rounded-2xl cursor-pointer mt-1" value={cardDados.tag_cor} onChange={(e) => setCardDados({...cardDados, tag_cor: e.target.value})} />
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-3 mt-4">
-              <button onClick={salvarPlayerCard} className="flex-1 bg-blue-600 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-500 transition-all text-white shadow-lg shadow-blue-500/20">Salvar Card</button>
-              <button onClick={() => setEditandoCard(false)} className="px-6 bg-zinc-900 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-zinc-800 transition-all text-zinc-400">Cancelar</button>
-            </div>
-          </div>
-        </div>
-      )}
-      
       {modalSenhaMestra}
 
       <div className="fixed bottom-10 right-10 z-[300] flex flex-col gap-3 pointer-events-none">

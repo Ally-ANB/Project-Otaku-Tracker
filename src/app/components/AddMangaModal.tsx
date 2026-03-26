@@ -4,6 +4,7 @@ import { supabase } from "../supabase";
 import { limparSenhaMestreNaSessao, obterSenhaMestreRevelada } from "@/lib/dbClient";
 import { anilistExternalToProviders, type WatchProvider } from "@/lib/watchProviders";
 import WatchProviderStrip from "./WatchProviderStrip";
+import { aplicarEconomiaPosAdicaoEstante } from "@/app/guilda/guildaRankEconomia";
 
 // ==========================================
 // 📦 SESSÃO 1: INTERFACES
@@ -25,9 +26,19 @@ interface AddMangaModalProps {
   abaPrincipal: "MANGA" | "ANIME" | "FILME" | "LIVRO" | "SERIE" | "JOGO" | "MUSICA";
   aoSalvar: (novoManga: any) => void;
   solicitarSenhaMestre?: () => Promise<string | null>;
+  /** Toasts na home após economia de estante / rank (opcional). */
+  mostrarFeedback?: (mensagem: string, tipo?: "sucesso" | "erro" | "aviso" | "anilist") => void;
 }
 
-export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPrincipal, aoSalvar, solicitarSenhaMestre }: AddMangaModalProps) {
+export default function AddMangaModal({
+  estaAberto,
+  fechar,
+  usuarioAtual,
+  abaPrincipal,
+  aoSalvar,
+  solicitarSenhaMestre,
+  mostrarFeedback,
+}: AddMangaModalProps) {
   // ==========================================
   // 🔐 SESSÃO 2: ESTADOS DO MODAL
   // ==========================================
@@ -279,8 +290,18 @@ export default function AddMangaModal({ estaAberto, fechar, usuarioAtual, abaPri
       provider_data: novoManga.provider_data?.length ? novoManga.provider_data : null,
     };
     const resultado = await requisicaoDbInsertSegura(tabelaDb, obraParaSalvar, true);
-    if (resultado.ok) { aoSalvar(obraParaSalvar); fechar(); }
-    else { alert("Erro ao salvar: " + (resultado.data?.error || resultado.error || "Falha desconhecida.")); }
+    if (resultado.ok) {
+      try {
+        const efeitos = await aplicarEconomiaPosAdicaoEstante(usuarioAtual);
+        efeitos.mensagensToast.forEach((msg) => mostrarFeedback?.(msg, "sucesso"));
+      } catch {
+        /* economia opcional — obra já foi salva */
+      }
+      aoSalvar(obraParaSalvar);
+      fechar();
+    } else {
+      alert("Erro ao salvar: " + (resultado.data?.error || resultado.error || "Falha desconhecida."));
+    }
     setSalvando(false);
   }
 

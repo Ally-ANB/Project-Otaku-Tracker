@@ -1,8 +1,16 @@
 "use client";
 
+import { useMemo } from "react";
 import HunterAvatar from "../../components/HunterAvatar";
 import type { EstatisticasHunter, FiltroRanking } from "../types";
-import { metricaRanking } from "../rankUtils";
+import {
+  metricaRanking,
+  type GuildaRank,
+  ordenarRanksPorXpMinimoDesc,
+  rankAtualDeListaOrdenada,
+  totalXpAscensaoHunter,
+  classesTailwindNomeRank,
+} from "../rankUtils";
 
 type LojaTitulo = { id: string; nome: string; imagem_url?: string };
 
@@ -15,6 +23,7 @@ interface HuntersListProps {
   getTituloItem: (idItem?: string) => LojaTitulo | null | undefined;
   /** Índice inicial na lista ordenada (ex.: 3 para exibir a partir do 4º lugar) */
   startIndex?: number;
+  guildaRanks: GuildaRank[];
 }
 
 export default function HuntersList({
@@ -24,8 +33,10 @@ export default function HuntersList({
   onInspect,
   getMolduraPng,
   getTituloItem,
-  startIndex = 0
+  startIndex = 0,
+  guildaRanks,
 }: HuntersListProps) {
+  const ranksDesc = useMemo(() => ordenarRanksPorXpMinimoDesc(guildaRanks), [guildaRanks]);
   const slice = hunters.slice(startIndex);
 
   return (
@@ -121,6 +132,11 @@ export default function HuntersList({
           const { corTexto, valor, label } = metricaRanking(filtroRanking, hunter);
           const molduraRank = getMolduraPng(hunter.cosmeticos?.ativos?.moldura as string | undefined);
           const tituloRank = getTituloItem(hunter.cosmeticos?.ativos?.titulo as string | undefined);
+          const totalXp = totalXpAscensaoHunter(hunter);
+          const rankGuilda =
+            guildaRanks.length > 0 ? rankAtualDeListaOrdenada(ranksDesc, totalXp) : null;
+          const rankClassesAvatar =
+            guildaRanks.length > 0 ? (rankGuilda?.classes_tailwind ?? "") : undefined;
 
           return (
             <div
@@ -158,6 +174,7 @@ export default function HuntersList({
                   imagemMolduraUrl={molduraRank || undefined}
                   tamanho="md"
                   temaCor={hunter.cor_tema?.startsWith("#") ? hunter.cor_tema : hunter.custom_color}
+                  rankTailwindClasses={rankClassesAvatar}
                 />
                 <div>
                   <p className="font-black text-lg uppercase flex items-center gap-2">
@@ -168,8 +185,15 @@ export default function HuntersList({
                       « {tituloRank.nome.replace("Título: ", "")} »
                     </p>
                   )}
-                  <p className="text-[9px] text-zinc-500 uppercase tracking-widest mt-1">
-                    RANK: <span className="text-white">{hunter.elo}</span>
+                  <p className="mt-1 text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                    Rank{" "}
+                    {rankGuilda ? (
+                      <span className={classesTailwindNomeRank(rankGuilda.classes_tailwind)}>
+                        {rankGuilda.nome}
+                      </span>
+                    ) : (
+                      <span className="text-zinc-400">—</span>
+                    )}
                   </p>
                 </div>
               </div>

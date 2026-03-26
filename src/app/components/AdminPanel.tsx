@@ -51,6 +51,18 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
     tema_css: "", quantidade_elementos: 30, direcao: "padrao", particula_custom: null as any
   });
 
+  const [guildaRanks, setGuildaRanks] = useState<
+    { id: string; nome: string; xp_minimo: number; recompensa_esmolas: number; classes_tailwind: string }[]
+  >([]);
+  const [rankEditando, setRankEditando] = useState<{
+    id: string;
+    nome: string;
+    xp_minimo: number;
+    recompensa_esmolas: number;
+    classes_tailwind: string;
+  } | null>(null);
+  const [rankNovo, setRankNovo] = useState(false);
+
   async function obterSenhaMestreCacheada() {
     const senhaEmCache = obterSenhaMestreRevelada();
     if (senhaEmCache) return senhaEmCache;
@@ -73,6 +85,7 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
   // ==========================================
   useEffect(() => { setLocalPerfis(perfis); }, [perfis]);
   useEffect(() => { if (abaAtiva === "LOJA") carregarLojaItens(); }, [abaAtiva]);
+  useEffect(() => { if (abaAtiva === "FORJA") carregarGuildaRanks(); }, [abaAtiva]);
 
   // ==========================================
   // 👥 [SESSÃO] - FUNÇÕES DA GUILDA
@@ -252,6 +265,96 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
     }
   }
 
+  // ==========================================
+  // ⚒️ [SESSÃO] - FORJA DE RANKS (guilda_ranks)
+  // ==========================================
+  async function carregarGuildaRanks() {
+    setCarregandoAcao(true);
+    try {
+      const { data, error } = await supabase
+        .from("guilda_ranks")
+        .select("id,nome,xp_minimo,recompensa_esmolas,classes_tailwind")
+        .order("xp_minimo", { ascending: true });
+      if (error) throw error;
+      setGuildaRanks(data || []);
+    } catch (err: any) {
+      alert("Erro ao carregar ranks: " + err.message);
+    } finally {
+      setCarregandoAcao(false);
+    }
+  }
+
+  function abrirNovoRank() {
+    setRankNovo(true);
+    setRankEditando({
+      id: "",
+      nome: "",
+      xp_minimo: 0,
+      recompensa_esmolas: 0,
+      classes_tailwind: "border-zinc-600 text-zinc-400",
+    });
+  }
+
+  function abrirEdicaoRank(r: (typeof guildaRanks)[0]) {
+    setRankNovo(false);
+    setRankEditando({ ...r });
+  }
+
+  async function salvarRankForja() {
+    if (!rankEditando || !rankEditando.nome.trim()) return alert("Nome do rank é obrigatório.");
+    setCarregandoAcao(true);
+    try {
+      if (rankNovo) {
+        const resultado = await requisicaoDbSegura("POST", {
+          tabela: "guilda_ranks",
+          operacao: "insert",
+          dados: {
+            nome: rankEditando.nome.trim(),
+            xp_minimo: rankEditando.xp_minimo,
+            recompensa_esmolas: rankEditando.recompensa_esmolas,
+            classes_tailwind: rankEditando.classes_tailwind,
+          },
+        });
+        if (!resultado.ok) throw new Error(resultado.data?.error || "Falha ao criar rank.");
+      } else {
+        const resultado = await requisicaoDbSegura("POST", {
+          tabela: "guilda_ranks",
+          id: rankEditando.id,
+          dados: {
+            nome: rankEditando.nome.trim(),
+            xp_minimo: rankEditando.xp_minimo,
+            recompensa_esmolas: rankEditando.recompensa_esmolas,
+            classes_tailwind: rankEditando.classes_tailwind,
+          },
+        });
+        if (!resultado.ok) throw new Error(resultado.data?.error || "Falha ao atualizar rank.");
+      }
+      alert(rankNovo ? "✅ Rank forjado." : "✅ Rank atualizado.");
+      setRankEditando(null);
+      carregarGuildaRanks();
+    } catch (err: any) {
+      alert("Erro: " + err.message);
+    } finally {
+      setCarregandoAcao(false);
+    }
+  }
+
+  async function excluirRankForja(id: string) {
+    if (!confirm("Apagar este rank permanentemente? Perfis com guilda_ultimo_rank_id apontando para ele podem ficar inconsistentes.")) return;
+    setCarregandoAcao(true);
+    try {
+      const resultado = await requisicaoDbSegura("DELETE", { tabela: "guilda_ranks", id });
+      if (!resultado.ok) throw new Error(resultado.data?.error || "Falha ao excluir.");
+      alert("🗑️ Rank removido.");
+      setRankEditando(null);
+      carregarGuildaRanks();
+    } catch (err: any) {
+      alert("Erro: " + err.message);
+    } finally {
+      setCarregandoAcao(false);
+    }
+  }
+
   async function uploadImagemLoja(event: any) {
     try {
       setFazendoUploadLoja(true);
@@ -338,9 +441,9 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
 
       {/* MENU NAVEGAÇÃO */}
       <div className="flex flex-wrap gap-4 mb-10">
-        {["GUILDA", "LOJA", "SISTEMA", "FERRAMENTAS"].map(aba => (
+        {(["GUILDA", "LOJA", "FORJA", "SISTEMA", "FERRAMENTAS"] as const).map((aba) => (
           <button key={aba} onClick={() => setAbaAtiva(aba)} className={`px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all border ${abaAtiva === aba ? 'bg-yellow-500 text-black border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.3)]' : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-white hover:border-zinc-600'}`}>
-            {aba === "GUILDA" ? "👥 A Guilda" : aba === "LOJA" ? "🛒 Loja S+" : aba === "SISTEMA" ? "⚙️ Sistema" : "⚡ Ferramentas"}
+            {aba === "GUILDA" ? "👥 A Guilda" : aba === "LOJA" ? "🛒 Loja S+" : aba === "FORJA" ? "⚒️ Forja de Ranks" : aba === "SISTEMA" ? "⚙️ Sistema" : "⚡ Ferramentas"}
           </button>
         ))}
       </div>
@@ -434,6 +537,48 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
         </div>
       )}
 
+      {/* ⚒️ TELA FORJA DE RANKS */}
+      {abaAtiva === "FORJA" && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+          <div className="flex justify-between items-center mb-6">
+            <p className="text-xs font-black text-zinc-500 uppercase tracking-widest">Tiers da guilda ({guildaRanks.length})</p>
+            <button
+              onClick={abrirNovoRank}
+              disabled={carregandoAcao}
+              className="px-6 py-3 bg-amber-500/10 border border-amber-500/50 text-amber-400 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-amber-500 hover:text-black transition-all"
+            >
+              + Novo rank
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {guildaRanks.map((r) => (
+              <div key={r.id} className="bg-zinc-900/40 p-5 rounded-3xl border border-zinc-800 flex flex-col gap-3">
+                <div className="flex justify-between items-start gap-2">
+                  <p className="text-sm font-black text-white uppercase tracking-tight">{r.nome}</p>
+                  <span className="text-[9px] text-yellow-500 font-black whitespace-nowrap">+{r.recompensa_esmolas} 🪙</span>
+                </div>
+                <p className="text-[9px] text-zinc-500 font-mono">XP mín.: {r.xp_minimo}</p>
+                <p className="text-[8px] text-zinc-600 line-clamp-2 font-mono break-all">{r.classes_tailwind}</p>
+                <div className="flex gap-2 mt-auto pt-2 border-t border-zinc-800">
+                  <button
+                    onClick={() => abrirEdicaoRank(r)}
+                    className="flex-1 py-2 bg-zinc-800 text-zinc-300 rounded-lg text-[9px] font-bold uppercase hover:bg-white hover:text-black transition-all"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => excluirRankForja(r.id)}
+                    className="px-3 py-2 bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg text-[9px] font-bold uppercase hover:bg-red-500 hover:text-white transition-all"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ⚙️ TELA SISTEMA */}
       {abaAtiva === "SISTEMA" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4">
@@ -473,6 +618,77 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
             <p className="font-black text-yellow-500 uppercase text-sm drop-shadow-md">Chuva de Esmolas</p>
             <p className="text-[10px] text-zinc-500 uppercase leading-relaxed mb-4">Adiciona uma quantia exata de Esmolas para todos os caçadores.</p>
             <button onClick={darEsmolasParaTodos} disabled={carregandoAcao} className="mt-auto py-4 bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 hover:bg-yellow-500 hover:text-black font-black uppercase text-[10px] tracking-widest rounded-xl transition-all shadow-[0_0_15px_rgba(234,179,8,0.1)]">Iniciar Evento</button>
+          </div>
+        </div>
+      )}
+
+      {/* ⚒️ MODAL: FORJA DE RANK */}
+      {rankEditando && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+          <div className="bg-[#0e0e11] w-full max-w-lg p-8 rounded-[3rem] border border-amber-500/30 shadow-2xl relative animate-in zoom-in-95">
+            <button
+              onClick={() => setRankEditando(null)}
+              className="absolute top-8 right-8 text-zinc-600 hover:text-white font-black text-xl"
+            >
+              ✕
+            </button>
+            <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter mb-2">
+              {rankNovo ? "Forjar rank" : "Editar rank"}
+            </h2>
+            <p className="text-[10px] font-bold uppercase text-amber-500/80 tracking-widest mb-8">Tabela guilda_ranks</p>
+            <div className="space-y-4">
+              <div>
+                <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">Nome</label>
+                <input
+                  type="text"
+                  className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold outline-none focus:border-amber-500 transition-all mt-1"
+                  value={rankEditando.nome}
+                  onChange={(e) => setRankEditando({ ...rankEditando, nome: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">XP mínimo</label>
+                  <input
+                    type="number"
+                    className="w-full bg-black border border-white/5 p-4 rounded-xl text-amber-400 font-black outline-none focus:border-amber-500 transition-all mt-1"
+                    value={rankEditando.xp_minimo}
+                    onChange={(e) =>
+                      setRankEditando({ ...rankEditando, xp_minimo: parseInt(e.target.value, 10) || 0 })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">Recompensa Esmolas</label>
+                  <input
+                    type="number"
+                    className="w-full bg-black border border-yellow-500/30 p-4 rounded-xl text-yellow-500 font-black outline-none focus:border-yellow-500 transition-all mt-1"
+                    value={rankEditando.recompensa_esmolas}
+                    onChange={(e) =>
+                      setRankEditando({
+                        ...rankEditando,
+                        recompensa_esmolas: parseInt(e.target.value, 10) || 0,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">Classes Tailwind</label>
+                <textarea
+                  className="w-full bg-black border border-white/5 p-4 rounded-xl text-zinc-300 text-xs font-mono outline-none focus:border-amber-500 transition-all mt-1 min-h-[80px] resize-y"
+                  value={rankEditando.classes_tailwind}
+                  onChange={(e) => setRankEditando({ ...rankEditando, classes_tailwind: e.target.value })}
+                />
+              </div>
+              <button
+                onClick={salvarRankForja}
+                disabled={carregandoAcao}
+                className="w-full py-5 mt-4 rounded-xl bg-amber-500 text-black font-black uppercase tracking-widest hover:bg-amber-400 transition-all"
+              >
+                {carregandoAcao ? "Gravando..." : "Gravar no banco"}
+              </button>
+            </div>
           </div>
         </div>
       )}

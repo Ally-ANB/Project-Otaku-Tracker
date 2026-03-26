@@ -15,8 +15,12 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+function idUuidValido(id: unknown): id is string {
+  return typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id.trim());
+}
+
 // Whitelist de seguranca
-const TABELAS_PERMITIDAS = ['mangas', 'animes', 'filmes', 'series', 'livros', 'jogos', 'musicas', 'perfis', 'site_config', 'loja_itens', 'search_cache', 'guilda_mensagens'] as const;
+const TABELAS_PERMITIDAS = ['mangas', 'animes', 'filmes', 'series', 'livros', 'jogos', 'musicas', 'perfis', 'site_config', 'loja_itens', 'search_cache', 'guilda_mensagens', 'guilda_ranks'] as const;
 
 export async function POST(request: Request) {
   try {
@@ -52,13 +56,15 @@ export async function POST(request: Request) {
     }
 
     const idValido = Number.isInteger(id) && id > 0;
+    const uuidValido = idUuidValido(id);
     const nomeValido = typeof nome_original === 'string' && nome_original.trim().length > 0;
-    if (!idValido && !nomeValido) {
-      return NextResponse.json({ error: 'Identificador ausente (id ou nome_original).' }, { status: 400 });
+    if (!idValido && !uuidValido && !nomeValido) {
+      return NextResponse.json({ error: 'Identificador ausente (id, id uuid ou nome_original).' }, { status: 400 });
     }
 
     let query = supabaseAdmin.from(tabela).update(dados);
     if (idValido) query = query.eq('id', id);
+    else if (uuidValido) query = query.eq('id', id.trim());
     else if (nomeValido) query = query.eq('nome_original', nome_original);
 
     const { error } = await query;
@@ -98,13 +104,15 @@ export async function DELETE(request: Request) {
     }
 
     const idValido = Number.isInteger(id) && id > 0;
+    const uuidValido = idUuidValido(id);
     const nomeValido = typeof nome_original === 'string' && nome_original.trim().length > 0;
-    if (!idValido && !nomeValido) {
-      return NextResponse.json({ error: 'Identificador ausente (id ou nome_original).' }, { status: 400 });
+    if (!idValido && !uuidValido && !nomeValido) {
+      return NextResponse.json({ error: 'Identificador ausente (id, id uuid ou nome_original).' }, { status: 400 });
     }
 
     let query = supabaseAdmin.from(tabela).delete();
     if (idValido) query = query.eq('id', id);
+    else if (uuidValido) query = query.eq('id', id.trim());
     else if (nomeValido) query = query.eq('nome_original', nome_original);
 
     const { error } = await query;
