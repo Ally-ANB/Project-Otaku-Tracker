@@ -5,7 +5,7 @@
 // ==========================================
 import AcessoMestre from "./components/AcessoMestre";
 import { supabase } from "./supabase";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import MangaCard from "./components/MangaCard";
 import AddMangaModal from "./components/AddMangaModal";
@@ -216,11 +216,19 @@ export default function Home() {
     if (data) setJogos(data as Manga[]);
   }
 
-  async function buscarMusicas() {
+  const buscarMusicas = useCallback(async () => {
     if (!usuarioAtual || usuarioAtual === "Admin") return;
     const { data } = await supabase.from("musicas").select("*").eq("usuario", usuarioAtual).order("ultima_leitura", { ascending: false });
     if (data) setMusicas(data as Manga[]);
-  }
+  }, [usuarioAtual]);
+
+  useEffect(() => {
+    const onMusicUpdated = () => {
+      void buscarMusicas();
+    };
+    window.addEventListener("music-updated", onMusicUpdated);
+    return () => window.removeEventListener("music-updated", onMusicUpdated);
+  }, [buscarMusicas]);
 
   async function buscarPerfis() {
     const { data } = await supabase.from("perfis").select("*");
