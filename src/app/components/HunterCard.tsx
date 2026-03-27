@@ -9,12 +9,12 @@ interface HunterCardProps {
     tag_texto?: string;
     tag_cor?: string;
     fonte_cor?: string;
-    /** URL da playlist do YouTube para o Rádio Hunter (opcional). */
-    playlist_url?: string;
   };
+  /** Moldura PNG da loja (preview); sobrepõe apenas a imagem externa, não o id Discord. */
+  molduraImagemUrl?: string | null;
 }
 
-export default function HunterCard({ perfil, customizacao }: HunterCardProps) {
+export default function HunterCard({ perfil, customizacao, molduraImagemUrl }: HunterCardProps) {
   const bannerBg = customizacao?.banner_url 
     ? `url(${customizacao.banner_url})` 
     : 'linear-gradient(90deg, #0e0e11 0%, #1a1a2e 100%)';
@@ -36,7 +36,8 @@ export default function HunterCard({ perfil, customizacao }: HunterCardProps) {
         <div className="shrink-0 scale-90">
           <HunterAvatar 
             avatarUrl={perfil.avatar} 
-            idMoldura={perfil.cosmeticos?.ativos?.moldura} 
+            idMoldura={perfil.cosmeticos?.ativos?.moldura}
+            imagemMolduraUrl={molduraImagemUrl ?? undefined}
             tamanho="md"
             temaCor={perfil.cor_tema?.startsWith('#') ? perfil.cor_tema : perfil.custom_color}
           />

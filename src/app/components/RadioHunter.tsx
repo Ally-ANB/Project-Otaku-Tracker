@@ -7,13 +7,16 @@ import {
   Reorder,
   useDragControls,
 } from "framer-motion";
+import type { ComponentProps } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import {
   Check,
   GripVertical,
   Library,
+  Link2,
   ListMusic,
+  Loader2,
   Maximize2,
   Minimize2,
   Pause,
@@ -25,7 +28,9 @@ import {
   SkipBack,
   SkipForward,
   Trash2,
+  Volume1,
   Volume2,
+  VolumeX,
 } from "lucide-react";
 import { supabase } from "../supabase";
 import { requisicaoDbApi, obterSenhaMestreRevelada } from "@/lib/dbClient";
@@ -41,9 +46,9 @@ function newUid(): string {
   return crypto.randomUUID();
 }
 
-function playlistUrlEfetiva(raw: string | undefined | null): string {
-  const t = (raw || "").trim();
-  return t.length > 0 ? t : DEFAULT_PLAYLIST;
+/** URLs com `list=` são tocadas pelo iframe como playlist inteira; não avançar índice da fila no `ended` entre faixas. */
+function isYoutubeSrcComLista(url: string): boolean {
+  return /list=/i.test(url) && /youtube\.com|youtu\.be/i.test(url);
 }
 
 function capaYoutubeDeUrl(videoUrl: string): string {
@@ -168,105 +173,105 @@ type RadioQueueReorderRowProps = {
   index: number;
   queueLength: number;
   isCurrent: boolean;
+  isPlaying: boolean;
   onPlayAt: (index: number) => void;
+  onPausePlayback: () => void;
   onRemove: (index: number) => void;
 };
-
-const PLAY_ROW_CLICK_MAX_MOVE_PX = 8;
 
 function RadioQueueReorderRow({
   item,
   index,
   queueLength,
   isCurrent,
+  isPlaying,
   onPlayAt,
+  onPausePlayback,
   onRemove,
 }: RadioQueueReorderRowProps) {
-  const reorderDrag = useDragControls();
+  const dragControls = useDragControls();
   const thumbUrl = capaYoutubeDeUrl(item.url);
-  const playPointerRef = useRef<{ id: number; x: number; y: number } | null>(null);
+  const tocandoAqui = isCurrent && isPlaying;
 
-  useEffect(() => {
-    const limparGestorPlay = () => {
-      playPointerRef.current = null;
-    };
-    window.addEventListener("pointerup", limparGestorPlay);
-    window.addEventListener("pointercancel", limparGestorPlay);
-    return () => {
-      window.removeEventListener("pointerup", limparGestorPlay);
-      window.removeEventListener("pointercancel", limparGestorPlay);
-    };
-  }, []);
+  function handlePlayOrPauseTitle() {
+    if (tocandoAqui) onPausePlayback();
+    else onPlayAt(index);
+  }
 
   return (
     <Reorder.Item
       value={item}
       dragListener={false}
-      dragControls={reorderDrag}
+      dragControls={dragControls}
       className={`rounded-lg border p-2 select-none min-w-0 ${
         isCurrent ? "bg-cyan-500/15 border-cyan-400/40" : "bg-white/5 border-white/10"
       }`}
     >
-      <div className="flex items-center gap-2 w-full min-w-0">
-        <div className="w-8 shrink-0 flex items-center justify-center">
-          <button
-            type="button"
-            title="Arrastar para reordenar"
-            aria-label="Arrastar para reordenar"
-            onPointerDown={(e) => reorderDrag.start(e)}
-            className="flex h-8 w-8 items-center justify-center rounded-md bg-white/5 border border-white/10 text-zinc-400 hover:text-zinc-200 cursor-grab active:cursor-grabbing touch-none shrink-0"
-          >
-            <GripVertical className="w-3.5 h-3.5" />
-          </button>
-        </div>
+      <div className="flex w-full min-w-0 items-center gap-3">
         <button
           type="button"
-          className="min-w-0 flex-1 flex items-center gap-2 text-left rounded-md px-1 py-0.5 cursor-pointer hover:bg-white/5 transition-colors"
-          title="Tocar esta faixa"
-          onPointerDown={(e) => {
-            playPointerRef.current = { id: e.pointerId, x: e.clientX, y: e.clientY };
-          }}
-          onPointerUp={(e) => {
-            const start = playPointerRef.current;
-            if (!start || start.id !== e.pointerId) return;
-            const dx = e.clientX - start.x;
-            const dy = e.clientY - start.y;
-            if (Math.hypot(dx, dy) > PLAY_ROW_CLICK_MAX_MOVE_PX) return;
-            onPlayAt(index);
-          }}
-          onPointerCancel={() => {
-            playPointerRef.current = null;
-          }}
+          title="Arrastar para reordenar"
+          aria-label="Arrastar para reordenar"
+          onPointerDown={(e) => dragControls.start(e)}
+          className="flex h-8 w-8 shrink-0 touch-none cursor-grab items-center justify-center rounded-md border border-white/10 bg-white/5 text-zinc-400 hover:text-zinc-200 active:cursor-grabbing"
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
+
+        {thumbUrl ? (
+          <img
+            src={thumbUrl}
+            alt=""
+            className="h-7 w-10 shrink-0 rounded object-cover pointer-events-none"
+          />
+        ) : (
+          <div className="h-7 w-10 shrink-0 rounded bg-zinc-800 pointer-events-none" />
+        )}
+
+        <button
+          type="button"
+          title={tocandoAqui ? "Pausar" : "Tocar esta faixa"}
+          aria-label={tocandoAqui ? "Pausar" : "Tocar esta faixa"}
+          onClick={handlePlayOrPauseTitle}
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition-colors ${
+            tocandoAqui
+              ? "border-cyan-400/50 bg-cyan-500/25 text-cyan-200 hover:border-cyan-300/60 hover:text-cyan-100"
+              : "border-white/10 bg-white/5 text-zinc-300 hover:border-green-400/40 hover:text-green-400"
+          }`}
+        >
+          {tocandoAqui ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 pl-0.5" />}
+        </button>
+
+        <button
+          type="button"
+          className="min-w-0 flex-1 rounded-md px-1 py-0.5 text-left transition-colors hover:bg-white/5"
+          title={tocandoAqui ? "Pausar" : "Tocar esta faixa"}
+          onClick={handlePlayOrPauseTitle}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
-              onPlayAt(index);
+              handlePlayOrPauseTitle();
             }
           }}
         >
-          {thumbUrl ? (
-            <img
-              src={thumbUrl}
-              alt=""
-              className="w-10 h-7 object-cover rounded shrink-0 pointer-events-none"
-            />
-          ) : (
-            <div className="w-10 h-7 rounded bg-zinc-800 shrink-0 pointer-events-none" />
-          )}
-          <div className="min-w-0 flex-1">
-            <p className="text-[9px] font-bold text-white/90 truncate" title={item.titulo}>
-              {item.titulo}
-            </p>
-            <p className="text-[8px] text-zinc-500 tabular-nums">
-              {index + 1} / {queueLength}
-              {isCurrent ? " · tocando" : ""}
-            </p>
-          </div>
+          <p
+            className={`truncate text-[9px] font-bold ${
+              isCurrent ? "text-cyan-100/95" : "text-white/90"
+            }`}
+            title={item.titulo}
+          >
+            {item.titulo}
+          </p>
+          <p className="text-[8px] text-zinc-500 tabular-nums">
+            {index + 1} / {queueLength}
+            {isCurrent ? " · tocando" : ""}
+          </p>
         </button>
+
         <button
           type="button"
           title="Remover da fila"
-          className="shrink-0 p-1.5 rounded-md bg-red-500/15 border border-red-400/35 text-red-300 hover:bg-red-500/25"
+          className="shrink-0 rounded-md border border-red-400/35 bg-red-500/15 p-1.5 text-red-300 hover:bg-red-500/25"
           aria-label="Remover da fila"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
@@ -274,7 +279,7 @@ function RadioQueueReorderRow({
             onRemove(index);
           }}
         >
-          <Trash2 className="w-3.5 h-3.5" />
+          <Trash2 className="h-3.5 w-3.5" />
         </button>
       </div>
     </Reorder.Item>
@@ -298,14 +303,15 @@ export default function RadioHunter() {
   const [queueFilter, setQueueFilter] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [volume, setVolume] = useState(0.5);
+  const [isMuted, setIsMuted] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<YoutubeSearchHit[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [salvandoPlaylist, setSalvandoPlaylist] = useState(false);
+  const [importandoPlaylistYoutube, setImportandoPlaylistYoutube] = useState(false);
   const [isQueueOpen, setIsQueueOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [showMiniVolume, setShowMiniVolume] = useState(false);
 
   const queue = playlists[activePlaylistName] ?? [];
   const queueFilterTrim = queueFilter.trim();
@@ -345,9 +351,11 @@ export default function RadioHunter() {
 
   const playerRef = useRef<HTMLElement | null>(null);
   const previewItemRef = useRef<RadioPreviewItem | null>(null);
+  const isPlayingRef = useRef(false);
   const queueRef = useRef<RadioQueueItem[]>(queue);
   const playlistsRef = useRef<RadioPlaylistsMap>(playlists);
   const currentIndexRef = useRef(currentIndex);
+  const activePlaylistNameRef = useRef(activePlaylistName);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const queuePanelRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -368,8 +376,16 @@ export default function RadioHunter() {
   }, [currentIndex]);
 
   useEffect(() => {
+    activePlaylistNameRef.current = activePlaylistName;
+  }, [activePlaylistName]);
+
+  useEffect(() => {
     previewItemRef.current = previewItem;
   }, [previewItem]);
+
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
 
   useEffect(() => {
     if (!isSearching) return;
@@ -408,8 +424,6 @@ export default function RadioHunter() {
       setIsQueueOpen(false);
       setIsSearching(false);
       setModalGerirPlaylists(false);
-    } else {
-      setShowMiniVolume(false);
     }
   }, [isExpanded]);
 
@@ -440,9 +454,7 @@ export default function RadioHunter() {
       .eq("nome_original", nomeOriginal)
       .maybeSingle();
 
-    const rawPlaylist = (data?.cosmeticos as { ativos?: { card_config?: { playlist_url?: string } } } | null)
-      ?.ativos?.card_config?.playlist_url;
-    const urlPadrao = playlistUrlEfetiva(typeof rawPlaylist === "string" ? rawPlaylist : "");
+    const urlPadrao = DEFAULT_PLAYLIST;
 
     const rp = data?.radio_playlist;
     const { playlists: carregadas, activeName } = playlistsDoBanco(rp, urlPadrao);
@@ -514,11 +526,17 @@ export default function RadioHunter() {
       setIsPlaying(false);
       return;
     }
-    setCurrentIndex((i) => {
-      const q = queueRef.current;
-      if (q.length === 0) return 0;
-      const max = q.length - 1;
-      return i >= max ? i : i + 1;
+    const q = queueRef.current;
+    const i = currentIndexRef.current;
+    const url = q[i]?.url ?? "";
+    if (isYoutubeSrcComLista(url)) {
+      return;
+    }
+    setCurrentIndex((idx) => {
+      const qq = queueRef.current;
+      if (qq.length === 0) return 0;
+      const max = qq.length - 1;
+      return idx >= max ? idx : idx + 1;
     });
   }, []);
 
@@ -595,6 +613,64 @@ export default function RadioHunter() {
     setPlaylists((prev) => ({ ...prev, [nome]: [] }));
     setActivePlaylistName(nome);
     setCurrentIndex(0);
+  }, [mostrarToast]);
+
+  const importarPlaylistPorLinkYoutube = useCallback(async () => {
+    const raw = typeof window !== "undefined" ? window.prompt("Cole a URL da playlist do YouTube:") : null;
+    const url = raw?.trim();
+    if (!url) return;
+    if (!url.includes("list=")) {
+      mostrarToast("Use uma URL de playlist do YouTube (deve conter list=).", "erro");
+      return;
+    }
+    setImportandoPlaylistYoutube(true);
+    try {
+      const res = await fetch(`/api/youtube-playlist?url=${encodeURIComponent(url)}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        mostrarToast(typeof data.error === "string" ? data.error : "Falha ao ler a playlist.", "erro");
+        return;
+      }
+      type VidRow = { titulo?: string; url?: string; id?: string };
+      const videos: VidRow[] = Array.isArray(data.videos) ? data.videos : [];
+      if (videos.length === 0) {
+        mostrarToast("Nenhum vídeo retornado (playlist vazia ou indisponível).", "erro");
+        return;
+      }
+      const autoBase = `Importada - ${new Date().toLocaleString("pt-BR")}`;
+      let nomeFinal = autoBase;
+      let suffix = 2;
+      while (playlistsRef.current[nomeFinal]) {
+        nomeFinal = `${autoBase} (${suffix})`;
+        suffix += 1;
+      }
+      const items: RadioQueueItem[] = videos
+        .map((v) => {
+          const u = String(v.url ?? "").trim();
+          if (!u) return null;
+          return {
+            titulo: (v.titulo || "").trim() || "Sem título",
+            url: u,
+            id: typeof v.id === "string" && v.id.trim() ? v.id : u,
+            uid: newUid(),
+          };
+        })
+        .filter((x): x is RadioQueueItem => x !== null);
+      if (items.length === 0) {
+        mostrarToast("Nenhuma URL válida na resposta.", "erro");
+        return;
+      }
+      setPreviewItem(null);
+      setPlaylists((prev) => ({ ...prev, [nomeFinal]: items }));
+      setActivePlaylistName(nomeFinal);
+      setCurrentIndex(0);
+      setQueueFilter("");
+      mostrarToast(`Playlist "${nomeFinal}" com ${items.length} faixa(s). Salve no perfil se quiser persistir.`, "sucesso");
+    } catch {
+      mostrarToast("Erro de rede ao importar a playlist.", "erro");
+    } finally {
+      setImportandoPlaylistYoutube(false);
+    }
   }, [mostrarToast]);
 
   async function executarBusca(e?: React.FormEvent) {
@@ -808,11 +884,21 @@ export default function RadioHunter() {
     if (Number.isFinite(d) && d > 0) setDurationSec(d);
   }, []);
 
+  const handleVolumeSliderChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newVolume = Number(e.target.value);
+      setVolume(newVolume);
+      if (newVolume > 0 && isMuted) setIsMuted(false);
+    },
+    [isMuted]
+  );
+
   const urlAtual = previewItem?.url ?? queue[currentIndex]?.url ?? "";
   const playerKey = previewItem ? `preview-${previewItem.url}` : `${currentIndex}-${urlAtual}`;
   const tituloExibicao = faixa?.title || "Sintonizando…";
   const tituloLongo = tituloExibicao.length > 28;
   const seekDisabled = !Number.isFinite(durationSec) || durationSec <= 0;
+  const capaFaixaAtual = urlAtual ? capaYoutubeDeUrl(urlAtual) : "";
   const posFila =
     previewItem != null
       ? "prévia"
@@ -851,7 +937,7 @@ export default function RadioHunter() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 6 }}
                 transition={{ duration: 0.15 }}
-                className="w-[min(100vw-2rem,22rem)] rounded-2xl border border-cyan-500/30 bg-[#0e0e11]/95 backdrop-blur-md shadow-[0_0_24px_rgba(34,211,238,0.15)] p-3 mb-1"
+                className="w-[min(100vw-2rem,20rem)] rounded-2xl border border-cyan-500/30 bg-[#0e0e11]/95 backdrop-blur-md shadow-[0_0_24px_rgba(34,211,238,0.15)] p-2.5 mb-1"
                 onPointerDownCapture={(e) => e.stopPropagation()}
               >
                 <form onSubmit={executarBusca} className="flex gap-2">
@@ -953,8 +1039,8 @@ export default function RadioHunter() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 6 }}
                 transition={{ duration: 0.15 }}
-                className="w-[min(100vw-2rem,22rem)] rounded-2xl border border-amber-500/30 bg-[#0e0e11]/95 backdrop-blur-md shadow-[0_0_24px_rgba(251,191,36,0.12)] p-3 mb-1"
-                onPointerDownCapture={(e) => e.stopPropagation()}
+                className="w-[min(100vw-2rem,20rem)] rounded-2xl border border-amber-500/30 bg-[#0e0e11]/95 backdrop-blur-md shadow-[0_0_24px_rgba(251,191,36,0.12)] p-2.5 mb-1"
+                onPointerDown={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <p className="text-[10px] font-black uppercase tracking-widest text-amber-200/90">
@@ -993,14 +1079,30 @@ export default function RadioHunter() {
                       ))}
                     </select>
                   </label>
-                  <button
-                    type="button"
-                    title="Criar nova playlist"
-                    onClick={criarNovaPlaylist}
-                    className="shrink-0 text-[9px] font-bold uppercase tracking-wider px-2 py-1.5 rounded-lg bg-amber-500/15 border border-amber-400/35 text-amber-100 hover:bg-amber-500/25"
-                  >
-                    Nova playlist
-                  </button>
+                  <div className="flex flex-wrap gap-1.5 items-end shrink-0">
+                    <button
+                      type="button"
+                      title="Criar nova playlist"
+                      onClick={criarNovaPlaylist}
+                      className="shrink-0 text-[9px] font-bold uppercase tracking-wider px-2 py-1.5 rounded-lg bg-amber-500/15 border border-amber-400/35 text-amber-100 hover:bg-amber-500/25"
+                    >
+                      Nova playlist
+                    </button>
+                    <button
+                      type="button"
+                      title="Importar playlist a partir de um link do YouTube"
+                      onClick={() => void importarPlaylistPorLinkYoutube()}
+                      disabled={importandoPlaylistYoutube}
+                      className="inline-flex items-center gap-1 shrink-0 text-[9px] font-bold uppercase tracking-wider px-2 py-1.5 rounded-lg bg-amber-500/15 border border-amber-400/35 text-amber-100 hover:bg-amber-500/25 disabled:opacity-50 disabled:pointer-events-none"
+                    >
+                      {importandoPlaylistYoutube ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" aria-hidden />
+                      ) : (
+                        <Link2 className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                      )}
+                      {importandoPlaylistYoutube ? "Carregando…" : "Importar via link"}
+                    </button>
+                  </div>
                   <button
                     type="button"
                     title="Renomear ou remover playlists"
@@ -1081,7 +1183,9 @@ export default function RadioHunter() {
                         index={index}
                         queueLength={queue.length}
                         isCurrent={!previewItem && index === currentIndex}
+                        isPlaying={isPlaying}
                         onPlayAt={playAtIndex}
+                        onPausePlayback={() => setIsPlaying(false)}
                         onRemove={removeFromQueue}
                       />
                     ))}
@@ -1094,249 +1198,285 @@ export default function RadioHunter() {
           <motion.div
             layout
             transition={{ type: "spring", stiffness: 420, damping: 32 }}
-            className="bg-[#0e0e11]/90 backdrop-blur-md border border-white/10 rounded-[999px] px-2 py-2 sm:px-3 shadow-[0_0_20px_rgba(0,0,0,0.8)] max-w-[min(100vw-2rem,28rem)]"
+            className={`bg-[#0e0e11]/90 backdrop-blur-md border border-white/10 rounded-[999px] shadow-[0_0_20px_rgba(0,0,0,0.8)] overflow-hidden box-border ${
+              isExpanded
+                ? "w-full max-w-[min(100vw-2rem,42rem)]"
+                : "max-w-[min(100vw-2rem,340px)] px-1.5 py-1.5 sm:px-2.5"
+            }`}
           >
-            <div className="flex flex-wrap items-center gap-2 justify-end">
-              <button
-                type="button"
-                title="Mover o player"
-                className="shrink-0 p-1.5 rounded-full text-zinc-500 hover:text-zinc-300 hover:bg-white/5 touch-none cursor-grab active:cursor-grabbing"
-                aria-label="Arrastar rádio"
-                onPointerDown={(e) => dragControls.start(e)}
-              >
-                <GripVertical className="w-4 h-4" />
-              </button>
+            {isExpanded ? (
+              <div className="flex flex-row flex-nowrap items-center w-full min-w-0 gap-2 overflow-hidden p-2.5">
+                <button
+                  type="button"
+                  title="Mover o player"
+                  className="w-6 flex-shrink-0 flex items-center justify-center rounded-full text-zinc-500 hover:text-zinc-300 hover:bg-white/5 touch-none cursor-grab active:cursor-grabbing p-0"
+                  aria-label="Arrastar rádio"
+                  onPointerDown={(e) => dragControls.start(e)}
+                >
+                  <GripVertical className="w-4 h-4" />
+                </button>
 
-              <div
-                className={`min-w-0 flex-1 pl-0.5 ${isExpanded ? "basis-[8rem]" : "max-w-[10rem] sm:max-w-[14rem]"}`}
-              >
-                <p className="text-[8px] font-black uppercase tracking-[0.2em] text-cyan-400/90 drop-shadow-[0_0_8px_rgba(34,211,238,0.35)]">
-                  Hunter FM
-                </p>
-                {!isExpanded && tituloLongo ? (
-                  <div className="mt-0.5 max-w-full">
-                    <div className="overflow-hidden">
-                      <div className="radio-hunter-marquee-track">
-                        <span className="text-[10px] font-bold text-white/90 pr-6">
-                          {tituloExibicao}
-                        </span>
-                        <span className="text-[10px] font-bold text-white/90 pr-6" aria-hidden>
-                          {tituloExibicao}
-                        </span>
-                      </div>
-                    </div>
-                    <p className="text-[9px] font-semibold text-zinc-500 tabular-nums mt-0.5">
-                      ( {posFila} )
+                <div className="flex max-w-[25%] min-w-0 flex-shrink-0 items-center gap-1.5">
+                  {capaFaixaAtual ? (
+                    <img
+                      src={capaFaixaAtual}
+                      alt=""
+                      className="h-7 w-10 shrink-0 rounded object-cover pointer-events-none"
+                    />
+                  ) : (
+                    <div className="h-7 w-10 shrink-0 rounded bg-zinc-800 pointer-events-none" />
+                  )}
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <p className="truncate text-[7px] font-black uppercase tracking-[0.2em] text-cyan-400/90 drop-shadow-[0_0_8px_rgba(34,211,238,0.35)]">
+                      Hunter FM
+                    </p>
+                    <p
+                      className="mt-0.5 truncate text-[9px] font-bold text-white/90 whitespace-nowrap"
+                      title={`${tituloExibicao} (${posFila})`}
+                    >
+                      {tituloExibicao}{" "}
+                      <span className="text-[8px] font-semibold text-zinc-500 tabular-nums">
+                        ( {posFila} )
+                      </span>
                     </p>
                   </div>
-                ) : (
-                  <p className="text-[10px] font-bold text-white/90 truncate mt-0.5" title={tituloExibicao}>
-                    {tituloExibicao}{" "}
-                    <span className="text-[9px] font-semibold text-zinc-500 tabular-nums">
-                      ( {posFila} )
-                    </span>
-                  </p>
-                )}
-                {!isExpanded && !tituloLongo && (
-                  <p className="text-[9px] font-semibold text-zinc-500 tabular-nums mt-0.5">
-                    ( {posFila} )
-                  </p>
-                )}
-              </div>
+                </div>
 
-              <div
-                className={`flex items-center gap-0.5 sm:gap-1 shrink-0 justify-end ${
-                  isExpanded ? "flex-nowrap" : "flex-wrap"
-                }`}
-              >
-                {!isExpanded && (
-                  <div className="relative shrink-0">
-                    <button
-                      type="button"
-                      title={showMiniVolume ? "Fechar controle de volume" : "Volume"}
-                      onClick={() => setShowMiniVolume((v) => !v)}
-                      className={`p-2 rounded-full border transition-all ${
-                        showMiniVolume
-                          ? "bg-cyan-500/20 border-cyan-400/45 text-cyan-200"
-                          : "bg-white/5 border-white/15 text-zinc-300 hover:bg-white/10"
-                      }`}
-                      aria-label={showMiniVolume ? "Fechar volume" : "Volume"}
-                    >
-                      <Volume2 className="w-4 h-4" />
-                    </button>
-                    {showMiniVolume && (
-                      <div className="absolute bottom-full left-1/2 z-10 mb-1.5 -translate-x-1/2 rounded-lg border border-white/10 bg-[#0a0a0c]/95 px-2 py-1.5 shadow-lg backdrop-blur-sm">
-                        <input
-                          type="range"
-                          min={0}
-                          max={1}
-                          step={0.01}
-                          value={volume}
-                          onChange={(e) => setVolume(Number(e.target.value))}
-                          className="h-1 w-[4.5rem] cursor-pointer accent-cyan-400"
-                          aria-label="Volume"
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-                {isExpanded ? (
-                  <>
-                    <div
-                      className="flex items-center gap-0.5 rounded-full bg-violet-500/10 border border-violet-400/25 px-0.5 py-0.5"
-                      role="group"
-                      aria-label="Navegação da faixa"
-                    >
-                      <button
-                        type="button"
-                        title="Faixa anterior"
-                        onClick={playPrev}
-                        disabled={navPrevDisabled}
-                        className="p-2 rounded-full bg-violet-500/15 border border-violet-400/40 text-violet-300 hover:bg-violet-500/25 disabled:opacity-30"
-                        aria-label="Faixa anterior"
-                      >
-                        <SkipBack className="w-4 h-4" />
-                      </button>
-                      <button
-                        type="button"
-                        title={isPlaying ? "Pausar" : "Tocar"}
-                        onClick={() => setIsPlaying((v) => !v)}
-                        className="p-2.5 rounded-full bg-cyan-500/15 border border-cyan-400/40 text-cyan-300 hover:bg-cyan-500/25 hover:shadow-[0_0_12px_rgba(34,211,238,0.35)] transition-all"
-                        aria-label={isPlaying ? "Pausar" : "Tocar"}
-                      >
-                        {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 pl-0.5" />}
-                      </button>
-                      <button
-                        type="button"
-                        title="Próxima faixa"
-                        onClick={playNext}
-                        disabled={navNextDisabled}
-                        className="p-2 rounded-full bg-violet-500/15 border border-violet-400/40 text-violet-300 hover:bg-violet-500/25 disabled:opacity-30"
-                        aria-label="Próxima faixa"
-                      >
-                        <SkipForward className="w-4 h-4" />
-                      </button>
-                    </div>
+                <div className="mx-2 min-w-0 flex flex-1 items-center">
+                  <input
+                    type="range"
+                    min={0}
+                    max={0.999999}
+                    step="any"
+                    value={seekDisabled ? 0 : played}
+                    disabled={seekDisabled}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value);
+                      setPlayed(v);
+                      seekMediaToFraction(playerRef.current, v);
+                    }}
+                    className="box-border h-1.5 w-full min-w-0 max-w-full cursor-pointer appearance-none rounded-full bg-cyan-950/80 accent-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.25)] disabled:opacity-30"
+                    style={{
+                      background: seekDisabled
+                        ? undefined
+                        : `linear-gradient(to right, rgba(34,211,238,0.85) ${played * 100}%, rgba(24,24,27,0.9) ${played * 100}%)`,
+                    }}
+                    aria-label="Posição da faixa"
+                  />
+                </div>
 
-                    <div className="flex items-center gap-1 px-1" title="Volume">
-                      <Volume2 className="w-3.5 h-3.5 text-zinc-400 shrink-0" aria-hidden />
-                      <input
-                        type="range"
-                        min={0}
-                        max={1}
-                        step={0.01}
-                        value={volume}
-                        onChange={(e) => setVolume(Number(e.target.value))}
-                        className="w-14 sm:w-20 h-1 accent-cyan-400 cursor-pointer"
-                        aria-label="Volume"
-                      />
-                    </div>
-
-                    <div
-                      className="flex items-center gap-0.5 rounded-full bg-white/[0.06] border border-white/10 px-0.5 py-0.5"
-                      role="group"
-                      aria-label="Busca e fila"
-                    >
-                      <button
-                        type="button"
-                        data-radio-search-toggle
-                        title={isSearching ? "Fechar busca" : "Pesquisar música"}
-                        onClick={() => setIsSearching((v) => !v)}
-                        className={`p-2 rounded-full border transition-all ${
-                          isSearching
-                            ? "bg-cyan-500/25 border-cyan-400/50 text-cyan-200"
-                            : "bg-white/5 border-white/10 text-zinc-300 hover:bg-white/10"
-                        }`}
-                        aria-label={isSearching ? "Fechar busca" : "Buscar"}
-                      >
-                        <Search className="w-4 h-4" />
-                      </button>
-                      <button
-                        type="button"
-                        data-radio-queue-toggle
-                        title={isQueueOpen ? "Fechar fila" : "Minha fila"}
-                        onClick={() => setIsQueueOpen((v) => !v)}
-                        className={`p-2 rounded-full border transition-all ${
-                          isQueueOpen
-                            ? "bg-amber-500/25 border-amber-400/50 text-amber-100"
-                            : "bg-amber-500/15 border border-amber-400/40 text-amber-200 hover:bg-amber-500/25"
-                        }`}
-                        aria-label="Fila de reprodução"
-                      >
-                        <ListMusic className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    <div className="w-px h-7 shrink-0 bg-white/20 mx-0.5" aria-hidden />
-
-                    <motion.button
-                      type="button"
-                      title="Adicionar à Estante"
-                      onClick={capturarParaEstante}
-                      disabled={capturando}
-                      animate={
-                        capturaConfirmadaUi
-                          ? { scale: [1, 1.12, 1], boxShadow: ["0 0 0 0 rgba(52,211,153,0.5)", "0 0 16px 2px rgba(52,211,153,0.45)", "0 0 0 0 rgba(52,211,153,0)"] }
-                          : { scale: 1 }
-                      }
-                      transition={{ duration: 0.45 }}
-                      className="p-2 rounded-full bg-emerald-500/20 border-2 border-emerald-400/55 text-emerald-200 hover:bg-emerald-500/30 hover:shadow-[0_0_14px_rgba(52,211,153,0.45)] transition-colors disabled:opacity-40 ring-1 ring-emerald-400/30"
-                      aria-label="Capturar para a estante"
-                    >
-                      {capturaConfirmadaUi ? (
-                        <Check className="w-4 h-4 text-emerald-300" strokeWidth={2.5} />
-                      ) : (
-                        <Plus className="w-4 h-4" />
-                      )}
-                    </motion.button>
-                  </>
-                ) : (
+                <div
+                  className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-violet-400/25 bg-violet-500/10 px-0.5 py-0.5"
+                  role="group"
+                  aria-label="Navegação da faixa"
+                >
+                  <button
+                    type="button"
+                    title="Faixa anterior"
+                    onClick={playPrev}
+                    disabled={navPrevDisabled}
+                    className="rounded-full border border-violet-400/40 bg-violet-500/15 p-1.5 text-violet-300 hover:bg-violet-500/25 disabled:opacity-30"
+                    aria-label="Faixa anterior"
+                  >
+                    <SkipBack className="h-3.5 w-3.5" />
+                  </button>
                   <button
                     type="button"
                     title={isPlaying ? "Pausar" : "Tocar"}
                     onClick={() => setIsPlaying((v) => !v)}
-                    className="p-2.5 rounded-full bg-cyan-500/15 border border-cyan-400/40 text-cyan-300 hover:bg-cyan-500/25 hover:shadow-[0_0_12px_rgba(34,211,238,0.35)] transition-all"
+                    className="rounded-full border border-cyan-400/40 bg-cyan-500/15 p-1.5 text-cyan-300 transition-all hover:bg-cyan-500/25 hover:shadow-[0_0_12px_rgba(34,211,238,0.35)]"
                     aria-label={isPlaying ? "Pausar" : "Tocar"}
                   >
-                    {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 pl-0.5" />}
+                    {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 pl-0.5" />}
                   </button>
-                )}
+                  <button
+                    type="button"
+                    title="Próxima faixa"
+                    onClick={playNext}
+                    disabled={navNextDisabled}
+                    className="rounded-full border border-violet-400/40 bg-violet-500/15 p-1.5 text-violet-300 hover:bg-violet-500/25 disabled:opacity-30"
+                    aria-label="Próxima faixa"
+                  >
+                    <SkipForward className="h-3.5 w-3.5" />
+                  </button>
+                </div>
 
-                <button
-                  type="button"
-                  title={isExpanded ? "Modo compacto" : "Expandir controles"}
-                  onClick={() => setIsExpanded((v) => !v)}
-                  className="p-2 rounded-full bg-white/5 border border-white/15 text-zinc-200 hover:bg-white/10"
-                  aria-label={isExpanded ? "Modo compacto" : "Expandir controles"}
-                >
-                  {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                </button>
+                <div className="flex w-12 flex-shrink-0 flex-col items-stretch justify-center gap-0.5">
+                  <button
+                    type="button"
+                    title="Mutar/Desmutar"
+                    aria-label="Mutar ou desmutar"
+                    onClick={() => setIsMuted((m) => !m)}
+                    className="mx-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-transparent text-zinc-400 transition-colors hover:border-white/10 hover:bg-white/5 hover:text-zinc-200 focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400/50"
+                  >
+                    {isMuted || volume === 0 ? (
+                      <VolumeX className="h-3 w-3 shrink-0 text-amber-400/85" aria-hidden />
+                    ) : volume < 0.5 ? (
+                      <Volume1 className="h-3 w-3 shrink-0 text-zinc-400" aria-hidden />
+                    ) : (
+                      <Volume2 className="h-3 w-3 shrink-0 text-zinc-400" aria-hidden />
+                    )}
+                  </button>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    value={volume}
+                    onChange={handleVolumeSliderChange}
+                    className="h-1 w-full min-w-0 cursor-pointer accent-cyan-400"
+                    aria-label="Volume"
+                  />
+                </div>
+
+                <div className="flex flex-shrink-0 items-center gap-1" role="group" aria-label="Ações do rádio">
+                  <button
+                    type="button"
+                    data-radio-search-toggle
+                    title={isSearching ? "Fechar busca" : "Pesquisar música"}
+                    onClick={() => setIsSearching((v) => !v)}
+                    className={`rounded-full border p-1.5 transition-all ${
+                      isSearching
+                        ? "border-cyan-400/50 bg-cyan-500/25 text-cyan-200"
+                        : "border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10"
+                    }`}
+                    aria-label={isSearching ? "Fechar busca" : "Buscar"}
+                  >
+                    <Search className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    data-radio-queue-toggle
+                    title={isQueueOpen ? "Fechar fila" : "Minha fila"}
+                    onClick={() => setIsQueueOpen((v) => !v)}
+                    className={`rounded-full border p-1.5 transition-all ${
+                      isQueueOpen
+                        ? "border-amber-400/50 bg-amber-500/25 text-amber-100"
+                        : "border-amber-400/40 bg-amber-500/15 text-amber-200 hover:bg-amber-500/25"
+                    }`}
+                    aria-label="Fila de reprodução"
+                  >
+                    <ListMusic className="h-3.5 w-3.5" />
+                  </button>
+                  <motion.button
+                    type="button"
+                    title="Adicionar à Estante"
+                    onClick={capturarParaEstante}
+                    disabled={capturando}
+                    animate={
+                      capturaConfirmadaUi
+                        ? {
+                            scale: [1, 1.12, 1],
+                            boxShadow: [
+                              "0 0 0 0 rgba(52,211,153,0.5)",
+                              "0 0 16px 2px rgba(52,211,153,0.45)",
+                              "0 0 0 0 rgba(52,211,153,0)",
+                            ],
+                          }
+                        : { scale: 1 }
+                    }
+                    transition={{ duration: 0.45 }}
+                    className="rounded-full border-2 border-emerald-400/55 bg-emerald-500/20 p-1.5 text-emerald-200 ring-1 ring-emerald-400/30 transition-colors hover:bg-emerald-500/30 hover:shadow-[0_0_14px_rgba(52,211,153,0.45)] disabled:opacity-40"
+                    aria-label="Capturar para a estante"
+                  >
+                    {capturaConfirmadaUi ? (
+                      <Check className="h-3.5 w-3.5 text-emerald-300" strokeWidth={2.5} />
+                    ) : (
+                      <Plus className="h-3.5 w-3.5" />
+                    )}
+                  </motion.button>
+                  <button
+                    type="button"
+                    title="Modo compacto"
+                    onClick={() => setIsExpanded((v) => !v)}
+                    className="rounded-full border border-white/15 bg-white/5 p-1.5 text-zinc-200 hover:bg-white/10"
+                    aria-label="Modo compacto"
+                  >
+                    <Minimize2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <>
+                <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+                  <button
+                    type="button"
+                    title="Mover o player"
+                    className="shrink-0 rounded-full p-1.5 text-zinc-500 hover:bg-white/5 hover:text-zinc-300 touch-none cursor-grab active:cursor-grabbing"
+                    aria-label="Arrastar rádio"
+                    onPointerDown={(e) => dragControls.start(e)}
+                  >
+                    <GripVertical className="h-4 w-4" />
+                  </button>
 
-            {isExpanded && (
-              <motion.div layout className="mt-2 px-1 pb-0.5">
-                <input
-                  type="range"
-                  min={0}
-                  max={0.999999}
-                  step="any"
-                  value={seekDisabled ? 0 : played}
-                  disabled={seekDisabled}
-                  onChange={(e) => {
-                    const v = parseFloat(e.target.value);
-                    setPlayed(v);
-                    seekMediaToFraction(playerRef.current, v);
-                  }}
-                  className="w-full h-1.5 rounded-full appearance-none bg-cyan-950/80 accent-cyan-400 cursor-pointer disabled:opacity-30 shadow-[0_0_10px_rgba(34,211,238,0.25)]"
-                  style={{
-                    background: seekDisabled
-                      ? undefined
-                      : `linear-gradient(to right, rgba(34,211,238,0.85) ${played * 100}%, rgba(24,24,27,0.9) ${played * 100}%)`,
-                  }}
-                  aria-label="Posição da faixa"
-                />
-              </motion.div>
+                  <div className="min-w-0 flex-1 pl-0.5 max-w-[10rem] sm:max-w-[14rem]">
+                    <p className="text-[8px] font-black uppercase tracking-[0.2em] text-cyan-400/90 drop-shadow-[0_0_8px_rgba(34,211,238,0.35)]">
+                      Hunter FM
+                    </p>
+                    {tituloLongo ? (
+                      <div className="mt-0.5 max-w-full">
+                        <div className="overflow-hidden">
+                          <div className="radio-hunter-marquee-track">
+                            <span className="pr-6 text-[10px] font-bold text-white/90">{tituloExibicao}</span>
+                            <span className="pr-6 text-[10px] font-bold text-white/90" aria-hidden>
+                              {tituloExibicao}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="mt-0.5 text-[9px] font-semibold text-zinc-500 tabular-nums">( {posFila} )</p>
+                      </div>
+                    ) : (
+                      <p className="mt-0.5 truncate text-[10px] font-bold text-white/90" title={tituloExibicao}>
+                        {tituloExibicao}{" "}
+                        <span className="text-[9px] font-semibold text-zinc-500 tabular-nums">( {posFila} )</span>
+                      </p>
+                    )}
+                    {!tituloLongo && (
+                      <p className="mt-0.5 text-[9px] font-semibold text-zinc-500 tabular-nums">( {posFila} )</p>
+                    )}
+                  </div>
+
+                  <div className="flex max-w-full min-w-0 shrink-0 flex-wrap items-center justify-end gap-0.5 sm:gap-1">
+                    <button
+                      type="button"
+                      title={isMuted ? "Desmutar" : "Mutar"}
+                      aria-label={isMuted ? "Desmutar" : "Mutar"}
+                      onClick={() => setIsMuted((m) => !m)}
+                      className={`shrink-0 cursor-pointer rounded-full border p-2 transition-all ${
+                        isMuted || volume === 0
+                          ? "border-zinc-600/50 bg-black/30 text-red-400/75 opacity-90 hover:border-green-400/45 hover:bg-white/10 hover:text-green-400 hover:opacity-100"
+                          : "border-white/15 bg-white/5 text-zinc-300 hover:border-green-400/40 hover:bg-white/10 hover:text-green-400"
+                      }`}
+                    >
+                      {isMuted || volume === 0 ? (
+                        <VolumeX className="h-4 w-4" aria-hidden />
+                      ) : volume < 0.5 ? (
+                        <Volume1 className="h-4 w-4" aria-hidden />
+                      ) : (
+                        <Volume2 className="h-4 w-4" aria-hidden />
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      title={isPlaying ? "Pausar" : "Tocar"}
+                      onClick={() => setIsPlaying((v) => !v)}
+                      className="rounded-full border border-cyan-400/40 bg-cyan-500/15 p-2.5 text-cyan-300 transition-all hover:bg-cyan-500/25 hover:shadow-[0_0_12px_rgba(34,211,238,0.35)]"
+                      aria-label={isPlaying ? "Pausar" : "Tocar"}
+                    >
+                      {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 pl-0.5" />}
+                    </button>
+                    <button
+                      type="button"
+                      title="Expandir controles"
+                      onClick={() => setIsExpanded((v) => !v)}
+                      className="rounded-full border border-white/15 bg-white/5 p-2 text-zinc-200 hover:bg-white/10"
+                      aria-label="Expandir controles"
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </>
             )}
           </motion.div>
         </div>
@@ -1352,6 +1492,7 @@ export default function RadioHunter() {
               src={urlAtual}
               playing={isPlaying}
               volume={volume}
+              muted={isMuted}
               width="0"
               height="0"
               controls={false}
@@ -1364,11 +1505,12 @@ export default function RadioHunter() {
               onLoadedMetadata={onDurationKnown}
               onDurationChange={onDurationKnown}
               onError={() => mostrarToast("Erro ao carregar o stream do YouTube.", "erro")}
-              config={{
-                youtube: {
+              config={
+                {
                   rel: 0,
-                },
-              }}
+                  disablekb: 1,
+                } as ComponentProps<typeof ReactPlayer>["config"]
+              }
             />
           ) : null}
         </div>
@@ -1392,7 +1534,7 @@ export default function RadioHunter() {
 
       {modalGerirPlaylists && (
         <div
-          className="fixed inset-0 z-[1002] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm pointer-events-auto"
+          className="fixed inset-0 z-[1002] flex items-center justify-center p-3 bg-black/70 backdrop-blur-sm pointer-events-auto"
           role="dialog"
           aria-modal="true"
           aria-labelledby="radio-gerir-playlists-titulo"
@@ -1403,7 +1545,7 @@ export default function RadioHunter() {
           }}
         >
           <div
-            className="w-full max-w-sm rounded-2xl border border-amber-500/35 bg-[#0e0e11] p-4 shadow-[0_0_32px_rgba(0,0,0,0.85)]"
+            className="w-full max-w-sm rounded-2xl border border-amber-500/35 bg-[#0e0e11] p-3 shadow-[0_0_32px_rgba(0,0,0,0.85)]"
             onClick={(e) => e.stopPropagation()}
           >
             <h2

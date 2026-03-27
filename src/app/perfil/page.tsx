@@ -22,6 +22,7 @@ import {
   statsVazio,
 } from "../guilda/rankUtils";
 import HunterCard from "../components/HunterCard";
+import EfeitosVisuais from "../components/EfeitosVisuais";
 
 const TEMAS = {
   verde: { bg: "bg-green-500", text: "text-green-500", border: "border-green-500", glow: "shadow-green-500/20", btn: "bg-green-500/10 border-green-500/50 hover:bg-green-500 hover:text-black" },
@@ -50,7 +51,6 @@ const CARD_CONFIG_PADRAO = {
   tag_texto: "HUNTER",
   tag_cor: "#3b82f6",
   fonte_cor: "#ffffff",
-  playlist_url: "",
 };
 
 type CardConfigHunter = typeof CARD_CONFIG_PADRAO;
@@ -64,6 +64,148 @@ function itemLojaNaCategoria(item: { tipo?: string }, cat: CategoriaLoja): boole
   if (cat === "Títulos") return t === "titulo";
   if (cat === "VFX") return t === "particula" || t === "vfx";
   return true;
+}
+
+type CardConfigPreview = {
+  banner_url: string;
+  tag_texto: string;
+  tag_cor: string;
+  fonte_cor: string;
+};
+
+function MiniCardPerfilLojaPreview({
+  item,
+  dadosPerfil,
+  equipados,
+  lojaItens,
+  cardDados,
+  rankAtualPerfil,
+  twRankPerfil,
+  contornoRankPerfil,
+  progressoAscensaoPerfil,
+}: {
+  item: Record<string, unknown>;
+  dadosPerfil: { nome: string; avatar: string; custom_color: string; tema: string };
+  equipados: Record<string, string>;
+  lojaItens: { id: string; nome?: string; imagem_url?: string | null; tipo?: string }[];
+  cardDados: CardConfigPreview;
+  rankAtualPerfil: { nome: string } | null | undefined;
+  twRankPerfil: string;
+  contornoRankPerfil: string;
+  progressoAscensaoPerfil: number;
+}) {
+  const tipo = String(item.tipo || "").toLowerCase();
+  const nomeItem = String(item.nome ?? "");
+  const imagemUrl = typeof item.imagem_url === "string" ? item.imagem_url : "";
+  const isVideoMoldura = imagemUrl.includes(".mp4") || imagemUrl.includes(".webm");
+  const molduraPngPreview =
+    tipo === "moldura" && imagemUrl && !isVideoMoldura ? imagemUrl : undefined;
+  const molduraEquipada = lojaItens.find((i) => i.id === equipados.moldura);
+  const urlEq = molduraEquipada?.imagem_url ? String(molduraEquipada.imagem_url) : "";
+  const pngEquipada =
+    urlEq && !urlEq.includes(".mp4") && !urlEq.includes(".webm") ? urlEq : undefined;
+  const molduraImagemUrlCard = tipo === "moldura" ? molduraPngPreview : pngEquipada;
+
+  const equipPreview: Record<string, string> = { ...equipados };
+  if (tipo === "moldura" || tipo === "titulo" || tipo === "particula" || tipo === "vfx") {
+    equipPreview[tipo] = String(item.id ?? "");
+  }
+
+  const tituloSlotId = equipPreview.titulo;
+  const tituloMeta = tituloSlotId ? lojaItens.find((i) => i.id === tituloSlotId) : null;
+  const tituloNomeExibir = tituloMeta?.nome
+    ? String(tituloMeta.nome).replace(/^Título:\s*/i, "")
+    : "";
+  const tituloClassesCss =
+    tituloMeta?.imagem_url &&
+    typeof tituloMeta.imagem_url === "string" &&
+    !tituloMeta.imagem_url.includes(".mp4") &&
+    !tituloMeta.imagem_url.includes(".webm")
+      ? tituloMeta.imagem_url
+      : "";
+
+  const temaCss = typeof item.tema_css === "string" ? item.tema_css : undefined;
+  const quantidade =
+    typeof item.quantidade_elementos === "number" ? item.quantidade_elementos : 28;
+  const direcao = typeof item.direcao === "string" ? item.direcao : "padrao";
+  const particulaCustom = item.particula_custom ?? null;
+
+  const mostrarParticulas =
+    (tipo === "particula" || tipo === "vfx") &&
+    (Boolean(temaCss) || particulaCustom != null);
+  const mostrarVideoVfx =
+    (tipo === "vfx" || tipo === "particula") && isVideoMoldura && imagemUrl;
+
+  const perfilMini = {
+    nome_exibicao: dadosPerfil.nome,
+    avatar: dadosPerfil.avatar,
+    cor_tema: dadosPerfil.tema,
+    custom_color: dadosPerfil.custom_color,
+    cosmeticos: { ativos: equipPreview },
+  };
+
+  return (
+    <div className="relative rounded-2xl border border-white/10 overflow-hidden min-h-[260px] flex flex-col shadow-2xl bg-zinc-950/40">
+      {mostrarParticulas ? (
+        <EfeitosVisuais
+          isPreview
+          config={{
+            tema_css: temaCss,
+            quantidade,
+            direcao,
+            particula_custom: particulaCustom,
+          }}
+        />
+      ) : null}
+      {mostrarVideoVfx ? (
+        <video
+          src={imagemUrl}
+          className="absolute inset-0 z-[5] h-full w-full object-cover opacity-50 pointer-events-none"
+          autoPlay
+          muted
+          loop
+          playsInline
+        />
+      ) : null}
+      <div className="absolute inset-0 z-[8] bg-black/45 pointer-events-none" />
+      <div className="relative z-[25] flex flex-col flex-1 p-5 pt-9 gap-4 justify-center">
+        <div className="rounded-xl overflow-hidden border border-white/10 shadow-lg bg-black/20">
+          <HunterCard
+            perfil={perfilMini}
+            customizacao={cardDados}
+            molduraImagemUrl={molduraImagemUrlCard}
+          />
+        </div>
+        {tituloSlotId && tituloNomeExibir ? (
+          <p
+            className={`text-[10px] font-black uppercase tracking-[0.3em] text-center drop-shadow-md ${tituloClassesCss}`}
+          >
+            « {tituloNomeExibir} »
+          </p>
+        ) : null}
+        <div className="space-y-1.5">
+          <p
+            className={`text-[9px] font-black uppercase tracking-[0.35em] text-center ${classesTailwindNomeRank(twRankPerfil)}`}
+          >
+            RANK: {rankAtualPerfil?.nome ?? "—"}
+          </p>
+          <div className={`w-full max-w-xs mx-auto ${classesTailwindNomeRank(twRankPerfil)}`}>
+            <div
+              className={`h-1 rounded-full overflow-hidden bg-black/50 border border-white/10 ${contornoRankPerfil}`}
+            >
+              <div
+                className="h-full bg-current opacity-90 transition-all duration-500 max-w-full"
+                style={{ width: `${progressoAscensaoPerfil}%` }}
+              />
+            </div>
+          </div>
+        </div>
+        <p className="text-[8px] font-bold text-zinc-500 uppercase tracking-wider text-center">
+          Prévia — {nomeItem}
+        </p>
+      </div>
+    </div>
+  );
 }
 
 function PerfilContent() {
@@ -102,6 +244,7 @@ function PerfilContent() {
   const [editandoCard, setEditandoCard] = useState(false);
   const [cardDados, setCardDados] = useState<CardConfigHunter>(CARD_CONFIG_PADRAO);
   const [cardDadosSalvos, setCardDadosSalvos] = useState<CardConfigHunter>(CARD_CONFIG_PADRAO);
+  const [previewItem, setPreviewItem] = useState<Record<string, unknown> | null>(null);
 
   const [lojaItens, setLojaItens] = useState<any[]>(LOJA_ITENS_FALLBACK);
 
@@ -264,7 +407,6 @@ function PerfilContent() {
         tag_texto: (cc?.tag_texto ?? CARD_CONFIG_PADRAO.tag_texto).toUpperCase(),
         tag_cor: cc?.tag_cor ?? CARD_CONFIG_PADRAO.tag_cor,
         fonte_cor: cc?.fonte_cor ?? CARD_CONFIG_PADRAO.fonte_cor,
-        playlist_url: cc?.playlist_url ?? CARD_CONFIG_PADRAO.playlist_url,
       };
       setCardDados(cardInicial);
       setCardDadosSalvos(cardInicial);
@@ -648,15 +790,36 @@ function PerfilContent() {
                         <p className="text-[7px] text-zinc-500 uppercase">{item.tipo}</p>
                       </div>
                     </div>
-                    {!comprado ? (
-                      <button onClick={() => comprarCosmetico(item)} className="w-full py-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 font-black text-[9px] uppercase">
-                        Comprar ({item.preco} 🪙)
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewItem(item)}
+                        className="flex-1 py-3 rounded-xl bg-cyan-500/10 border border-cyan-400/35 text-cyan-200 font-black text-[8px] uppercase tracking-tight hover:bg-cyan-500/20"
+                      >
+                        👁️ Visualizar
                       </button>
-                    ) : (
-                      <button onClick={() => equiparCosmetico(item)} className={`w-full py-3 rounded-xl font-black text-[9px] border ${equipado ? 'bg-green-500/20 text-green-500 border-green-500' : 'bg-zinc-800 text-zinc-400'}`}>
-                        {equipado ? "Equipado" : "Equipar"}
-                      </button>
-                    )}
+                      {!comprado ? (
+                        <button
+                          type="button"
+                          onClick={() => comprarCosmetico(item)}
+                          className="flex-1 py-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 font-black text-[8px] uppercase"
+                        >
+                          Comprar ({item.preco} 🪙)
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => equiparCosmetico(item)}
+                          className={`flex-1 py-3 rounded-xl font-black text-[8px] border ${
+                            equipado
+                              ? "bg-green-500/20 text-green-500 border-green-500"
+                              : "bg-zinc-800 text-zinc-400"
+                          }`}
+                        >
+                          {equipado ? "Equipado" : "Equipar"}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -695,6 +858,41 @@ function PerfilContent() {
           <button onClick={() => { sessionStorage.removeItem('hunter_ativo'); window.location.href = '/'; }} className="w-full py-3 text-[8px] font-black text-zinc-700 hover:text-red-500 uppercase tracking-[0.3em] transition-all">Encerrar Sessão</button>
         </div>
       </div>
+
+      {previewItem ? (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="loja-preview-titulo"
+          onClick={() => setPreviewItem(null)}
+        >
+          <div className="relative w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setPreviewItem(null)}
+              className="absolute top-2 right-2 z-[110] flex h-9 w-9 items-center justify-center rounded-xl border border-white/25 bg-black/70 text-sm font-black text-white shadow-lg hover:bg-red-950/80 hover:border-red-400/50"
+              aria-label="Fechar"
+            >
+              ✕
+            </button>
+            <h2 id="loja-preview-titulo" className="sr-only">
+              Prévia do perfil — {String(previewItem.nome ?? "Item")}
+            </h2>
+            <MiniCardPerfilLojaPreview
+              item={previewItem}
+              dadosPerfil={dadosPerfil}
+              equipados={equipados}
+              lojaItens={lojaItens}
+              cardDados={cardDadosSalvos}
+              rankAtualPerfil={rankAtualPerfil}
+              twRankPerfil={twRankPerfil}
+              contornoRankPerfil={contornoRankPerfil}
+              progressoAscensaoPerfil={progressoAscensaoPerfil}
+            />
+          </div>
+        </div>
+      ) : null}
 
       {modalSenhaMestra}
 
@@ -755,18 +953,6 @@ function PerfilContent() {
                   className="w-full h-[50px] bg-black border border-zinc-800 p-2 rounded-2xl cursor-pointer mt-1"
                   value={cardDados.fonte_cor}
                   onChange={(e) => setCardDados({ ...cardDados, fonte_cor: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-black uppercase text-zinc-500 ml-2">
-                  Frequência de Rádio (URL Playlist YouTube)
-                </label>
-                <input
-                  type="text"
-                  placeholder="https://www.youtube.com/playlist?list=..."
-                  className="w-full bg-black border border-zinc-800 p-4 rounded-2xl text-xs outline-none focus:border-cyan-500/60 mt-1 text-white"
-                  value={cardDados.playlist_url}
-                  onChange={(e) => setCardDados({ ...cardDados, playlist_url: e.target.value })}
                 />
               </div>
             </div>
