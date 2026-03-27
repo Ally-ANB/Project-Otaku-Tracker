@@ -1,8 +1,14 @@
 import type { EstatisticasHunter, FiltroRanking } from "./types";
 
+export function formatTempoVidaGuildaHoras(horas: number): string {
+  return horas >= 24
+    ? `${Math.floor(horas / 24)}D ${horas % 24}H`
+    : `${horas} HORAS`;
+}
+
 export function metricaRanking(filtro: FiltroRanking, hunter: EstatisticasHunter) {
   let corTexto = "text-indigo-400";
-  let valor = hunter.total_obras;
+  let valor: string | number = hunter.total_obras;
   let label = "Obras Lidas";
   if (filtro === "ESMOLAS") {
     corTexto = "text-yellow-500";
@@ -10,7 +16,7 @@ export function metricaRanking(filtro: FiltroRanking, hunter: EstatisticasHunter
     label = "Esmolas";
   } else if (filtro === "TEMPO") {
     corTexto = "text-purple-400";
-    valor = hunter.tempo_vida;
+    valor = formatTempoVidaGuildaHoras(hunter.tempo_vida);
     label = "Horas Consumidas";
   } else if (filtro === "CAPITULOS") {
     corTexto = "text-red-400";
@@ -161,13 +167,17 @@ export function acumularObraNasStats(stats: StatsHunterAgregado, obra: Record<st
   stats.obras += 1;
   stats.caps += (obra.capitulo_atual as number) || 0;
   if (obra.favorito) stats.favs += 1;
-  if (tipo === "anime") stats.tempoMin += ((obra.capitulo_atual as number) || 0) * 23;
+  if (tipo === "anime")
+    stats.tempoMin +=
+      ((obra.capitulo_atual as number) || 0) * ((obra.duracao_episodio_minutos as number) || 23);
   else if (tipo === "filme" && obra.status === "Completos") {
     stats.tempoMin += 120;
     stats.filmes += 1;
   } else if (tipo === "filme") stats.filmes += 1;
   else if (tipo === "livro") stats.livros += 1;
-  else if (tipo === "serie") stats.tempoMin += ((obra.capitulo_atual as number) || 0) * 45;
+  else if (tipo === "serie")
+    stats.tempoMin +=
+      ((obra.capitulo_atual as number) || 0) * ((obra.duracao_episodio_minutos as number) || 45);
   else if (tipo === "jogo") stats.tempoMin += ((obra.capitulo_atual as number) || 0) * 60;
   else if (tipo === "musica") stats.tempoMin += ((obra.capitulo_atual as number) || 0) * 3;
 }

@@ -17,6 +17,8 @@ interface ResultadoBusca {
   sinopse: string;
   fonte: "AniList" | "MyAnimeList" | "TMDB" | "Google Books" | "RAWG" | "Apple Music";
   providers?: WatchProvider[];
+  /** Minutos por episódio (anime), vindo da API quando disponível. */
+  duracao_episodio_minutos?: number;
 }
 
 interface AddMangaModalProps {
@@ -28,6 +30,8 @@ interface AddMangaModalProps {
   solicitarSenhaMestre?: () => Promise<string | null>;
   /** Toasts na home após economia de estante / rank (opcional). */
   mostrarFeedback?: (mensagem: string, tipo?: "sucesso" | "erro" | "aviso" | "anilist") => void;
+  /** Token OAuth AniList do perfil ativo (opcional; senão tenta localStorage `anilist_token`). */
+  anilistToken?: string | null;
 }
 
 export default function AddMangaModal({
@@ -38,6 +42,7 @@ export default function AddMangaModal({
   aoSalvar,
   solicitarSenhaMestre,
   mostrarFeedback,
+  anilistToken,
 }: AddMangaModalProps) {
   // ==========================================
   // 🔐 SESSÃO 2: ESTADOS DO MODAL
@@ -59,6 +64,7 @@ export default function AddMangaModal({
     favorito: false,
     link_url: "",
     provider_data: [] as WatchProvider[],
+    duracao_episodio_minutos: 0,
   });
 
   async function obterSenhaMestreCacheada() {
@@ -99,6 +105,7 @@ export default function AddMangaModal({
         favorito: false,
         link_url: "",
         provider_data: [],
+        duracao_episodio_minutos: 0,
       });
     }
   }, [estaAberto]);
@@ -113,6 +120,12 @@ export default function AddMangaModal({
     setResultados([]); 
 
     try {
+      const dedupeResultadosBusca = (arr: ResultadoBusca[]) =>
+        arr.filter(
+          (valor, indice, self) =>
+            indice === self.findIndex((t) => t.id === valor.id && t.fonte === valor.fonte)
+        );
+
       let termoFinal = termoAnilist;
 
       // 🛑 Lógica de IA e Cache (Restaurada)
@@ -145,7 +158,7 @@ export default function AddMangaModal({
         const json = await res.json();
         
         if (json.results) {
-          setResultados(json.results.slice(0, 5).map((m: any): ResultadoBusca => ({
+          const listaTmdb = json.results.slice(0, 5).map((m: any): ResultadoBusca => ({
             id: m.id,
             titulo: m.title || m.name || m.original_name,
             capa: m.poster_path ? `https://image.tmdb.org/t/p/w500${m.poster_path}` : "https://placehold.co/400x600/1f1f22/52525b.png?text=SEM+CAPA",
@@ -153,7 +166,8 @@ export default function AddMangaModal({
             sinopse: m.overview || "Sem sinopse.",
             fonte: "TMDB",
             providers: Array.isArray(m.providers) ? m.providers : [],
-          })));
+          }));
+          setResultados(dedupeResultadosBusca(listaTmdb));
         }
 
       // 📖 Livros via Google Books Seguro
@@ -162,17 +176,18 @@ export default function AddMangaModal({
         const json = await res.json();
         
         if (json.items) {
-          setResultados(json.items.map((m: any): ResultadoBusca => {
+          const listaLivros = json.items.map((m: any): ResultadoBusca => {
             const links = m.volumeInfo?.imageLinks;
             return {
-              id: m.id, 
-              titulo: m.volumeInfo?.title || "Sem Título", 
+              id: m.id,
+              titulo: m.volumeInfo?.title || "Sem Título",
               capa: links?.thumbnail?.replace('http:', 'https:') || "https://placehold.co/400x600/1f1f22/52525b.png?text=SEM+CAPA",
-              total: m.volumeInfo?.pageCount || 1, 
-              sinopse: m.volumeInfo?.description || "Sem sinopse.", 
-              fonte: "Google Books"
+              total: m.volumeInfo?.pageCount || 1,
+              sinopse: m.volumeInfo?.description || "Sem sinopse.",
+              fonte: "Google Books",
             };
-          }));
+          });
+          setResultados(dedupeResultadosBusca(listaLivros));
         }
 
       // 🎮 Motor RAWG (Jogos) - VIA BACKEND SEGURO
@@ -182,14 +197,15 @@ export default function AddMangaModal({
         const jsonRawg = await resRawg.json();
         
         if (jsonRawg.results) {
-          setResultados(jsonRawg.results.map((g: any): ResultadoBusca => ({
-            id: g.id, 
-            titulo: g.name, 
+          const listaRawg = jsonRawg.results.map((g: any): ResultadoBusca => ({
+            id: g.id,
+            titulo: g.name,
             capa: g.background_image || "https://placehold.co/400x600/1f1f22/52525b.png?text=SEM+CAPA",
             total: 100, // RAWG não fornece total de horas/capítulos na busca simples
-            sinopse: "Lançamento: " + (g.released || "Não informada"), 
-            fonte: "RAWG"
-          })));
+            sinopse: "Lançamento: " + (g.released || "Não informada"),
+            fonte: "RAWG",
+          }));
+          setResultados(dedupeResultadosBusca(listaRawg));
         }
 
       // 🎵 Motor iTunes / Apple Music (Músicas - Álbuns)
@@ -199,14 +215,15 @@ export default function AddMangaModal({
         const jsonItunes = await resItunes.json();
 
         if (jsonItunes.results) {
-          setResultados(jsonItunes.results.map((m: any): ResultadoBusca => ({
+          const listaItunes = jsonItunes.results.map((m: any): ResultadoBusca => ({
             id: m.collectionId,
             titulo: `${m.artistName} - ${m.collectionName}`,
             capa: m.artworkUrl100?.replace('100x100bb', '600x600bb') || "https://placehold.co/400x400/1f1f22/52525b.png?text=SEM+CAPA",
             total: m.trackCount || 1,
-            sinopse: `Gênero: ${m.primaryGenreName}\nLançamento: ${m.releaseDate?.substring(0, 4) || 'N/A'}`,
-            fonte: "Apple Music"
-          })));
+            sinopse: `Gênero: ${m.primaryGenreName}\nLançamento: ${m.releaseDate?.substring(0, 4) || "N/A"}`,
+            fonte: "Apple Music",
+          }));
+          setResultados(dedupeResultadosBusca(listaItunes));
         }
 
       // 🇯🇵 Motor AniList / MyAnimeList (Restaurado)
@@ -223,6 +240,7 @@ export default function AddMangaModal({
                   coverImage { large }
                   chapters
                   episodes
+                  duration
                   description
                   externalLinks { url site type }
                 }
@@ -235,7 +253,7 @@ export default function AddMangaModal({
         const listaAni = jsonAni.data?.Page?.media || [];
 
         if (listaAni.length > 0) {
-          setResultados(listaAni.map((m: any): ResultadoBusca => ({
+          const listaMapeada = listaAni.map((m: any): ResultadoBusca => ({
             id: m.id,
             titulo: m.title.romaji || m.title.english,
             capa: m.coverImage.large,
@@ -243,15 +261,35 @@ export default function AddMangaModal({
             sinopse: m.description || "",
             fonte: "AniList",
             providers: anilistExternalToProviders(m.externalLinks),
-          })));
+            duracao_episodio_minutos:
+              abaPrincipal === "ANIME" && typeof m.duration === "number" && m.duration > 0 ? m.duration : undefined,
+          }));
+          const resultadosUnicos = listaMapeada.filter((valor, indice, self) =>
+            indice === self.findIndex((t) => t.id === valor.id && t.fonte === valor.fonte)
+          );
+          setResultados(resultadosUnicos);
         } else {
           const resMal = await fetch(`https://api.jikan.moe/v4/${abaPrincipal === "MANGA" ? "manga" : "anime"}?q=${encodeURIComponent(termoFinal)}&limit=5`);
           const jsonMal = await resMal.json();
-          setResultados(jsonMal.data?.map((m: any): ResultadoBusca => ({
-            id: m.mal_id, titulo: m.title, capa: m.images.jpg.large_image_url,
-            total: abaPrincipal === "MANGA" ? (m.chapters || 0) : (m.episodes || 0),
-            sinopse: m.synopsis || "", fonte: "MyAnimeList"
-          })) || []);
+          const listaMal: ResultadoBusca[] =
+            jsonMal.data?.map((m: any): ResultadoBusca => {
+              const durStr = abaPrincipal === "ANIME" && typeof m.duration === "string" ? m.duration : "";
+              const durMatch = durStr.match(/(\d+)/);
+              const durMin = durMatch ? parseInt(durMatch[1], 10) : 0;
+              return {
+                id: m.mal_id,
+                titulo: m.title,
+                capa: m.images.jpg.large_image_url,
+                total: abaPrincipal === "MANGA" ? (m.chapters || 0) : (m.episodes || 0),
+                sinopse: m.synopsis || "",
+                fonte: "MyAnimeList",
+                duracao_episodio_minutos: durMin > 0 ? durMin : undefined,
+              };
+            }) || [];
+          const resultadosUnicos = listaMal.filter((valor, indice, self) =>
+            indice === self.findIndex((t) => t.id === valor.id && t.fonte === valor.fonte)
+          );
+          setResultados(resultadosUnicos);
         }
       } else {
         setResultados([]);
@@ -289,7 +327,21 @@ export default function AddMangaModal({
       link_url: linkTrim || null,
       provider_data: novoManga.provider_data?.length ? novoManga.provider_data : null,
     };
-    const resultado = await requisicaoDbInsertSegura(tabelaDb, obraParaSalvar, true);
+    const dadosParaSalvar =
+      tabelaDb === "animes"
+        ? {
+            ...obraParaSalvar,
+            duracao_episodio_minutos: novoManga.duracao_episodio_minutos || 0,
+            temporadas_totais: 0,
+            temporadas_assistidas: 0,
+            episodios_assistidos: 0,
+          }
+        : (() => {
+            const { duracao_episodio_minutos: _d, ...rest } = obraParaSalvar;
+            return rest;
+          })();
+    console.log("=== SALVANDO NO SUPABASE ===", dadosParaSalvar);
+    const resultado = await requisicaoDbInsertSegura(tabelaDb, dadosParaSalvar, true);
     if (resultado.ok) {
       try {
         const efeitos = await aplicarEconomiaPosAdicaoEstante(usuarioAtual);
@@ -297,6 +349,30 @@ export default function AddMangaModal({
       } catch {
         /* economia opcional — obra já foi salva */
       }
+      // --- INÍCIO DA INTEGRAÇÃO COM ANILIST (PUSH NOVO ITEM) ---
+      try {
+        const token =
+          (anilistToken && String(anilistToken).length > 0 ? anilistToken : null) ||
+          (typeof window !== "undefined" ? localStorage.getItem("anilist_token") : null);
+        if (token && (abaPrincipal === "MANGA" || abaPrincipal === "ANIME")) {
+          fetch("/api/anilist/sync", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              token,
+              usuario: usuarioAtual,
+              tipoObra: abaPrincipal,
+              acao: "SALVAR",
+              titulo: String(obraParaSalvar.titulo ?? "").trim(),
+              capitulo: progressoFinal,
+              statusLocal: obraParaSalvar.status,
+            }),
+          }).catch((err) => console.error("Falha silenciosa no sync do AniList:", err));
+        }
+      } catch (e) {
+        console.error("Erro ao tentar sincronizar novo item com AniList:", e);
+      }
+      // --- FIM DA INTEGRAÇÃO ---
       aoSalvar(obraParaSalvar);
       fechar();
     } else {
@@ -340,9 +416,9 @@ export default function AddMangaModal({
             </button>
 
             <div className="mt-4 max-h-72 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
-              {resultados.map((m) => (
+              {resultados.map((m, index) => (
                 <div
-                  key={`${m.fonte}-${m.id}`}
+                  key={`${m.fonte}-${m.id}-${index}`}
                   onClick={() =>
                     setNovoManga({
                       ...novoManga,
@@ -352,6 +428,7 @@ export default function AddMangaModal({
                       sinopse: m.sinopse,
                       link_url: "",
                       provider_data: m.providers || [],
+                      duracao_episodio_minutos: m.duracao_episodio_minutos ?? 0,
                     })
                   }
                   className="flex cursor-pointer flex-col gap-2 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 transition-all hover:bg-zinc-800 group"
@@ -454,7 +531,7 @@ export default function AddMangaModal({
             </div>
 
             <div className="flex gap-4">
-              <button onClick={() => setNovoManga({ titulo: "", capa: "", capitulo_atual: 0, total_capitulos: 0, status: "Planejo Ler", sinopse: "", favorito: false, link_url: "", provider_data: [] })} className="flex-1 py-5 bg-zinc-800 text-zinc-400 rounded-2xl font-bold uppercase text-xs hover:bg-zinc-700 transition-colors">Cancelar</button>
+              <button onClick={() => setNovoManga({ titulo: "", capa: "", capitulo_atual: 0, total_capitulos: 0, status: "Planejo Ler", sinopse: "", favorito: false, link_url: "", provider_data: [], duracao_episodio_minutos: 0 })} className="flex-1 py-5 bg-zinc-800 text-zinc-400 rounded-2xl font-bold uppercase text-xs hover:bg-zinc-700 transition-colors">Cancelar</button>
               <button onClick={salvarObraFinal} disabled={salvando} className="flex-[2] py-5 bg-green-600 text-white rounded-2xl font-bold uppercase text-xs shadow-lg shadow-green-600/20 active:scale-95 transition-all">
                 {salvando ? "Salvando..." : "Sincronizar Estante"}
               </button>

@@ -30,6 +30,7 @@ import {
   calcularXpTotalHunter,
   percentualAscensaoAteProximoRank,
   classesTailwindContornoRank,
+  formatTempoVidaGuildaHoras,
 } from "./rankUtils";
 
 // ==========================================
@@ -227,10 +228,10 @@ export default function GuildaPage() {
     const ranksAsc = ordenarRanksPorXpMinimoAsc(ranksArr);
 
     const { data: m } = await supabase.from("mangas").select("usuario, capitulo_atual, favorito");
-    const { data: a } = await supabase.from("animes").select("usuario, capitulo_atual, favorito");
+    const { data: a } = await supabase.from("animes").select("usuario, capitulo_atual, favorito, duracao_episodio_minutos");
     const { data: f } = await supabase.from("filmes").select("usuario, capitulo_atual, status, favorito");
     const { data: l } = await supabase.from("livros").select("usuario, capitulo_atual, favorito");
-    const { data: s } = await supabase.from("series").select("usuario, capitulo_atual, status, favorito");
+    const { data: s } = await supabase.from("series").select("usuario, capitulo_atual, status, favorito, duracao_episodio_minutos");
     const { data: j } = await supabase.from("jogos").select("usuario, capitulo_atual, status, favorito");
     const { data: mu } = await supabase.from("musicas").select("usuario, capitulo_atual, status, favorito");
 
@@ -244,11 +245,11 @@ export default function GuildaPage() {
         userStats.obras += 1;
         userStats.caps += (obra.capitulo_atual || 0);
         if (obra.favorito) userStats.favs += 1;
-        if (tipo === "anime") userStats.tempoMin += (obra.capitulo_atual || 0) * 23;
+        if (tipo === "anime") userStats.tempoMin += (obra.capitulo_atual || 0) * (obra.duracao_episodio_minutos || 23);
         else if (tipo === "filme" && obra.status === "Completos") { userStats.tempoMin += 120; userStats.filmes += 1; }
         else if (tipo === "filme") { userStats.filmes += 1; }
         else if (tipo === "livro") { userStats.livros += 1; }
-        else if (tipo === "serie") userStats.tempoMin += (obra.capitulo_atual || 0) * 45;
+        else if (tipo === "serie") userStats.tempoMin += (obra.capitulo_atual || 0) * (obra.duracao_episodio_minutos || 45);
         else if (tipo === "jogo") userStats.tempoMin += (obra.capitulo_atual || 0) * 60;
         else if (tipo === "musica") userStats.tempoMin += (obra.capitulo_atual || 0) * 3;
       });
@@ -976,7 +977,9 @@ export default function GuildaPage() {
                 </div>
                 <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-center">
                   <p className="text-[7px] font-black uppercase text-zinc-500 tracking-[0.2em] mb-1">Imersão</p>
-                  <p className="text-sm font-black text-white mt-1">{inspecionandoHunter.tempo_vida}h</p>
+                  <p className="text-sm font-black text-white mt-1">
+                    {formatTempoVidaGuildaHoras(inspecionandoHunter.tempo_vida)}
+                  </p>
                 </div>
               </div>
 

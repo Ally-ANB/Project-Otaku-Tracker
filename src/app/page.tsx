@@ -843,6 +843,7 @@ export default function Home() {
         abaPrincipal={abaPrincipal}
         solicitarSenhaMestre={obterSenhaMestreInterativa}
         mostrarFeedback={mostrarToast}
+        anilistToken={perfis.find((p) => p.nome_original === usuarioAtual)?.anilist_token ?? null}
         aoSalvar={() => { buscarMangas(); buscarAnimes(); buscarFilmes(); buscarLivros(); buscarSeries(); buscarJogos(); buscarMusicas(); setEstaAbertoAdd(false); }}
       />
       

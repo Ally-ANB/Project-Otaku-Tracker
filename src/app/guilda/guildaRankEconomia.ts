@@ -35,10 +35,10 @@ export async function buscarGuildaRanksOrdenados(): Promise<GuildaRank[]> {
 async function agregarStatsUsuario(nomeUsuario: string): Promise<StatsHunterAgregado> {
   const [m, a, f, l, s, j, mu] = await Promise.all([
     supabase.from("mangas").select("usuario, capitulo_atual, favorito, status").eq("usuario", nomeUsuario),
-    supabase.from("animes").select("usuario, capitulo_atual, favorito, status").eq("usuario", nomeUsuario),
+    supabase.from("animes").select("usuario, capitulo_atual, favorito, status, duracao_episodio_minutos").eq("usuario", nomeUsuario),
     supabase.from("filmes").select("usuario, capitulo_atual, favorito, status").eq("usuario", nomeUsuario),
     supabase.from("livros").select("usuario, capitulo_atual, favorito, status").eq("usuario", nomeUsuario),
-    supabase.from("series").select("usuario, capitulo_atual, favorito, status").eq("usuario", nomeUsuario),
+    supabase.from("series").select("usuario, capitulo_atual, favorito, status, duracao_episodio_minutos").eq("usuario", nomeUsuario),
     supabase.from("jogos").select("usuario, capitulo_atual, favorito, status").eq("usuario", nomeUsuario),
     supabase.from("musicas").select("usuario, capitulo_atual, favorito, status").eq("usuario", nomeUsuario),
   ]);

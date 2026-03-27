@@ -347,12 +347,25 @@ function PerfilContent() {
       const all = [...(m || []), ...(a || []), ...(f || []), ...(l || []), ...(s || []), ...(j || []), ...(mu || [])];
       setObrasUsuario(all);
       
-      const epsVistos = (a || []).reduce((acc, obj) => acc + (obj.capitulo_atual || 0), 0);
-      const seriesEps = (s || []).reduce((acc, obj) => acc + (obj.capitulo_atual || 0), 0);
+      // --- INÍCIO DO CÁLCULO DE ELITE ---
+      const minutosAnimes = (a || []).reduce((acc, obj) => {
+        const eps = obj.capitulo_atual || 0;
+        const duracao = obj.duracao_episodio_minutos || 23;
+        return acc + eps * duracao;
+      }, 0);
+
+      const minutosSeries = (s || []).reduce((acc, obj) => {
+        const eps = obj.capitulo_atual || 0;
+        const duracao = obj.duracao_episodio_minutos || 45;
+        return acc + eps * duracao;
+      }, 0);
+
       const jogosHoras = (j || []).reduce((acc, obj) => acc + (obj.capitulo_atual || 0), 0);
       const musicasMinutos = (mu || []).reduce((acc, obj) => acc + (obj.capitulo_atual || 0), 0);
-      const minFilmes = (f || []).filter(obj => obj.status === "Completos").length * 120;
-      const totalMinutos = (epsVistos * 23) + (seriesEps * 45) + (jogosHoras * 60) + (musicasMinutos * 3) + minFilmes;
+      const minFilmes = (f || []).filter((obj) => obj.status === "Completos").length * 120;
+
+      const totalMinutos = minutosAnimes + minutosSeries + jogosHoras * 60 + musicasMinutos * 3 + minFilmes;
+      // --- FIM DO CÁLCULO DE ELITE ---
       
       setStats({
         obras: all.length, 
@@ -703,7 +716,11 @@ function PerfilContent() {
                 <span className="text-[7px] font-black text-zinc-600 uppercase mt-2">Capítulos</span>
               </div>
               <div className="col-span-2 bg-gradient-to-r from-zinc-900 to-black p-6 rounded-3xl border border-white/5 flex flex-col items-center overflow-hidden">
-                <span className="text-2xl font-black text-white italic">{stats.horasVida} HORAS</span>
+                <span className="text-2xl font-black text-white italic">
+                  {stats.horasVida >= 24
+                    ? `${Math.floor(stats.horasVida / 24)}D ${stats.horasVida % 24}H`
+                    : `${stats.horasVida} HORAS`}
+                </span>
                 <p className="text-[7px] font-black text-zinc-500 uppercase tracking-widest italic mt-1">Tempo de Vida Consumido</p>
                 <a href={`/api/auth/anilist?hunter=${usuarioAtivo}`} className="mt-6 w-full py-3 bg-blue-600/10 border border-blue-500/30 text-blue-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all text-center z-10">
                   {dadosPerfil.anilist_token ? "✅ AniList Conectado (Sincronizar)" : "🔗 Conectar com AniList"}

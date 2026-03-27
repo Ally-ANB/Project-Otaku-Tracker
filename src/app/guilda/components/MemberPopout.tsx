@@ -5,6 +5,7 @@ import HunterAvatar from "../../components/HunterAvatar";
 import { supabase } from "../../supabase";
 import { buscarTop3FavoritosMembro } from "../fetchTopFavoritos";
 import type { EstatisticasHunter, FavoritoComTipo, Perfil } from "../types";
+import { formatTempoVidaGuildaHoras } from "../rankUtils";
 
 interface MemberPopoutProps {
   member: Perfil | null;
@@ -45,10 +46,10 @@ async function buscarAggScannerMembro(usuario: string): Promise<AggScanner> {
     { data: p },
   ] = await Promise.all([
     supabase.from("mangas").select("capitulo_atual").eq("usuario", usuario),
-    supabase.from("animes").select("capitulo_atual").eq("usuario", usuario),
+    supabase.from("animes").select("capitulo_atual, duracao_episodio_minutos").eq("usuario", usuario),
     supabase.from("filmes").select("capitulo_atual, status").eq("usuario", usuario),
     supabase.from("livros").select("capitulo_atual").eq("usuario", usuario),
-    supabase.from("series").select("capitulo_atual").eq("usuario", usuario),
+    supabase.from("series").select("capitulo_atual, duracao_episodio_minutos").eq("usuario", usuario),
     supabase.from("jogos").select("capitulo_atual").eq("usuario", usuario),
     supabase.from("musicas").select("capitulo_atual").eq("usuario", usuario),
     supabase.from("perfis").select("esmolas").eq("nome_original", usuario).maybeSingle(),
@@ -65,13 +66,20 @@ async function buscarAggScannerMembro(usuario: string): Promise<AggScanner> {
   ];
   const caps = all.reduce((acc, obj) => acc + (obj.capitulo_atual || 0), 0);
   const obras = all.length;
-  const epsVistos = (a || []).reduce((acc, obj) => acc + (obj.capitulo_atual || 0), 0);
-  const seriesEps = (s || []).reduce((acc, obj) => acc + (obj.capitulo_atual || 0), 0);
+  const minutosAnimes = (a || []).reduce((acc, obj) => {
+    const eps = obj.capitulo_atual || 0;
+    const duracao = obj.duracao_episodio_minutos || 23;
+    return acc + eps * duracao;
+  }, 0);
+  const minutosSeries = (s || []).reduce((acc, obj) => {
+    const eps = obj.capitulo_atual || 0;
+    const duracao = obj.duracao_episodio_minutos || 45;
+    return acc + eps * duracao;
+  }, 0);
   const jogosHoras = (j || []).reduce((acc, obj) => acc + (obj.capitulo_atual || 0), 0);
   const musicasMinutos = (mu || []).reduce((acc, obj) => acc + (obj.capitulo_atual || 0), 0);
   const minFilmes = (f || []).filter((obj) => obj.status === "Completos").length * 120;
-  const totalMinutos =
-    epsVistos * 23 + seriesEps * 45 + jogosHoras * 60 + musicasMinutos * 3 + minFilmes;
+  const totalMinutos = minutosAnimes + minutosSeries + jogosHoras * 60 + musicasMinutos * 3 + minFilmes;
 
   return {
     obras,
@@ -354,7 +362,9 @@ export default function MemberPopout({
                 </div>
                 <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/45 p-3 backdrop-blur-sm">
                   <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">Imersão de Vida</span>
-                  <span className="text-sm font-black tabular-nums text-blue-400">{horasScan} Horas</span>
+                  <span className="text-sm font-black tabular-nums text-blue-400">
+                    {formatTempoVidaGuildaHoras(horasScan)}
+                  </span>
                 </div>
               </div>
             </div>
