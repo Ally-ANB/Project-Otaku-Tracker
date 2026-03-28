@@ -3,7 +3,7 @@
 import { supabase } from "../supabase";
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { Mic } from "lucide-react";
+import { History, Mic } from "lucide-react";
 import MangaDetailsModal, { type Manga as MangaObraModal } from "../components/MangaDetailsModal";
 import MemberPopout from "./components/MemberPopout";
 import SintoniaIndicator from "./components/SintoniaIndicator";
@@ -44,6 +44,9 @@ const CORES_CHAT: any = {
   chat_cor_fantasma: "text-zinc-400 opacity-80 font-medium italic"
 };
 
+/** Limite inicial do chat (paginação reversa); alinhar scroll automático ao mesmo valor. */
+const LIMITE_INICIAL_CHAT = 10;
+
 const BALOES_CHAT: any = {
   chat_balao_cyber: "bg-black/80 border-cyan-500/50 shadow-[0_0_15px_rgba(34,211,238,0.1)] rounded-none border-l-4",
   chat_balao_rpg: "bg-[#2c241b] border-[#8b7355] border-2 rounded-sm shadow-inner text-[#e0cba8]",
@@ -59,6 +62,7 @@ export default function GuildaPage() {
   const [novaMensagem, setNovaMensagem] = useState("");
   const [enviando, setEnviando] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const limiteMensagensRef = useRef(LIMITE_INICIAL_CHAT);
 
   const [vistaCentral, setVistaCentral] = useState<"chat-geral" | "podio-hunters">("chat-geral");
   const [filtroRanking, setFiltroRanking] = useState<FiltroRanking>("OBRAS");
@@ -71,7 +75,7 @@ export default function GuildaPage() {
 
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [textoEdicao, setTextoEdicao] = useState("");
-  const [limiteMensagens, setLimiteMensagens] = useState(50);
+  const [limiteMensagens, setLimiteMensagens] = useState(LIMITE_INICIAL_CHAT);
   
   const [lojaItens, setLojaItens] = useState<any[]>([]);
 
@@ -127,13 +131,23 @@ export default function GuildaPage() {
   }
 
   useEffect(() => {
+    limiteMensagensRef.current = limiteMensagens;
+  }, [limiteMensagens]);
+
+  useEffect(() => {
+    void buscarMensagens();
+  }, [limiteMensagens]);
+
+  useEffect(() => {
     const hunter = sessionStorage.getItem("hunter_ativo");
     if (!hunter) { window.location.href = '/'; return; }
     setUsuarioAtivo(hunter);
     carregarDados();
-    const intervalo = setInterval(buscarMensagens, 10000);
+    const intervalo = setInterval(() => {
+      void buscarMensagens();
+    }, 10000);
     return () => clearInterval(intervalo);
-  }, [limiteMensagens]);
+  }, []);
 
   useEffect(() => {
     setSintoniaVozAtiva(sessionStorage.getItem("guilda_sintonia_voz") === "1");
@@ -157,10 +171,10 @@ export default function GuildaPage() {
   }, [meuPerfilAtivo]);
 
   useEffect(() => {
-    if (scrollRef.current && vistaCentral === "chat-geral" && limiteMensagens === 50) {
+    if (scrollRef.current && vistaCentral === "chat-geral" && limiteMensagens === LIMITE_INICIAL_CHAT) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [mensagens, vistaCentral]);
+  }, [mensagens, vistaCentral, limiteMensagens]);
 
   // ✅ DISPARA O CÁLCULO SEMPRE QUE OS PERFIS CARREGAREM
   useEffect(() => {
@@ -171,7 +185,6 @@ export default function GuildaPage() {
 
   async function carregarDados() {
     await buscarPerfis();
-    await buscarMensagens();
     const { data: itensDB } = await supabase.from("loja_itens").select("*");
     if (itensDB) setLojaItens(itensDB);
     const { data: ranksRows } = await supabase.from("guilda_ranks").select("*");
@@ -184,12 +197,16 @@ export default function GuildaPage() {
   }
 
   async function buscarMensagens() {
+    const lim = limiteMensagensRef.current;
     const { data } = await supabase
       .from("guilda_mensagens")
       .select("*")
       .order("criado_em", { ascending: false })
-      .limit(limiteMensagens);
-    if (data) setMensagens(data.reverse());
+      .limit(lim);
+    if (data) {
+      const mensagensOrdenadas = [...data].reverse();
+      setMensagens(mensagensOrdenadas);
+    }
   }
 
   // ✅ FUNÇÃO: ABRIR RELATÓRIO DE INSPEÇÃO
@@ -560,10 +577,19 @@ export default function GuildaPage() {
         <section className="min-w-0 min-h-[min(70vh,720px)] xl:min-h-0 flex flex-col bg-[#0e0e11]/95 border border-zinc-800 rounded-[2.5rem] overflow-hidden relative shadow-[0_0_32px_rgba(59,130,246,0.06)]">
           {vistaCentral === "chat-geral" && (
             <div id="chat-geral" className="flex flex-col h-full flex-1 min-h-0">
-              <div ref={scrollRef} className="flex-1 p-8 overflow-y-auto custom-scrollbar flex flex-col gap-1">
+              <div
+                ref={scrollRef}
+                className="flex-1 min-h-0 max-h-[min(60vh,500px)] overflow-y-auto pr-2 scroll-smooth custom-scrollbar flex flex-col gap-1 px-8 pt-8 pb-4"
+              >
                 {mensagens.length >= limiteMensagens && (
-                  <div className="flex justify-center mb-6">
-                    <button onClick={() => setLimiteMensagens(prev => prev + 50)} className="px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-[9px] font-black uppercase tracking-widest text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all">↑ Carregar mensagens antigas</button>
+                  <div className="flex justify-center py-4">
+                    <button
+                      type="button"
+                      onClick={() => setLimiteMensagens((prev) => prev + 10)}
+                      className="text-xs font-black uppercase tracking-widest text-zinc-500 hover:text-white transition-colors flex items-center gap-2 bg-black/40 px-4 py-2 rounded-full border border-white/5 hover:border-white/20"
+                    >
+                      <History className="w-4 h-4" /> Carregar mensagens anteriores
+                    </button>
                   </div>
                 )}
                 {mensagens.map((msg, index) => {
@@ -652,7 +678,7 @@ export default function GuildaPage() {
                   </div>
                 </div>
               )}
-              <div className="p-6 bg-black/40 border-t border-zinc-800 shrink-0">
+              <div className="shrink-0 mt-4 pt-4 px-8 pb-8 border-t border-white/10 bg-black/40">
                 <form onSubmit={enviarMensagem} className="flex gap-3">
                   <button type="button" onClick={() => setPainelFigurinhas(!painelFigurinhas)} className={`p-4 rounded-2xl border transition-all text-xl ${painelFigurinhas ? 'bg-blue-600/20 border-blue-500' : 'bg-zinc-900 border-zinc-800 hover:bg-zinc-800'}`}>🌠</button>
                   <input type="text" placeholder="Conversar na Guilda..." className="flex-1 bg-zinc-950 border border-zinc-800 p-5 rounded-2xl outline-none text-white text-sm focus:border-blue-500/50 transition-all" value={novaMensagem} onChange={e => setNovaMensagem(e.target.value)} maxLength={250} />

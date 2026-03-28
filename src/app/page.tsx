@@ -35,6 +35,8 @@ interface Manga {
   link_url?: string | null;
   capa_url?: string | null;
   provider_data?: unknown;
+  temporadas_assistidas?: number | null;
+  temporadas_totais?: number | null;
 }
 
 // ==========================================

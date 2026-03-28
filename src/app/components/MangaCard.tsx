@@ -18,6 +18,8 @@ interface Manga {
   link_url?: string | null;
   capa_url?: string | null;
   provider_data?: unknown;
+  temporadas_assistidas?: number | null;
+  temporadas_totais?: number | null;
 }
 
 interface MangaCardProps {
@@ -48,9 +50,9 @@ export default function MangaCard({ manga, aura, abaPrincipal, atualizarCapitulo
           ? "Ouvindo"
           : manga.status;
 
-  const progresso = manga.total_capitulos > 0 
-    ? Math.round((manga.capitulo_atual / manga.total_capitulos) * 100) 
-    : 0;
+  const total = Math.max(0, Number(manga.total_capitulos) || 0);
+  const atual = Math.max(0, Number(manga.capitulo_atual) || 0);
+  const porcentagem = total > 0 ? Math.min(100, Math.max(0, Math.round((atual / total) * 100))) : 0;
 
   const capaSrc = manga.capa_url?.trim() || manga.capa;
 
@@ -84,13 +86,13 @@ export default function MangaCard({ manga, aura, abaPrincipal, atualizarCapitulo
       <div className="space-y-4">
         <div className="flex justify-between items-end px-1">
            <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Progresso</span>
-           <span className={`${aura.text} text-[10px] font-black`}>{progresso}%</span>
+           <span className={`${aura.text} text-[10px] font-black`}>{porcentagem}%</span>
         </div>
         
         <div className="h-1 w-full bg-zinc-800 rounded-full overflow-hidden">
           <div 
             className={`${aura.bg} h-full transition-all duration-500`} 
-            style={{ width: `${progresso}%` }} 
+            style={{ width: `${porcentagem}%` }} 
           />
         </div>
 
@@ -112,7 +114,16 @@ export default function MangaCard({ manga, aura, abaPrincipal, atualizarCapitulo
               onKeyDown={(e) => e.key === 'Enter' && handleBlurOuEnter()}
               className="w-12 bg-transparent text-center text-xs font-black text-white outline-none focus:text-green-500 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
-            <p className="text-[6px] text-zinc-600 font-bold uppercase">/ {manga.total_capitulos || '?'}</p>
+            {abaPrincipal === "ANIME" || abaPrincipal === "SERIE" ? (
+              <p className="max-w-[10rem] text-center text-[6px] font-bold uppercase leading-tight text-zinc-600">
+                T: {manga.temporadas_assistidas ?? "?"}/{manga.temporadas_totais ?? "?"} • Ep: {manga.capitulo_atual}/
+                {manga.total_capitulos || "?"}
+              </p>
+            ) : (
+              <p className="text-[6px] text-zinc-600 font-bold uppercase">
+                Capítulo: {manga.capitulo_atual}/{manga.total_capitulos || "?"}
+              </p>
+            )}
           </div>
           
           <button 
