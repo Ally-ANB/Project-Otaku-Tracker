@@ -122,7 +122,7 @@ export default function AddMangaModal({
     try {
       const dedupeResultadosBusca = (arr: ResultadoBusca[]) =>
         arr.filter(
-          (valor, indice, self) =>
+          (valor: ResultadoBusca, indice: number, self: ResultadoBusca[]) =>
             indice === self.findIndex((t) => t.id === valor.id && t.fonte === valor.fonte)
         );
 
@@ -264,8 +264,9 @@ export default function AddMangaModal({
             duracao_episodio_minutos:
               abaPrincipal === "ANIME" && typeof m.duration === "number" && m.duration > 0 ? m.duration : undefined,
           }));
-          const resultadosUnicos = listaMapeada.filter((valor, indice, self) =>
-            indice === self.findIndex((t) => t.id === valor.id && t.fonte === valor.fonte)
+          const resultadosUnicos = listaMapeada.filter(
+            (valor: ResultadoBusca, indice: number, self: ResultadoBusca[]) =>
+              indice === self.findIndex((t) => t.id === valor.id && t.fonte === valor.fonte)
           );
           setResultados(resultadosUnicos);
         } else {
@@ -286,8 +287,9 @@ export default function AddMangaModal({
                 duracao_episodio_minutos: durMin > 0 ? durMin : undefined,
               };
             }) || [];
-          const resultadosUnicos = listaMal.filter((valor, indice, self) =>
-            indice === self.findIndex((t) => t.id === valor.id && t.fonte === valor.fonte)
+          const resultadosUnicos = listaMal.filter(
+            (valor: ResultadoBusca, indice: number, self: ResultadoBusca[]) =>
+              indice === self.findIndex((t) => t.id === valor.id && t.fonte === valor.fonte)
           );
           setResultados(resultadosUnicos);
         }
