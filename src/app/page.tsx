@@ -3,41 +3,22 @@
 // ==========================================
 // 📦 [SESSÃO 1] - IMPORTAÇÕES E INTERFACES
 // ==========================================
-import AcessoMestre from "./components/AcessoMestre";
+import AcessoMestre from "@/components/ui/AcessoMestre";
 import { supabase } from "./supabase";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import MangaCard from "./components/MangaCard";
-import AddMangaModal from "./components/AddMangaModal";
-import MangaDetailsModal from "./components/MangaDetailsModal";
-import AdminPanel from "./components/AdminPanel";
-import ProfileSelection from "./components/ProfileSelection";
-import { useSenhaMestraInterativa } from "./hooks/useSenhaMestraInterativa";
+import MangaCard from "@/components/ui/MangaCard";
+import AddMangaModal from "@/components/ui/AddMangaModal";
+import MangaDetailsModal from "@/components/ui/MangaDetailsModal";
+import AdminPanel from "@/components/ui/AdminPanel";
+import ProfileSelection from "@/components/ui/ProfileSelection";
+import { useSenhaMestraInterativa } from "@/hooks/useSenhaMestraInterativa";
 import { dbClient, requisicaoDbApi } from "@/lib/dbClient";
 // ✅ ADICIONADO: Componente de Identidade Universal e Player Card
-import HunterAvatar from "./components/HunterAvatar";
-import { BookOpen, Film, Tv, Gamepad2, Music, Book } from "lucide-react";
-
-interface Manga { 
-  id: number; 
-  titulo: string; 
-  capa: string; 
-  capitulo_atual: number; 
-  total_capitulos: number; 
-  status: string; 
-  sinopse: string; 
-  nota_pessoal: number; 
-  nota_amigos: number; 
-  comentarios: string; 
-  usuario: string; 
-  ultima_leitura: string; 
-  favorito: boolean;
-  link_url?: string | null;
-  capa_url?: string | null;
-  provider_data?: unknown;
-  temporadas_assistidas?: number | null;
-  temporadas_totais?: number | null;
-}
+import HunterAvatar from "@/components/ui/HunterAvatar";
+import { BookOpen, Film, Tv, Gamepad2, Music, Book, Search } from "lucide-react";
+import { OMNISEARCH_OPEN_EVENT } from "@/components/features/OmniSearch";
+import type { Manga } from "@/types/hunter_registry";
 
 // ==========================================
 // 🎨 [SESSÃO 2] - TEMAS E ESTILOS (AURAS)
@@ -678,7 +659,25 @@ export default function Home() {
         </div>
 
         <div className="flex items-center gap-4">
-          
+          <button
+            type="button"
+            onClick={() =>
+              window.dispatchEvent(new CustomEvent(OMNISEARCH_OPEN_EVENT))
+            }
+            className="flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-zinc-900/50 px-4 py-3 shadow-[0_0_20px_rgba(34,197,94,0.12)] backdrop-blur-md transition-all hover:border-emerald-400/50 hover:bg-zinc-800/55 hover:shadow-[0_0_24px_rgba(34,197,94,0.2)]"
+            title="Abrir busca global (/)"
+          >
+            <Search
+              className="h-4 w-4 shrink-0 text-emerald-400"
+              strokeWidth={2.25}
+              aria-hidden
+            />
+            <span className="hidden text-[10px] font-black uppercase tracking-[0.12em] text-zinc-200 sm:inline">
+              Pesquisar na Estante...{" "}
+              <span className="text-zinc-500">[/]</span>
+            </span>
+          </button>
+
           {/* BOTÃO ADICIONAR (GRADIENTE & DESTAQUE) */}
           <button 
             onClick={() => setEstaAbertoAdd(true)} 

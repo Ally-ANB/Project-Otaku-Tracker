@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 // ✅ IMPORTAREMOS O GERENCIADOR DE EFEITOS QUE VAMOS CRIAR
-import GlobalVFXManager from "./components/GlobalVFXManager";
-import RadioHunter from "./components/RadioHunter";
+import GlobalVFXManager from "@/components/ui/GlobalVFXManager";
+import OmniSearch from "@/components/features/OmniSearch";
+import RadioHunter from "@/components/features/RadioHunter";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -39,6 +40,8 @@ export default function RootLayout({
         <div className="relative z-10">
           {children}
         </div>
+
+        <OmniSearch />
       </body>
     </html>
   );

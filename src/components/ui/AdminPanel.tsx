@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
-import { supabase } from "../supabase";
-import EfeitosVisuais from "./EfeitosVisuais";
+import { supabase } from "@/app/supabase";
+import EfeitosVisuais from "@/components/ui/EfeitosVisuais";
 import { obterSenhaMestreRevelada, requisicaoDbApi } from "@/lib/dbClient";
 
 interface AdminPanelProps {

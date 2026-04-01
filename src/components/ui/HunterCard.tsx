@@ -1,6 +1,6 @@
 "use client";
 
-import HunterAvatar from "./HunterAvatar";
+import HunterAvatar from "@/components/ui/HunterAvatar";
 
 interface HunterCardProps {
   perfil: any;

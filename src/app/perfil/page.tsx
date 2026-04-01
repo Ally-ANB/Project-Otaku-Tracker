@@ -4,7 +4,7 @@ import { supabase } from "../supabase";
 import { useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useSenhaMestraInterativa } from "../hooks/useSenhaMestraInterativa";
+import { useSenhaMestraInterativa } from "@/hooks/useSenhaMestraInterativa";
 import { requisicaoDbApi } from "@/lib/dbClient";
 import { preverRecompensaRank } from "../guilda/guildaRankEconomia";
 import {
@@ -21,8 +21,8 @@ import {
   rankAtualDeListaOrdenada,
   statsVazio,
 } from "../guilda/rankUtils";
-import HunterCard from "../components/HunterCard";
-import EfeitosVisuais from "../components/EfeitosVisuais";
+import HunterCard from "@/components/ui/HunterCard";
+import EfeitosVisuais from "@/components/ui/EfeitosVisuais";
 
 const TEMAS = {
   verde: { bg: "bg-green-500", text: "text-green-500", border: "border-green-500", glow: "shadow-green-500/20", btn: "bg-green-500/10 border-green-500/50 hover:bg-green-500 hover:text-black" },

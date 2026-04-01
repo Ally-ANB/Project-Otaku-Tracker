@@ -21,28 +21,10 @@ import {
   parseProviderData,
   type WatchProvider,
 } from "@/lib/watchProviders";
-import WatchProviderStrip from "./WatchProviderStrip";
+import WatchProviderStrip from "@/components/ui/WatchProviderStrip";
+import type { Manga } from "@/types/hunter_registry";
 
-export interface Manga {
-  id: number;
-  titulo: string;
-  capa: string;
-  capitulo_atual: number;
-  total_capitulos: number;
-  status: string;
-  sinopse: string;
-  nota_pessoal: number;
-  nota_amigos: number;
-  comentarios: string;
-  usuario: string;
-  ultima_leitura: string;
-  favorito: boolean;
-  link_url?: string | null;
-  capa_url?: string | null;
-  provider_data?: unknown;
-  temporadas_assistidas?: number | null;
-  temporadas_totais?: number | null;
-}
+export type { Manga };
 
 /** Defina `NEXT_PUBLIC_SUPABASE_HAS_CAPA_URL=true` no .env quando a coluna `capa_url` existir nas tabelas de obras. */
 const TEM_COLUNA_CAPA_URL_NO_SUPABASE =

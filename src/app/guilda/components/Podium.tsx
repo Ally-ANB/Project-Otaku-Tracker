@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import HunterAvatar from "../../components/HunterAvatar";
+import HunterAvatar from "@/components/ui/HunterAvatar";
 import type { EstatisticasHunter, FiltroRanking } from "../types";
 import {
   metricaRanking,

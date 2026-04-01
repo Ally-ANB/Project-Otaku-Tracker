@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
-import { supabase } from '../supabase';
-import ColecaoTrofeus from './ColecaoTrofeus'; // Certifique-se que o caminho está correto
+import { supabase } from "@/app/supabase";
+import ColecaoTrofeus from "@/components/ui/ColecaoTrofeus";
 
 interface UserProfileProps {
   perfil: any;

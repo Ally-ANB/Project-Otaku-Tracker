@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useState } from "react";
-import HunterAvatar from "../../components/HunterAvatar";
-import { supabase } from "../../supabase";
+import HunterAvatar from "@/components/ui/HunterAvatar";
+import { supabase } from "@/app/supabase";
 import { buscarTop3FavoritosMembro } from "../fetchTopFavoritos";
 import type { EstatisticasHunter, FavoritoComTipo, Perfil } from "../types";
 import { formatTempoVidaGuildaHoras } from "../rankUtils";

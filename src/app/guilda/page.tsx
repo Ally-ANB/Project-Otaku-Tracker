@@ -4,17 +4,17 @@ import { supabase } from "../supabase";
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { History, Mic } from "lucide-react";
-import MangaDetailsModal, { type Manga as MangaObraModal } from "../components/MangaDetailsModal";
+import MangaDetailsModal, { type Manga as MangaObraModal } from "@/components/ui/MangaDetailsModal";
 import MemberPopout from "./components/MemberPopout";
 import SintoniaIndicator from "./components/SintoniaIndicator";
-import { useSenhaMestraInterativa } from "../hooks/useSenhaMestraInterativa";
+import { useSenhaMestraInterativa } from "@/hooks/useSenhaMestraInterativa";
 import { API_DB_PATH } from "@/lib/dbClient";
 // ✅ MOLDURAS IMPORTADAS DO PERFIL
 import { MOLDURAS_DISCORD } from "../perfil/page";
 // ✅ COMPONENTE DE IDENTIDADE UNIFICADO
-import HunterAvatar from "../components/HunterAvatar";
+import HunterAvatar from "@/components/ui/HunterAvatar";
 // ✅ NOVO: Player Card
-import HunterCard from "../components/HunterCard";
+import HunterCard from "@/components/ui/HunterCard";
 import Podium from "./components/Podium";
 import HuntersList from "./components/HuntersList";
 import type { Mensagem, Perfil, EstatisticasHunter, FiltroRanking, AbaPrincipalObra, FavoritoComTipo } from "./types";

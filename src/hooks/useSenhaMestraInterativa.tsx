@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import SenhaMestraModal from "../components/SenhaMestraModal";
+import SenhaMestraModal from "@/components/ui/SenhaMestraModal";
 import { definirSenhaMestreNaSessao, obterSenhaMestreRevelada } from "@/lib/dbClient";
 
 export function useSenhaMestraInterativa() {

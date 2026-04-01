@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/app/supabase";
-import EfeitosVisuais from "./EfeitosVisuais";
+import EfeitosVisuais from "@/components/ui/EfeitosVisuais";
 
 export default function GlobalVFXManager() {
   const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null);

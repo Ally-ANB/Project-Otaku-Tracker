@@ -4,9 +4,9 @@
 // 📦 [SESSÃO 1] - IMPORTAÇÕES E INTERFACES
 // ==========================================
 import { useState } from "react";
-import EfeitosVisuais from "./EfeitosVisuais";
+import EfeitosVisuais from "@/components/ui/EfeitosVisuais";
 // ✅ ADICIONADO: Componente de Identidade para renderizar as molduras
-import HunterAvatar from "./HunterAvatar";
+import HunterAvatar from "@/components/ui/HunterAvatar";
 
 interface ProfileSelectionProps {
   perfis: any[];

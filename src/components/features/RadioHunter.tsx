@@ -31,10 +31,15 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { supabase } from "../supabase";
+import { supabase } from "@/app/supabase";
 import { requisicaoDbApi, obterSenhaMestreRevelada } from "@/lib/dbClient";
-import { useSenhaMestraInterativa } from "../hooks/useSenhaMestraInterativa";
-import { aplicarEconomiaPosAdicaoEstante } from "../guilda/guildaRankEconomia";
+import { useSenhaMestraInterativa } from "@/hooks/useSenhaMestraInterativa";
+import { aplicarEconomiaPosAdicaoEstante } from "@/app/guilda/guildaRankEconomia";
+import {
+  RADIO_HUNTER_ADD_QUEUE,
+  RADIO_HUNTER_PLAY_URL,
+  type RadioHunterTrackDetail,
+} from "@/lib/radioHunterEvents";
 
 const ReactPlayer = dynamic(() => import("react-player"), { ssr: false });
 
@@ -373,6 +378,7 @@ export default function RadioHunter() {
   }>({ isOpen: false, tipo: "", valorInicial: "", idAlvo: null });
   const [playlistModalInputKey, setPlaylistModalInputKey] = useState(0);
 
+  const usuarioAtivoRef = useRef<string | null>(null);
   const playerRef = useRef<HTMLElement | null>(null);
   const previewItemRef = useRef<RadioPreviewItem | null>(null);
   const isPlayingRef = useRef(false);
@@ -387,6 +393,10 @@ export default function RadioHunter() {
   const constraintsRef = useRef<HTMLDivElement>(null);
   const dragControls = useDragControls();
   const { obterSenhaMestreInterativa, modalSenhaMestra } = useSenhaMestraInterativa();
+
+  useEffect(() => {
+    usuarioAtivoRef.current = usuarioAtivo;
+  }, [usuarioAtivo]);
 
   useEffect(() => {
     queueRef.current = queue;
@@ -1056,6 +1066,58 @@ export default function RadioHunter() {
     setIsPlaying(true);
     setAbaFila("FILA");
   }, []);
+
+  useEffect(() => {
+    const onAddQueue = (e: Event) => {
+      if (!usuarioAtivoRef.current) return;
+      const d = (e as CustomEvent<RadioHunterTrackDetail>).detail;
+      if (!d?.url?.trim()) return;
+      setPreviewItem(null);
+      const name = activePlaylistNameRef.current;
+      const titulo = (d.titulo || "Faixa").trim();
+      const url = d.url.trim();
+      const id = (d.id && String(d.id).trim()) || url;
+      setPlaylists((prev) => ({
+        ...prev,
+        [name]: [...(prev[name] ?? []), { titulo, url, id, uid: newUid() }],
+      }));
+      mostrarToast("Adicionado à fila do Radio", "sucesso");
+    };
+
+    const onPlayUrl = (e: Event) => {
+      if (!usuarioAtivoRef.current) return;
+      const d = (e as CustomEvent<RadioHunterTrackDetail>).detail;
+      if (!d?.url?.trim()) return;
+      setPreviewItem(null);
+      const name = activePlaylistNameRef.current;
+      const item: RadioQueueItem = {
+        titulo: (d.titulo || "Faixa").trim(),
+        url: d.url.trim(),
+        id: (d.id && String(d.id).trim()) || d.url.trim(),
+        uid: newUid(),
+      };
+      const holder = { newCi: 0 };
+      flushSync(() => {
+        setPlaylists((prev) => {
+          const q = [...(prev[name] ?? [])];
+          holder.newCi = q.length;
+          q.push(item);
+          queueRef.current = q;
+          return { ...prev, [name]: q };
+        });
+      });
+      setCurrentIndex(holder.newCi);
+      setIsPlaying(true);
+      mostrarToast("Tocando no Radio", "sucesso");
+    };
+
+    window.addEventListener(RADIO_HUNTER_ADD_QUEUE, onAddQueue);
+    window.addEventListener(RADIO_HUNTER_PLAY_URL, onPlayUrl);
+    return () => {
+      window.removeEventListener(RADIO_HUNTER_ADD_QUEUE, onAddQueue);
+      window.removeEventListener(RADIO_HUNTER_PLAY_URL, onPlayUrl);
+    };
+  }, [mostrarToast]);
 
   if (!usuarioAtivo) return null;
 
