@@ -1,19 +1,16 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import {
-  AnimatePresence,
-  motion,
-  Reorder,
-  useDragControls,
-} from "framer-motion";
+import { AnimatePresence, motion, Reorder, useDragControls } from "framer-motion";
 import type { ComponentProps } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import {
+  ArrowLeft,
   Check,
   GripVertical,
-  Link2,
+  Library,
+  Link,
   ListMusic,
   Loader2,
   Maximize2,
@@ -27,7 +24,6 @@ import {
   Repeat,
   Save,
   Search,
-  Settings2,
   Shuffle,
   SkipBack,
   SkipForward,
@@ -136,6 +132,152 @@ function defaultQueueItem(url: string): RadioQueueItem {
   return { titulo: "Hunter FM", url, id: "default", uid: `default-${newUid()}` };
 }
 
+type RadioFilaReorderRowProps = {
+  item: RadioQueueItem;
+  index: number;
+  queueLength: number;
+  isCurrent: boolean;
+  thumbUrl: string;
+  tocandoAqui: boolean;
+  onPlayOrPause: () => void;
+  onRemove: () => void;
+};
+
+function RadioFilaReorderRow({
+  item,
+  index,
+  queueLength,
+  isCurrent,
+  thumbUrl,
+  tocandoAqui,
+  onPlayOrPause,
+  onRemove,
+}: RadioFilaReorderRowProps) {
+  const dragControls = useDragControls();
+  return (
+    <Reorder.Item
+      as="div"
+      value={item}
+      dragListener={false}
+      dragControls={dragControls}
+      className={`flex cursor-default items-center gap-3 rounded-lg p-2 transition-colors hover:bg-white/5 group border ${
+        isCurrent ? "border-cyan-400/40 bg-cyan-500/15" : "border-white/10 bg-white/5"
+      }`}
+    >
+      <button
+        type="button"
+        title="Arrastar para reordenar"
+        aria-label="Arrastar para reordenar"
+        className="shrink-0 cursor-grab touch-none text-zinc-600 opacity-40 transition-opacity hover:text-white group-hover:opacity-100 active:cursor-grabbing"
+        onPointerDown={(e) => dragControls.start(e)}
+      >
+        <GripVertical className="h-4 w-4" aria-hidden />
+      </button>
+      {thumbUrl ? (
+        <img
+          src={thumbUrl}
+          alt=""
+          className="pointer-events-none h-7 w-10 shrink-0 rounded object-cover"
+        />
+      ) : (
+        <div className="pointer-events-none h-7 w-10 shrink-0 rounded bg-zinc-800" />
+      )}
+      <button
+        type="button"
+        title={tocandoAqui ? "Pausar" : "Tocar esta faixa"}
+        aria-label={tocandoAqui ? "Pausar" : "Tocar esta faixa"}
+        onClick={onPlayOrPause}
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition-colors ${
+          tocandoAqui
+            ? "border-cyan-400/50 bg-cyan-500/25 text-cyan-200 hover:border-cyan-300/60 hover:text-cyan-100"
+            : "border-white/10 bg-white/5 text-zinc-300 hover:border-green-400/40 hover:text-green-400"
+        }`}
+      >
+        {tocandoAqui ? (
+          <Pause className="h-3.5 w-3.5" />
+        ) : (
+          <Play className="h-3.5 w-3.5 pl-0.5" />
+        )}
+      </button>
+      <button
+        type="button"
+        className="min-w-0 flex-1 rounded-md px-1 py-0.5 text-left transition-colors hover:bg-white/5"
+        title={tocandoAqui ? "Pausar" : "Tocar esta faixa"}
+        onClick={onPlayOrPause}
+      >
+        <p
+          className={`truncate text-[9px] font-bold ${isCurrent ? "text-cyan-100/95" : "text-white/90"}`}
+          title={item.titulo}
+        >
+          {item.titulo}
+        </p>
+        <p className="text-[8px] text-zinc-500 tabular-nums">
+          {index + 1} / {queueLength}
+          {isCurrent ? " · tocando" : ""}
+        </p>
+      </button>
+      <button
+        type="button"
+        title="Remover da fila"
+        className="shrink-0 rounded-md border border-red-400/35 bg-red-500/15 p-1.5 text-red-300 hover:bg-red-500/25"
+        aria-label="Remover da fila"
+        onClick={onRemove}
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
+    </Reorder.Item>
+  );
+}
+
+type RadioPlaylistTrackReorderRowProps = {
+  item: RadioQueueItem;
+  thumbUrl: string;
+  onPlay: () => void;
+};
+
+function RadioPlaylistTrackReorderRow({ item, thumbUrl, onPlay }: RadioPlaylistTrackReorderRowProps) {
+  const dragControls = useDragControls();
+  return (
+    <Reorder.Item
+      as="div"
+      value={item}
+      dragListener={false}
+      dragControls={dragControls}
+      className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 p-2 transition-colors hover:bg-white/[0.07]"
+    >
+      <button
+        type="button"
+        title="Arrastar para reordenar"
+        aria-label="Arrastar para reordenar"
+        className="shrink-0 cursor-grab touch-none text-zinc-600 opacity-70 transition-opacity hover:text-white active:cursor-grabbing"
+        onPointerDown={(e) => dragControls.start(e)}
+      >
+        <GripVertical className="h-4 w-4" aria-hidden />
+      </button>
+      {thumbUrl ? (
+        <img src={thumbUrl} alt="" className="h-8 w-11 shrink-0 rounded object-cover" />
+      ) : (
+        <div className="h-8 w-11 shrink-0 rounded bg-zinc-800" />
+      )}
+      <p
+        className="min-w-0 flex-1 truncate text-[10px] font-bold text-white/90"
+        title={item.titulo}
+      >
+        {item.titulo}
+      </p>
+      <button
+        type="button"
+        title="Tocar esta faixa"
+        aria-label={`Tocar ${item.titulo}`}
+        onClick={onPlay}
+        className="shrink-0 rounded-md border border-green-500/30 bg-green-500/10 p-1.5 text-green-400 transition-colors hover:bg-green-500/20"
+      >
+        <Play className="h-3 w-3 text-green-500" aria-hidden />
+      </button>
+    </Reorder.Item>
+  );
+}
+
 /** Aceita array legado ou objeto { nomePlaylist: [...] }. */
 function playlistsDoBanco(
   rp: unknown,
@@ -171,124 +313,6 @@ function playlistsDoBanco(
   return { playlists: singleDefault, activeName: DEFAULT_PLAYLIST_NAME };
 }
 
-type RadioQueueReorderRowProps = {
-  item: RadioQueueItem;
-  index: number;
-  queueLength: number;
-  isCurrent: boolean;
-  isPlaying: boolean;
-  onPlayAt: (index: number) => void;
-  onPausePlayback: () => void;
-  onRemove: (index: number) => void;
-};
-
-function RadioQueueReorderRow({
-  item,
-  index,
-  queueLength,
-  isCurrent,
-  isPlaying,
-  onPlayAt,
-  onPausePlayback,
-  onRemove,
-}: RadioQueueReorderRowProps) {
-  const dragControls = useDragControls();
-  const thumbUrl = capaYoutubeDeUrl(item.url);
-  const tocandoAqui = isCurrent && isPlaying;
-
-  function handlePlayOrPauseTitle() {
-    if (tocandoAqui) onPausePlayback();
-    else onPlayAt(index);
-  }
-
-  return (
-    <Reorder.Item
-      value={item}
-      dragListener={false}
-      dragControls={dragControls}
-      className={`rounded-lg border p-2 select-none min-w-0 ${
-        isCurrent ? "bg-cyan-500/15 border-cyan-400/40" : "bg-white/5 border-white/10"
-      }`}
-    >
-      <div className="flex w-full min-w-0 items-center gap-3">
-        <button
-          type="button"
-          title="Arrastar para reordenar"
-          aria-label="Arrastar para reordenar"
-          onPointerDown={(e) => dragControls.start(e)}
-          className="flex h-8 w-8 shrink-0 touch-none cursor-grab items-center justify-center rounded-md border border-white/10 bg-white/5 text-zinc-400 hover:text-zinc-200 active:cursor-grabbing"
-        >
-          <GripVertical className="h-3.5 w-3.5" />
-        </button>
-
-        {thumbUrl ? (
-          <img
-            src={thumbUrl}
-            alt=""
-            className="h-7 w-10 shrink-0 rounded object-cover pointer-events-none"
-          />
-        ) : (
-          <div className="h-7 w-10 shrink-0 rounded bg-zinc-800 pointer-events-none" />
-        )}
-
-        <button
-          type="button"
-          title={tocandoAqui ? "Pausar" : "Tocar esta faixa"}
-          aria-label={tocandoAqui ? "Pausar" : "Tocar esta faixa"}
-          onClick={handlePlayOrPauseTitle}
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition-colors ${
-            tocandoAqui
-              ? "border-cyan-400/50 bg-cyan-500/25 text-cyan-200 hover:border-cyan-300/60 hover:text-cyan-100"
-              : "border-white/10 bg-white/5 text-zinc-300 hover:border-green-400/40 hover:text-green-400"
-          }`}
-        >
-          {tocandoAqui ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 pl-0.5" />}
-        </button>
-
-        <button
-          type="button"
-          className="min-w-0 flex-1 rounded-md px-1 py-0.5 text-left transition-colors hover:bg-white/5"
-          title={tocandoAqui ? "Pausar" : "Tocar esta faixa"}
-          onClick={handlePlayOrPauseTitle}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              handlePlayOrPauseTitle();
-            }
-          }}
-        >
-          <p
-            className={`truncate text-[9px] font-bold ${
-              isCurrent ? "text-cyan-100/95" : "text-white/90"
-            }`}
-            title={item.titulo}
-          >
-            {item.titulo}
-          </p>
-          <p className="text-[8px] text-zinc-500 tabular-nums">
-            {index + 1} / {queueLength}
-            {isCurrent ? " · tocando" : ""}
-          </p>
-        </button>
-
-        <button
-          type="button"
-          title="Remover da fila"
-          className="shrink-0 rounded-md border border-red-400/35 bg-red-500/15 p-1.5 text-red-300 hover:bg-red-500/25"
-          aria-label="Remover da fila"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove(index);
-          }}
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
-      </div>
-    </Reorder.Item>
-  );
-}
-
 /** react-player v3 expõe o elemento de mídia; seek por fração 0–1. */
 function seekMediaToFraction(el: HTMLElement | null, fraction: number) {
   const v = el as HTMLVideoElement | null;
@@ -303,29 +327,22 @@ export default function RadioHunter() {
     [DEFAULT_PLAYLIST_NAME]: [defaultQueueItem(DEFAULT_PLAYLIST)],
   }));
   const [activePlaylistName, setActivePlaylistName] = useState(DEFAULT_PLAYLIST_NAME);
-  const [queueFilter, setQueueFilter] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [volume, setVolume] = useState(0.5);
   const [isMuted, setIsMuted] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<YoutubeSearchHit[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [salvandoPlaylist, setSalvandoPlaylist] = useState(false);
   const [importandoPlaylistYoutube, setImportandoPlaylistYoutube] = useState(false);
-  const [isQueueOpen, setIsQueueOpen] = useState(false);
+  const [mostrarFila, setMostrarFila] = useState(false);
+  const [abaFila, setAbaFila] = useState<"FILA" | "PLAYLISTS" | "BUSCA">("FILA");
+  const [idPlaylistVisualizando, setIdPlaylistVisualizando] = useState<string | null>(null);
+  const [isShuffle, setIsShuffle] = useState(false);
+  const [isRepeat, setIsRepeat] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
   const queue = playlists[activePlaylistName] ?? [];
-  const queueFilterTrim = queueFilter.trim();
-  const queueFiltrada = useMemo(() => {
-    if (!queueFilterTrim) return queue;
-    const q = queueFilterTrim.toLowerCase();
-    return queue.filter(
-      (item) =>
-        item.titulo.toLowerCase().includes(q) || item.url.toLowerCase().includes(q)
-    );
-  }, [queue, queueFilterTrim]);
 
   const nomesPlaylistsOrdenados = useMemo(() => {
     const k = Object.keys(playlists);
@@ -348,7 +365,6 @@ export default function RadioHunter() {
   const [capturando, setCapturando] = useState(false);
   const [capturaConfirmadaUi, setCapturaConfirmadaUi] = useState(false);
   const [previewItem, setPreviewItem] = useState<RadioPreviewItem | null>(null);
-  const [modalGerirPlaylists, setModalGerirPlaylists] = useState(false);
   const [modalPlaylist, setModalPlaylist] = useState<{
     isOpen: boolean;
     tipo: "" | "CRIAR" | "RENOMEAR" | "IMPORTAR_URL";
@@ -360,11 +376,12 @@ export default function RadioHunter() {
   const playerRef = useRef<HTMLElement | null>(null);
   const previewItemRef = useRef<RadioPreviewItem | null>(null);
   const isPlayingRef = useRef(false);
+  const isShuffleRef = useRef(isShuffle);
+  const isRepeatRef = useRef(isRepeat);
   const queueRef = useRef<RadioQueueItem[]>(queue);
   const playlistsRef = useRef<RadioPlaylistsMap>(playlists);
   const currentIndexRef = useRef(currentIndex);
   const activePlaylistNameRef = useRef(activePlaylistName);
-  const searchContainerRef = useRef<HTMLDivElement>(null);
   const queuePanelRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const constraintsRef = useRef<HTMLDivElement>(null);
@@ -396,53 +413,40 @@ export default function RadioHunter() {
   }, [isPlaying]);
 
   useEffect(() => {
-    if (!isSearching) return;
-    const onMouseDown = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (searchContainerRef.current?.contains(target)) return;
-      const el = target as HTMLElement;
-      if (el.closest?.("[data-radio-search-toggle]")) return;
-      setIsSearching(false);
-    };
-    document.addEventListener("mousedown", onMouseDown);
-    return () => document.removeEventListener("mousedown", onMouseDown);
-  }, [isSearching]);
+    isShuffleRef.current = isShuffle;
+  }, [isShuffle]);
 
   useEffect(() => {
-    if (!isQueueOpen) return;
+    isRepeatRef.current = isRepeat;
+  }, [isRepeat]);
+
+  useEffect(() => {
+    if (idPlaylistVisualizando == null) return;
+    if (playlists[idPlaylistVisualizando] === undefined) {
+      setIdPlaylistVisualizando(null);
+    }
+  }, [playlists, idPlaylistVisualizando]);
+
+  useEffect(() => {
+    if (!mostrarFila) return;
     const onMouseDown = (e: MouseEvent) => {
       const target = e.target as Node;
       if (queuePanelRef.current?.contains(target)) return;
       const el = target as HTMLElement;
-      if (el.closest?.("[data-radio-queue-toggle]")) return;
-      setIsQueueOpen(false);
+      if (el.closest?.("[data-radio-fila-toggle]")) return;
+      if (el.closest?.("[data-radio-playlists-toggle]")) return;
+      if (el.closest?.("[data-radio-busca-youtube-trigger]")) return;
+      setMostrarFila(false);
     };
     document.addEventListener("mousedown", onMouseDown);
     return () => document.removeEventListener("mousedown", onMouseDown);
-  }, [isQueueOpen]);
-
-  useEffect(() => {
-    if (isSearching) {
-      searchInputRef.current?.focus();
-    }
-  }, [isSearching]);
+  }, [mostrarFila]);
 
   useEffect(() => {
     if (!isExpanded) {
-      setIsQueueOpen(false);
-      setIsSearching(false);
-      setModalGerirPlaylists(false);
+      setMostrarFila(false);
     }
   }, [isExpanded]);
-
-  useEffect(() => {
-    if (!modalGerirPlaylists) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setModalGerirPlaylists(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [modalGerirPlaylists]);
 
   useEffect(() => {
     if (!modalPlaylist.isOpen) return;
@@ -551,9 +555,20 @@ export default function RadioHunter() {
     if (isYoutubeSrcComLista(url)) {
       return;
     }
+    if (isRepeatRef.current) {
+      requestAnimationFrame(() => {
+        seekMediaToFraction(playerRef.current, 0);
+        setPlayed(0);
+        setIsPlaying(true);
+      });
+      return;
+    }
     setCurrentIndex((idx) => {
       const qq = queueRef.current;
       if (qq.length === 0) return 0;
+      if (isShuffleRef.current) {
+        return Math.floor(Math.random() * qq.length);
+      }
       const max = qq.length - 1;
       return idx >= max ? idx : idx + 1;
     });
@@ -564,6 +579,16 @@ export default function RadioHunter() {
     setCurrentIndex((i) => {
       const q = queueRef.current;
       if (q.length === 0) return 0;
+      if (isShuffleRef.current) {
+        if (q.length === 1) return 0;
+        let j = i;
+        let guard = 0;
+        while (j === i && guard < 16) {
+          j = Math.floor(Math.random() * q.length);
+          guard += 1;
+        }
+        return j;
+      }
       const max = q.length - 1;
       return i >= max ? i : i + 1;
     });
@@ -573,20 +598,6 @@ export default function RadioHunter() {
     setPreviewItem(null);
     setCurrentIndex((i) => Math.max(0, i - 1));
   }, []);
-
-  const handleReorder = useCallback(
-    (newOrder: RadioQueueItem[]) => {
-      const playingUid = queueRef.current[currentIndexRef.current]?.uid;
-      queueRef.current = newOrder;
-      setPlaylists((prev) => ({
-        ...prev,
-        [activePlaylistName]: newOrder,
-      }));
-      const ni = newOrder.findIndex((x) => x.uid === playingUid);
-      setCurrentIndex(ni >= 0 ? ni : 0);
-    },
-    [activePlaylistName]
-  );
 
   const removeFromQueue = useCallback(
     (index: number) => {
@@ -619,6 +630,38 @@ export default function RadioHunter() {
     setCurrentIndex(index);
     setIsPlaying(true);
   }, []);
+
+  const handleReorder = useCallback(
+    (newOrder: RadioQueueItem[]) => {
+      const name = activePlaylistName;
+      const prevQ = queueRef.current;
+      const ci = currentIndexRef.current;
+      const curUid = previewItem ? null : prevQ[ci]?.uid;
+      setPlaylists((prev) => ({ ...prev, [name]: newOrder }));
+      if (curUid != null) {
+        const ni = newOrder.findIndex((x) => x.uid === curUid);
+        if (ni >= 0 && ni !== ci) setCurrentIndex(ni);
+      }
+    },
+    [activePlaylistName, previewItem]
+  );
+
+  const handleReorderPlaylistVisualizada = useCallback(
+    (newOrder: RadioQueueItem[]) => {
+      const pid = idPlaylistVisualizando;
+      if (!pid) return;
+      const prevQ = playlistsRef.current[pid] ?? [];
+      const ci = currentIndexRef.current;
+      const curUid =
+        !previewItem && activePlaylistName === pid ? prevQ[ci]?.uid : null;
+      setPlaylists((prev) => ({ ...prev, [pid]: newOrder }));
+      if (curUid != null) {
+        const ni = newOrder.findIndex((x) => x.uid === curUid);
+        if (ni >= 0 && ni !== ci) setCurrentIndex(ni);
+      }
+    },
+    [idPlaylistVisualizando, activePlaylistName, previewItem]
+  );
 
   const aplicarCriarPlaylist = useCallback(
     (nomeRaw: string) => {
@@ -706,7 +749,6 @@ export default function RadioHunter() {
       setPlaylists((prev) => ({ ...prev, [nomeFinal]: items }));
       setActivePlaylistName(nomeFinal);
       setCurrentIndex(0);
-      setQueueFilter("");
       mostrarToast(`Playlist "${nomeFinal}" com ${items.length} faixa(s). Salve no perfil se quiser persistir.`, "sucesso");
     } catch {
       mostrarToast("Erro de rede ao importar a playlist.", "erro");
@@ -838,7 +880,6 @@ export default function RadioHunter() {
     setPreviewItem(null);
     setActivePlaylistName(nome);
     setCurrentIndex(0);
-    setQueueFilter("");
   }
 
   async function salvarPlaylistNoPerfil() {
@@ -959,7 +1000,6 @@ export default function RadioHunter() {
   const urlAtual = previewItem?.url ?? queue[currentIndex]?.url ?? "";
   const playerKey = previewItem ? `preview-${previewItem.url}` : `${currentIndex}-${urlAtual}`;
   const tituloExibicao = faixa?.title || "Sintonizando…";
-  const tituloLongo = tituloExibicao.length > 28;
   const seekDisabled = !Number.isFinite(durationSec) || durationSec <= 0;
   const capaFaixaAtual = urlAtual ? capaYoutubeDeUrl(urlAtual) : "";
   const posFila =
@@ -968,8 +1008,54 @@ export default function RadioHunter() {
       : queue.length > 0
         ? `${currentIndex + 1} / ${queue.length}`
         : "—";
-  const navNextDisabled = !previewItem && (queue.length === 0 || currentIndex >= queue.length - 1);
+  const navNextDisabled =
+    !previewItem &&
+    (queue.length === 0 || (!isShuffle && queue.length > 0 && currentIndex >= queue.length - 1));
   const navPrevDisabled = !previewItem && currentIndex <= 0;
+
+  const painelFilaAtivo = mostrarFila && abaFila === "FILA";
+  const painelPlaylistsAtivo = mostrarFila && abaFila === "PLAYLISTS";
+  const painelBuscaAtivo = mostrarFila && abaFila === "BUSCA";
+
+  const handleAbrirPainelFila = useCallback(() => {
+    if (mostrarFila && abaFila === "FILA") {
+      setMostrarFila(false);
+      return;
+    }
+    setAbaFila("FILA");
+    setMostrarFila(true);
+  }, [mostrarFila, abaFila]);
+
+  const handleAbrirPainelPlaylists = useCallback(() => {
+    if (mostrarFila && abaFila === "PLAYLISTS") {
+      setMostrarFila(false);
+      return;
+    }
+    setIdPlaylistVisualizando(null);
+    setAbaFila("PLAYLISTS");
+    setMostrarFila(true);
+  }, [mostrarFila, abaFila]);
+
+  const faixasPlaylistVisualizada =
+    idPlaylistVisualizando != null ? (playlists[idPlaylistVisualizando] ?? []) : [];
+
+  const tocandoTudoPlaylist = useCallback((nome: string) => {
+    setPreviewItem(null);
+    setActivePlaylistName(nome);
+    setCurrentIndex(0);
+    setAbaFila("FILA");
+    setIsPlaying(true);
+  }, []);
+
+  const tocarFaixaNaPlaylistBiblioteca = useCallback((nomePlaylist: string, index: number) => {
+    const q = playlistsRef.current[nomePlaylist];
+    if (!q || index < 0 || index >= q.length) return;
+    setPreviewItem(null);
+    setActivePlaylistName(nomePlaylist);
+    setCurrentIndex(index);
+    setIsPlaying(true);
+    setAbaFila("FILA");
+  }, []);
 
   if (!usuarioAtivo) return null;
 
@@ -992,109 +1078,7 @@ export default function RadioHunter() {
         >
         <div className="flex flex-col items-end gap-2">
           <AnimatePresence>
-            {isSearching && isExpanded && (
-              <motion.div
-                key="radio-search"
-                ref={searchContainerRef}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 6 }}
-                transition={{ duration: 0.15 }}
-                className="w-[min(100vw-2rem,20rem)] rounded-2xl border border-cyan-500/30 bg-[#0e0e11]/95 backdrop-blur-md shadow-[0_0_24px_rgba(34,211,238,0.15)] p-2.5 mb-1"
-                onPointerDownCapture={(e) => e.stopPropagation()}
-              >
-                <form onSubmit={executarBusca} className="flex gap-2">
-                  <input
-                    ref={searchInputRef}
-                    type="search"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Buscar no YouTube…"
-                    className="flex-1 min-w-0 rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-[11px] text-white placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-cyan-400/50"
-                  />
-                  <button
-                    type="submit"
-                    title="Executar busca"
-                    disabled={searchLoading}
-                    className="shrink-0 px-3 py-2 rounded-xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-200 text-[10px] font-black uppercase tracking-wider hover:bg-cyan-500/30 disabled:opacity-40"
-                  >
-                    {searchLoading ? "…" : "OK"}
-                  </button>
-                </form>
-                <ul className="mt-2 max-h-48 overflow-y-auto space-y-1.5">
-                  {searchResults.map((hit) => (
-                    <li
-                      key={hit.id + hit.url}
-                      className="flex items-center gap-2 rounded-lg bg-white/5 border border-white/5 p-1.5 pr-2"
-                    >
-                      {hit.thumbnail ? (
-                        <img
-                          src={hit.thumbnail}
-                          alt=""
-                          className="w-10 h-7 object-cover rounded shrink-0"
-                        />
-                      ) : (
-                        <div className="w-10 h-7 rounded bg-zinc-800 shrink-0" />
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[9px] font-bold text-white/90 truncate" title={hit.titulo}>
-                          {hit.titulo}
-                        </p>
-                        <p className="text-[8px] text-zinc-500">{hit.duracao}</p>
-                      </div>
-                      <span className="relative group shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => alternarPreviaDaBusca(hit)}
-                          className={`shrink-0 p-1.5 rounded-lg border text-cyan-200 hover:bg-cyan-500/30 ${
-                            previewItem?.url === hit.url
-                              ? "bg-cyan-500/30 border-cyan-300/50"
-                              : "bg-cyan-500/20 border-cyan-400/40"
-                          }`}
-                          aria-label={
-                            previewItem?.url === hit.url && isPlaying
-                              ? "Pausar prévia"
-                              : "Ouvir prévia sem salvar na fila"
-                          }
-                        >
-                          {previewItem?.url === hit.url && isPlaying ? (
-                            <Pause className="w-3.5 h-3.5" />
-                          ) : (
-                            <PlayCircle className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-                        <span
-                          className="pointer-events-none absolute bottom-[calc(100%+6px)] left-1/2 z-30 w-max max-w-[12.5rem] -translate-x-1/2 rounded-lg border border-cyan-500/25 bg-[#0a0a0c]/98 px-2 py-1.5 text-left text-[8px] font-semibold leading-snug text-zinc-200 shadow-lg opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
-                          role="tooltip"
-                        >
-                          Ouve só na hora: não entra na playlist. Mesmo vídeo: clique de novo pausa ou retoma.
-                        </span>
-                      </span>
-                      <span className="relative group shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => adicionarDaBusca(hit)}
-                          className="shrink-0 p-1.5 rounded-lg bg-violet-500/20 border border-violet-400/40 text-violet-200 hover:bg-violet-500/30"
-                          aria-label="Adicionar à fila da playlist ativa"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </button>
-                        <span
-                          className="pointer-events-none absolute bottom-[calc(100%+6px)] left-1/2 z-30 w-max max-w-[12.5rem] -translate-x-1/2 rounded-lg border border-violet-500/25 bg-[#0a0a0c]/98 px-2 py-1.5 text-left text-[8px] font-semibold leading-snug text-zinc-200 shadow-lg opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
-                          role="tooltip"
-                        >
-                          Coloca na playlist ativa e salva com &quot;Salvar playlist&quot; se quiser persistir no perfil.
-                        </span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <AnimatePresence>
-            {isQueueOpen && isExpanded && (
+            {mostrarFila && isExpanded && (
               <motion.div
                 key="radio-queue"
                 ref={queuePanelRef}
@@ -1105,157 +1089,353 @@ export default function RadioHunter() {
                 className="w-[min(100vw-2rem,20rem)] rounded-2xl border border-amber-500/30 bg-[#0e0e11]/95 backdrop-blur-md shadow-[0_0_24px_rgba(251,191,36,0.12)] p-2.5 mb-1"
                 onPointerDown={(e) => e.stopPropagation()}
               >
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-200/90">
-                    Fila de reprodução
-                  </p>
-                  <button
-                    type="button"
-                    title="Salvar playlists no perfil"
-                    onClick={salvarPlaylistNoPerfil}
-                    disabled={salvandoPlaylist}
-                    className="inline-flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wider px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-colors disabled:opacity-40 disabled:pointer-events-none"
-                  >
-                    <Save className="w-3.5 h-3.5 shrink-0" aria-hidden />
-                    Salvar playlist
-                  </button>
-                </div>
-                <div className="flex flex-wrap items-end gap-2 mb-2">
-                  <label className="flex-1 min-w-[9rem] flex flex-col gap-0.5">
-                    <span className="text-[8px] font-bold uppercase tracking-wider text-amber-100/70">
-                      Playlist ativa
-                    </span>
-                    <select
-                      value={activePlaylistName}
-                      onChange={(e) => {
-                        setPreviewItem(null);
-                        setActivePlaylistName(e.target.value);
-                        setCurrentIndex(0);
-                        setQueueFilter("");
-                      }}
-                      className="rounded-lg bg-black/40 border border-amber-400/30 px-2 py-1.5 text-[10px] text-amber-50 focus:outline-none focus:ring-1 focus:ring-amber-400/50"
-                    >
-                      {nomesPlaylistsOrdenados.map((nome) => (
-                        <option key={nome} value={nome}>
-                          {nome}
-                          {(playlists[nome]?.length ?? 0) === 0 ? " (vazia)" : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <div className="flex flex-wrap gap-1.5 items-end shrink-0">
-                    <button
-                      type="button"
-                      title="Criar nova playlist"
-                      onClick={abrirModalCriarPlaylist}
-                      className="inline-flex items-center gap-1.5 shrink-0 text-[9px] font-bold uppercase tracking-wider px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-colors"
-                    >
-                      <Plus className="w-3.5 h-3.5 shrink-0" aria-hidden />
-                      Nova playlist
-                    </button>
-                    <button
-                      type="button"
-                      title="Importar playlist a partir de um link do YouTube"
-                      onClick={abrirModalImportarPlaylistYoutube}
-                      disabled={importandoPlaylistYoutube}
-                      className="inline-flex items-center gap-1 shrink-0 text-[9px] font-bold uppercase tracking-wider px-2 py-1.5 rounded-lg bg-amber-500/15 border border-amber-400/35 text-amber-100 hover:bg-amber-500/25 disabled:opacity-50 disabled:pointer-events-none"
-                    >
-                      {importandoPlaylistYoutube ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" aria-hidden />
-                      ) : (
-                        <Link2 className="w-3.5 h-3.5 shrink-0" aria-hidden />
-                      )}
-                      {importandoPlaylistYoutube ? "Carregando…" : "Importar via link"}
-                    </button>
+                {abaFila !== "BUSCA" && (
+                  <div className="rounded-lg border border-green-500/35 bg-black/50 shadow-[0_0_18px_rgba(34,197,94,0.14)] mb-3 px-2 pt-2 pb-0">
+                    <div className="flex items-center gap-4 border-b border-green-500/20 pb-2">
+                      <button
+                        type="button"
+                        onClick={() => setAbaFila("FILA")}
+                        className={`text-xs font-black uppercase tracking-widest pb-2 border-b-2 transition-colors ${
+                          abaFila === "FILA"
+                            ? "border-green-400 text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.35)]"
+                            : "border-transparent text-zinc-500 hover:text-white"
+                        }`}
+                      >
+                        Fila Atual
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAbaFila("PLAYLISTS");
+                          setIdPlaylistVisualizando(null);
+                        }}
+                        className={`text-xs font-black uppercase tracking-widest pb-2 border-b-2 transition-colors ${
+                          abaFila === "PLAYLISTS"
+                            ? "border-green-400 text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.35)]"
+                            : "border-transparent text-zinc-500 hover:text-white"
+                        }`}
+                      >
+                        Minhas Playlists
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    title="Renomear ou remover playlists"
-                    onClick={() => setModalGerirPlaylists(true)}
-                    className="shrink-0 p-1.5 rounded-lg bg-amber-500/15 border border-amber-400/35 text-amber-100 hover:bg-amber-500/25"
-                    aria-label="Gerenciar playlists"
-                  >
-                    <Settings2 className="w-4 h-4" />
-                  </button>
-                </div>
-                <input
-                  type="search"
-                  value={queueFilter}
-                  onChange={(e) => setQueueFilter(e.target.value)}
-                  placeholder="Filtrar músicas nesta playlist…"
-                  className="w-full mb-2 rounded-lg bg-black/40 border border-white/10 px-2.5 py-1.5 text-[10px] text-white placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-amber-400/40"
-                  aria-label="Filtrar fila"
-                />
-                {queueFilterTrim ? (
-                  <p className="text-[8px] text-zinc-500 mb-1">
-                    Arrastar para reordenar fica desativado enquanto o filtro estiver ativo.
-                  </p>
-                ) : null}
-                {queueFilterTrim ? (
-                  <ul className="flex flex-col gap-1 max-h-52 overflow-y-auto pr-0.5">
-                    {queueFiltrada.length === 0 ? (
-                      <li className="text-[9px] text-zinc-500 py-2 text-center">Nenhuma faixa combina com o filtro.</li>
-                    ) : (
-                      queueFiltrada.map((item) => {
-                        const realIndex = queue.findIndex((x) => x.uid === item.uid);
-                        const isCurrent = !previewItem && realIndex === currentIndex;
-                        return (
-                          <li
-                            key={item.uid}
-                            className={`rounded-lg border p-2 flex items-center gap-2 ${
-                              isCurrent ? "bg-cyan-500/15 border-cyan-400/40" : "bg-white/5 border-white/10"
-                            }`}
-                          >
-                            <button
-                              type="button"
-                              className="min-w-0 flex-1 text-left"
-                              title="Tocar esta faixa"
-                              onClick={() => playAtIndex(realIndex)}
-                            >
-                              <p className="text-[9px] font-bold text-white/90 truncate" title={item.titulo}>
-                                {item.titulo}
-                              </p>
-                              <p className="text-[8px] text-zinc-500 tabular-nums">
-                                {realIndex >= 0 ? realIndex + 1 : "—"} / {queue.length}
-                                {isCurrent ? " · tocando" : ""}
-                              </p>
-                            </button>
-                            <button
-                              type="button"
-                              title="Remover da fila"
-                              className="shrink-0 p-1.5 rounded-md bg-red-500/15 border border-red-400/35 text-red-300 hover:bg-red-500/25"
-                              aria-label="Remover da fila"
-                              onClick={() => realIndex >= 0 && removeFromQueue(realIndex)}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </li>
-                        );
-                      })
-                    )}
-                  </ul>
-                ) : (
-                  <Reorder.Group
-                    axis="y"
-                    values={queue}
-                    onReorder={handleReorder}
-                    className="flex flex-col gap-1 max-h-52 overflow-y-auto pr-0.5"
-                  >
-                    {queue.map((item, index) => (
-                      <RadioQueueReorderRow
-                        key={item.uid}
-                        item={item}
-                        index={index}
-                        queueLength={queue.length}
-                        isCurrent={!previewItem && index === currentIndex}
-                        isPlaying={isPlaying}
-                        onPlayAt={playAtIndex}
-                        onPausePlayback={() => setIsPlaying(false)}
-                        onRemove={removeFromQueue}
-                      />
-                    ))}
-                  </Reorder.Group>
                 )}
+                <AnimatePresence mode="wait">
+                  {abaFila === "BUSCA" ? (
+                    <motion.div
+                      key="aba-busca"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setAbaFila("FILA")}
+                        className="mb-3 flex w-full items-center gap-2 rounded-lg border border-cyan-500/30 bg-black/30 px-2 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-cyan-200/90 transition-colors hover:bg-cyan-500/10 hover:text-cyan-100"
+                        aria-label="Voltar para a fila"
+                      >
+                        <ArrowLeft className="w-4 h-4 shrink-0" aria-hidden />
+                        Voltar à fila
+                      </button>
+                      <div className="mb-1 rounded-xl border border-cyan-500/30 bg-black/25 p-2.5">
+                        <p className="text-[8px] font-bold uppercase tracking-wider text-cyan-200/80 mb-2">
+                          Buscar no YouTube
+                        </p>
+                        <form onSubmit={executarBusca} className="flex gap-2">
+                          <input
+                            id="input-busca-youtube"
+                            ref={searchInputRef}
+                            type="search"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Buscar no YouTube…"
+                            className="flex-1 min-w-0 rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-[11px] text-white placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-cyan-400/50"
+                          />
+                          <button
+                            type="submit"
+                            title="Executar busca"
+                            disabled={searchLoading}
+                            className="shrink-0 px-3 py-2 rounded-xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-200 text-[10px] font-black uppercase tracking-wider hover:bg-cyan-500/30 disabled:opacity-40"
+                          >
+                            {searchLoading ? "…" : "OK"}
+                          </button>
+                        </form>
+                        <ul className="mt-2 max-h-48 overflow-y-auto space-y-1.5">
+                          {searchResults.map((hit) => (
+                            <li
+                              key={hit.id + hit.url}
+                              className="flex items-center gap-2 rounded-lg bg-white/5 border border-white/5 p-1.5 pr-2"
+                            >
+                              {hit.thumbnail ? (
+                                <img
+                                  src={hit.thumbnail}
+                                  alt=""
+                                  className="w-10 h-7 object-cover rounded shrink-0"
+                                />
+                              ) : (
+                                <div className="w-10 h-7 rounded bg-zinc-800 shrink-0" />
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[9px] font-bold text-white/90 truncate" title={hit.titulo}>
+                                  {hit.titulo}
+                                </p>
+                                <p className="text-[8px] text-zinc-500">{hit.duracao}</p>
+                              </div>
+                              <span className="relative group shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => alternarPreviaDaBusca(hit)}
+                                  className={`shrink-0 p-1.5 rounded-lg border text-cyan-200 hover:bg-cyan-500/30 ${
+                                    previewItem?.url === hit.url
+                                      ? "bg-cyan-500/30 border-cyan-300/50"
+                                      : "bg-cyan-500/20 border-cyan-400/40"
+                                  }`}
+                                  aria-label={
+                                    previewItem?.url === hit.url && isPlaying
+                                      ? "Pausar prévia"
+                                      : "Ouvir prévia sem salvar na fila"
+                                  }
+                                >
+                                  {previewItem?.url === hit.url && isPlaying ? (
+                                    <Pause className="w-3.5 h-3.5" />
+                                  ) : (
+                                    <PlayCircle className="w-3.5 h-3.5" />
+                                  )}
+                                </button>
+                                <span
+                                  className="pointer-events-none absolute bottom-[calc(100%+6px)] left-1/2 z-30 w-max max-w-[12.5rem] -translate-x-1/2 rounded-lg border border-cyan-500/25 bg-[#0a0a0c]/98 px-2 py-1.5 text-left text-[8px] font-semibold leading-snug text-zinc-200 shadow-lg opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+                                  role="tooltip"
+                                >
+                                  Ouve só na hora: não entra na playlist. Mesmo vídeo: clique de novo pausa ou retoma.
+                                </span>
+                              </span>
+                              <span className="relative group shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => adicionarDaBusca(hit)}
+                                  className="shrink-0 p-1.5 rounded-lg bg-violet-500/20 border border-violet-400/40 text-violet-200 hover:bg-violet-500/30"
+                                  aria-label="Adicionar à fila da playlist ativa"
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                </button>
+                                <span
+                                  className="pointer-events-none absolute bottom-[calc(100%+6px)] left-1/2 z-30 w-max max-w-[12.5rem] -translate-x-1/2 rounded-lg border border-violet-500/25 bg-[#0a0a0c]/98 px-2 py-1.5 text-left text-[8px] font-semibold leading-snug text-zinc-200 shadow-lg opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+                                  role="tooltip"
+                                >
+                                  Coloca na playlist ativa e salva com &quot;Salvar playlist&quot; se quiser persistir no perfil.
+                                </span>
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </motion.div>
+                  ) : abaFila === "FILA" ? (
+                    <motion.div
+                      key="aba-fila"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.15 }}
+                    >
+                    <button
+                      type="button"
+                      title="Salvar playlists no perfil"
+                      onClick={salvarPlaylistNoPerfil}
+                      disabled={salvandoPlaylist}
+                      className="mb-3 w-full inline-flex items-center justify-center gap-1.5 text-[9px] font-bold uppercase tracking-wider px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                    >
+                      <Save className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                      Salvar playlist
+                    </button>
+                    <div className="flex max-h-52 flex-col gap-1 overflow-y-auto pr-0.5">
+                      {queue.length === 0 ? (
+                        <p className="text-[9px] text-zinc-500 py-2 text-center leading-relaxed px-1">
+                          A fila está vazia. Use a Lupa para buscar músicas.
+                        </p>
+                      ) : (
+                        <Reorder.Group
+                          axis="y"
+                          as="div"
+                          values={queue}
+                          onReorder={handleReorder}
+                          className="flex flex-col space-y-2"
+                        >
+                          {queue.map((item, index) => {
+                            const isCurrent = !previewItem && index === currentIndex;
+                            const thumbUrl = capaYoutubeDeUrl(item.url);
+                            const tocandoAqui = isCurrent && isPlaying;
+                            const handlePlayOrPause = () => {
+                              if (tocandoAqui) setIsPlaying(false);
+                              else playAtIndex(index);
+                            };
+                            return (
+                              <RadioFilaReorderRow
+                                key={item.uid}
+                                item={item}
+                                index={index}
+                                queueLength={queue.length}
+                                isCurrent={isCurrent}
+                                thumbUrl={thumbUrl}
+                                tocandoAqui={tocandoAqui}
+                                onPlayOrPause={handlePlayOrPause}
+                                onRemove={() => removeFromQueue(index)}
+                              />
+                            );
+                          })}
+                        </Reorder.Group>
+                      )}
+                    </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="aba-playlists"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      {idPlaylistVisualizando == null ? (
+                        <>
+                          <div className="flex gap-2 mb-6">
+                            <button
+                              type="button"
+                              onClick={abrirModalCriarPlaylist}
+                              className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white text-xs font-bold uppercase tracking-widest px-4 py-2 rounded-lg transition-colors w-full justify-center border border-white/10"
+                            >
+                              <Plus className="w-4 h-4 shrink-0" aria-hidden />
+                              Nova Playlist
+                            </button>
+                            <button
+                              type="button"
+                              onClick={abrirModalImportarPlaylistYoutube}
+                              disabled={importandoPlaylistYoutube}
+                              className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white text-xs font-bold uppercase tracking-widest px-4 py-2 rounded-lg transition-colors w-full justify-center border border-white/10 disabled:opacity-50 disabled:pointer-events-none"
+                            >
+                              {importandoPlaylistYoutube ? (
+                                <Loader2 className="w-4 h-4 shrink-0 animate-spin" aria-hidden />
+                              ) : (
+                                <Link className="w-4 h-4 shrink-0" aria-hidden />
+                              )}
+                              Importar URL
+                            </button>
+                          </div>
+                          <ul className="space-y-1 max-h-64 overflow-y-auto pr-0.5">
+                            {nomesPlaylistsOrdenados.map((nome) => (
+                              <li key={nome}>
+                                <div className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 group transition-colors border border-transparent hover:border-white/5">
+                                  <button
+                                    type="button"
+                                    onClick={() => setIdPlaylistVisualizando(nome)}
+                                    className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                                  >
+                                    <ListMusic className="w-4 h-4 text-zinc-500 group-hover:text-green-500 transition-colors shrink-0" />
+                                    <span className="truncate text-sm text-zinc-300 group-hover:text-white font-medium">
+                                      {nome}
+                                      {nome === DEFAULT_PLAYLIST_NAME ? (
+                                        <span className="ml-1 text-[10px] font-normal text-zinc-500">(fixa)</span>
+                                      ) : null}
+                                    </span>
+                                  </button>
+                                  <div className="flex items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                      type="button"
+                                      title="Renomear"
+                                      disabled={nome === DEFAULT_PLAYLIST_NAME}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (nome === DEFAULT_PLAYLIST_NAME) return;
+                                        openPlaylistModal({
+                                          tipo: "RENOMEAR",
+                                          valorInicial: nome,
+                                          idAlvo: nome,
+                                        });
+                                      }}
+                                      className="p-1.5 hover:bg-blue-500/20 text-zinc-400 hover:text-blue-400 rounded-md transition-colors disabled:opacity-25 disabled:pointer-events-none"
+                                      aria-label={`Renomear ${nome}`}
+                                    >
+                                      <PenLine className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      title={
+                                        nome === DEFAULT_PLAYLIST_NAME
+                                          ? "A playlist Padrão não pode ser removida"
+                                          : "Excluir playlist"
+                                      }
+                                      disabled={nome === DEFAULT_PLAYLIST_NAME}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        removerPlaylist(nome);
+                                      }}
+                                      className="p-1.5 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 rounded-md transition-colors disabled:opacity-25 disabled:pointer-events-none"
+                                      aria-label={`Excluir ${nome}`}
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setIdPlaylistVisualizando(null)}
+                            className="mb-4 flex w-full items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-zinc-300 transition-colors hover:bg-white/10 hover:text-white"
+                          >
+                            <ArrowLeft className="w-4 h-4 shrink-0" aria-hidden />
+                            Minhas Playlists
+                          </button>
+                          <h3
+                            className="mb-2 truncate text-sm font-bold text-white"
+                            title={idPlaylistVisualizando}
+                          >
+                            {idPlaylistVisualizando}
+                          </h3>
+                          <button
+                            type="button"
+                            onClick={() => tocandoTudoPlaylist(idPlaylistVisualizando)}
+                            disabled={faixasPlaylistVisualizada.length === 0}
+                            className="mb-3 w-full rounded-lg border border-green-500/40 bg-green-500/15 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-green-300 transition-colors hover:bg-green-500/25 disabled:opacity-40 disabled:pointer-events-none"
+                          >
+                            Tocar tudo
+                          </button>
+                          <div className="flex max-h-56 flex-col gap-1 overflow-y-auto pr-0.5">
+                            {faixasPlaylistVisualizada.length === 0 ? (
+                              <p className="py-4 text-center text-[9px] text-zinc-500">Playlist vazia.</p>
+                            ) : (
+                              <Reorder.Group
+                                axis="y"
+                                as="div"
+                                values={faixasPlaylistVisualizada}
+                                onReorder={handleReorderPlaylistVisualizada}
+                                className="flex flex-col space-y-2"
+                              >
+                                {faixasPlaylistVisualizada.map((item, idx) => {
+                                  const thumbUrl = capaYoutubeDeUrl(item.url);
+                                  return (
+                                    <RadioPlaylistTrackReorderRow
+                                      key={item.uid}
+                                      item={item}
+                                      thumbUrl={thumbUrl}
+                                      onPlay={() =>
+                                        tocarFaixaNaPlaylistBiblioteca(idPlaylistVisualizando, idx)
+                                      }
+                                    />
+                                  );
+                                })}
+                              </Reorder.Group>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
             )}
           </AnimatePresence>
@@ -1265,13 +1445,13 @@ export default function RadioHunter() {
             transition={{ type: "spring", stiffness: 420, damping: 32 }}
             className={`overflow-hidden box-border ${
               isExpanded
-                ? "w-full max-w-[min(100vw-2rem,48rem)] rounded-xl border border-green-500/25 bg-black/90 backdrop-blur-md shadow-[0_0_18px_rgba(34,197,94,0.12)]"
-                : "max-w-[min(100vw-2rem,340px)] px-1.5 py-1.5 sm:px-2.5 bg-[#0e0e11]/90 backdrop-blur-md border border-white/10 rounded-[999px] shadow-[0_0_20px_rgba(0,0,0,0.8)]"
+                ? "w-full max-w-[min(100vw-2rem,40rem)] rounded-xl border border-green-500/25 bg-black/90 backdrop-blur-md shadow-[0_0_18px_rgba(34,197,94,0.12)]"
+                : "w-full max-w-[min(100vw-2rem,28rem)] min-w-0"
             }`}
           >
             {isExpanded ? (
               <div className="flex flex-col w-full min-w-0">
-                <div className="flex items-center justify-between w-full min-h-20 px-4 sm:px-6 py-2.5 gap-2">
+                <div className="flex items-center justify-between w-full min-h-20 pl-0.5 pr-4 sm:pr-6 py-2.5 gap-2">
                   {/* 1. ESQUERDA: Info */}
                   <div className="flex items-center gap-3 sm:gap-4 w-1/3 min-w-0">
                     <button
@@ -1312,10 +1492,13 @@ export default function RadioHunter() {
                     <div className="flex items-center justify-center gap-4 sm:gap-6">
                       <button
                         type="button"
-                        disabled
-                        title="Aleatório (em breve)"
-                        aria-disabled
-                        className="text-zinc-600 cursor-not-allowed"
+                        title={isShuffle ? "Desativar aleatório" : "Ordem aleatória"}
+                        onClick={() => setIsShuffle((v) => !v)}
+                        className={`transition-colors ${
+                          isShuffle ? "text-green-500" : "text-zinc-400 hover:text-white"
+                        }`}
+                        aria-label={isShuffle ? "Desativar aleatório" : "Ativar aleatório"}
+                        aria-pressed={isShuffle}
                       >
                         <Shuffle className="w-4 h-4" aria-hidden />
                       </button>
@@ -1354,10 +1537,13 @@ export default function RadioHunter() {
                       </button>
                       <button
                         type="button"
-                        disabled
-                        title="Repetir (em breve)"
-                        aria-disabled
-                        className="text-zinc-600 cursor-not-allowed"
+                        title={isRepeat ? "Desativar repetir faixa" : "Repetir faixa atual"}
+                        onClick={() => setIsRepeat((v) => !v)}
+                        className={`transition-colors ${
+                          isRepeat ? "text-green-500" : "text-zinc-400 hover:text-white"
+                        }`}
+                        aria-label={isRepeat ? "Desativar repetir" : "Repetir faixa atual"}
+                        aria-pressed={isRepeat}
                       >
                         <Repeat className="w-4 h-4" aria-hidden />
                       </button>
@@ -1386,7 +1572,26 @@ export default function RadioHunter() {
 
                   {/* 3. DIREITA: Volume + ações */}
                   <div className="flex flex-col items-end justify-center w-1/3 min-w-0 gap-2">
-                    <div className="flex items-center justify-end gap-3 w-full">
+                    <div className="flex items-center justify-end gap-2 sm:gap-3 w-full">
+                      <button
+                        type="button"
+                        data-radio-busca-youtube-trigger
+                        title="Pesquisar Músicas"
+                        onClick={() => {
+                          setMostrarFila(true);
+                          setAbaFila("BUSCA");
+                          setTimeout(
+                            () => document.getElementById("input-busca-youtube")?.focus(),
+                            150
+                          );
+                        }}
+                        className={`shrink-0 text-zinc-400 hover:text-white transition-colors mr-4 flex items-center justify-center translate-y-[14px] focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400/50 rounded ${
+                          painelBuscaAtivo ? "text-cyan-200" : ""
+                        }`}
+                        aria-label="Pesquisar músicas no YouTube"
+                      >
+                        <Search className="w-5 h-5" aria-hidden />
+                      </button>
                       <button
                         type="button"
                         title={isMuted ? "Desmutar" : "Mutar"}
@@ -1418,31 +1623,31 @@ export default function RadioHunter() {
                     >
                       <button
                         type="button"
-                        data-radio-search-toggle
-                        title={isSearching ? "Fechar busca" : "Pesquisar música"}
-                        onClick={() => setIsSearching((v) => !v)}
+                        data-radio-fila-toggle
+                        title={painelFilaAtivo ? "Fechar fila" : "Fila atual"}
+                        onClick={handleAbrirPainelFila}
                         className={`rounded-full border p-1.5 transition-all ${
-                          isSearching
+                          painelFilaAtivo
                             ? "border-cyan-400/50 bg-cyan-500/25 text-cyan-200"
                             : "border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10"
                         }`}
-                        aria-label={isSearching ? "Fechar busca" : "Buscar"}
+                        aria-label={painelFilaAtivo ? "Fechar fila" : "Abrir fila atual"}
                       >
-                        <Search className="h-3.5 w-3.5" />
+                        <ListMusic className="h-3.5 w-3.5" />
                       </button>
                       <button
                         type="button"
-                        data-radio-queue-toggle
-                        title={isQueueOpen ? "Fechar fila" : "Minha fila"}
-                        onClick={() => setIsQueueOpen((v) => !v)}
+                        data-radio-playlists-toggle
+                        title={painelPlaylistsAtivo ? "Fechar biblioteca" : "Minhas playlists"}
+                        onClick={handleAbrirPainelPlaylists}
                         className={`rounded-full border p-1.5 transition-all ${
-                          isQueueOpen
-                            ? "border-amber-400/50 bg-amber-500/25 text-amber-100"
-                            : "border-amber-400/40 bg-amber-500/15 text-amber-200 hover:bg-amber-500/25"
+                          painelPlaylistsAtivo
+                            ? "border-violet-400/50 bg-violet-500/25 text-violet-200"
+                            : "border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10"
                         }`}
-                        aria-label="Fila de reprodução"
+                        aria-label="Minhas playlists"
                       >
-                        <ListMusic className="h-3.5 w-3.5" />
+                        <Library className="h-3.5 w-3.5" />
                       </button>
                       <motion.button
                         type="button"
@@ -1485,84 +1690,98 @@ export default function RadioHunter() {
                 </div>
               </div>
             ) : (
-              <>
-                <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
-                  <button
-                    type="button"
-                    title="Mover o player"
-                    className="shrink-0 rounded-full p-1.5 text-zinc-500 hover:bg-white/5 hover:text-zinc-300 touch-none cursor-grab active:cursor-grabbing"
-                    aria-label="Arrastar rádio"
-                    onPointerDown={(e) => dragControls.start(e)}
-                  >
-                    <GripVertical className="h-4 w-4" />
-                  </button>
-
-                  <div className="min-w-0 flex-1 pl-0.5 max-w-[10rem] sm:max-w-[14rem]">
-                    <p className="text-[8px] font-black uppercase tracking-[0.2em] text-cyan-400/90 drop-shadow-[0_0_8px_rgba(34,211,238,0.35)]">
-                      Hunter FM
-                    </p>
-                    {tituloLongo ? (
-                      <div className="mt-0.5 max-w-full">
-                        <div className="overflow-hidden">
-                          <div className="radio-hunter-marquee-track">
-                            <span className="pr-6 text-[10px] font-bold text-white/90">{tituloExibicao}</span>
-                            <span className="pr-6 text-[10px] font-bold text-white/90" aria-hidden>
-                              {tituloExibicao}
-                            </span>
-                          </div>
-                        </div>
-                        <p className="mt-0.5 text-[9px] font-semibold text-zinc-500 tabular-nums">( {posFila} )</p>
-                      </div>
+              <div className="flex w-full min-w-0 items-center bg-black/95 rounded-full border border-green-500/20 shadow-[0_0_15px_rgba(34,197,94,0.1)] p-2 backdrop-blur-sm">
+                <button
+                  type="button"
+                  title="Mover o player"
+                  className="shrink-0 touch-none cursor-grab rounded-md p-0.5 transition-colors hover:bg-white/5 active:cursor-grabbing"
+                  aria-label="Arrastar rádio"
+                  onPointerDown={(e) => dragControls.start(e)}
+                >
+                  <GripVertical className="h-4 w-4 text-zinc-600" aria-hidden />
+                </button>
+                <div className="ml-2 flex min-w-0 flex-1 items-center">
+                  <div className="h-9 w-9 shrink-0 overflow-hidden rounded-md border border-white/10 bg-zinc-900">
+                    {capaFaixaAtual ? (
+                      <img
+                        src={capaFaixaAtual}
+                        alt=""
+                        className="h-full w-full object-cover pointer-events-none"
+                      />
                     ) : (
-                      <p className="mt-0.5 truncate text-[10px] font-bold text-white/90" title={tituloExibicao}>
-                        {tituloExibicao}{" "}
-                        <span className="text-[9px] font-semibold text-zinc-500 tabular-nums">( {posFila} )</span>
-                      </p>
-                    )}
-                    {!tituloLongo && (
-                      <p className="mt-0.5 text-[9px] font-semibold text-zinc-500 tabular-nums">( {posFila} )</p>
+                      <div className="flex h-full w-full items-center justify-center">
+                        <Music className="h-4 w-4 text-zinc-600" aria-hidden />
+                      </div>
                     )}
                   </div>
-
-                  <div className="flex max-w-full min-w-0 shrink-0 flex-wrap items-center justify-end gap-0.5 sm:gap-1">
-                    <button
-                      type="button"
-                      title={isMuted ? "Desmutar" : "Mutar"}
-                      aria-label={isMuted ? "Desmutar" : "Mutar"}
-                      onClick={() => setIsMuted((m) => !m)}
-                      className={`shrink-0 cursor-pointer rounded-full border p-2 transition-all ${
-                        isMuted || volume === 0
-                          ? "border-zinc-600/50 bg-black/30 text-red-400/75 opacity-90 hover:border-green-400/45 hover:bg-white/10 hover:text-green-400 hover:opacity-100"
-                          : "border-white/15 bg-white/5 text-zinc-300 hover:border-green-400/40 hover:bg-white/10 hover:text-green-400"
-                      }`}
+                  <div className="ml-2 flex min-w-0 flex-1 flex-col">
+                    <span
+                      className="w-full truncate text-sm font-bold text-white"
+                      title={tituloExibicao}
                     >
-                      {isMuted || volume === 0 ? (
-                        <VolumeX className="h-4 w-4" aria-hidden />
-                      ) : (
-                        <Volume2 className="h-4 w-4" aria-hidden />
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      title={isPlaying ? "Pausar" : "Tocar"}
-                      onClick={() => setIsPlaying((v) => !v)}
-                      className="rounded-full border border-cyan-400/40 bg-cyan-500/15 p-2.5 text-cyan-300 transition-all hover:bg-cyan-500/25 hover:shadow-[0_0_12px_rgba(34,211,238,0.35)]"
-                      aria-label={isPlaying ? "Pausar" : "Tocar"}
-                    >
-                      {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 pl-0.5" />}
-                    </button>
-                    <button
-                      type="button"
-                      title="Expandir controles"
-                      onClick={() => setIsExpanded((v) => !v)}
-                      className="rounded-full border border-white/15 bg-white/5 p-2 text-zinc-200 hover:bg-white/10"
-                      aria-label="Expandir controles"
-                    >
-                      <Maximize2 className="h-4 w-4" />
-                    </button>
+                      {tituloExibicao}
+                    </span>
+                    <span className="w-full truncate text-xs text-zinc-400">RadioHunter</span>
                   </div>
                 </div>
-              </>
+                <div className="ml-4 flex shrink-0 items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    title="Faixa anterior"
+                    onClick={playPrev}
+                    disabled={navPrevDisabled}
+                    className="text-zinc-400 transition-colors hover:text-white disabled:pointer-events-none disabled:opacity-30"
+                    aria-label="Faixa anterior"
+                  >
+                    <SkipBack className="h-4 w-4" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    title={isPlaying ? "Pausar" : "Tocar"}
+                    onClick={() => setIsPlaying((v) => !v)}
+                    className="text-white transition-colors hover:text-green-500"
+                    aria-label={isPlaying ? "Pausar" : "Tocar"}
+                  >
+                    {isPlaying ? (
+                      <Pause className="h-4 w-4" aria-hidden />
+                    ) : (
+                      <Play className="h-4 w-4" aria-hidden />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    title="Próxima faixa"
+                    onClick={playNext}
+                    disabled={navNextDisabled}
+                    className="text-zinc-400 transition-colors hover:text-white disabled:pointer-events-none disabled:opacity-30"
+                    aria-label="Próxima faixa"
+                  >
+                    <SkipForward className="h-4 w-4" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    title={isMuted ? "Desmutar" : "Mutar"}
+                    onClick={() => setIsMuted((m) => !m)}
+                    className="ml-1 p-1 text-zinc-400 transition-colors hover:text-white"
+                    aria-label={isMuted ? "Desmutar" : "Mutar"}
+                  >
+                    {isMuted || volume === 0 ? (
+                      <VolumeX className="h-4 w-4 text-red-500" aria-hidden />
+                    ) : (
+                      <Volume2 className="h-4 w-4" aria-hidden />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    title="Expandir player"
+                    onClick={() => setIsExpanded(true)}
+                    className="text-green-500 transition-colors hover:text-white"
+                    aria-label="Expandir player"
+                  >
+                    <Maximize2 className="h-4 w-4" aria-hidden />
+                  </button>
+                </div>
+              </div>
             )}
           </motion.div>
         </div>
@@ -1617,89 +1836,6 @@ export default function RadioHunter() {
           </div>
         ))}
       </div>
-
-      {modalGerirPlaylists && (
-        <div
-          className="fixed inset-0 z-[1002] flex items-center justify-center p-3 bg-black/70 backdrop-blur-sm pointer-events-auto"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="radio-gerir-playlists-titulo"
-          onClick={() => setModalGerirPlaylists(false)}
-        >
-          <div
-            className="w-full max-w-sm rounded-2xl border border-amber-500/35 bg-[#0e0e11] p-3 shadow-[0_0_32px_rgba(0,0,0,0.85)]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2
-              id="radio-gerir-playlists-titulo"
-              className="text-[11px] font-black uppercase tracking-widest text-amber-200 mb-3"
-            >
-              Gerenciar playlists
-            </h2>
-            <ul className="space-y-1 max-h-64 overflow-y-auto pr-0.5">
-              {nomesPlaylistsOrdenados.map((nome) => (
-                <li key={nome}>
-                  <div className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 group transition-colors border border-transparent hover:border-white/5">
-                    <button
-                      type="button"
-                      onClick={() => selecionarPlaylistParaTocar(nome)}
-                      className="flex items-center gap-3 flex-1 min-w-0 text-left"
-                    >
-                      <ListMusic className="w-4 h-4 text-zinc-500 group-hover:text-green-500 transition-colors shrink-0" />
-                      <span className="truncate text-sm text-zinc-300 group-hover:text-white font-medium">
-                        {nome}
-                        {nome === DEFAULT_PLAYLIST_NAME ? (
-                          <span className="ml-1 text-[10px] font-normal text-zinc-500">(fixa)</span>
-                        ) : null}
-                      </span>
-                    </button>
-                    <div className="flex items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
-                      <button
-                        type="button"
-                        title="Renomear"
-                        disabled={nome === DEFAULT_PLAYLIST_NAME}
-                        onClick={() => {
-                          if (nome === DEFAULT_PLAYLIST_NAME) return;
-                          openPlaylistModal({
-                            tipo: "RENOMEAR",
-                            valorInicial: nome,
-                            idAlvo: nome,
-                          });
-                        }}
-                        className="p-1.5 hover:bg-blue-500/20 text-zinc-400 hover:text-blue-400 rounded-md transition-colors disabled:opacity-25 disabled:pointer-events-none"
-                        aria-label={`Renomear ${nome}`}
-                      >
-                        <PenLine className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        title={
-                          nome === DEFAULT_PLAYLIST_NAME
-                            ? "A playlist Padrão não pode ser removida"
-                            : "Excluir playlist"
-                        }
-                        disabled={nome === DEFAULT_PLAYLIST_NAME}
-                        onClick={() => removerPlaylist(nome)}
-                        className="p-1.5 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 rounded-md transition-colors disabled:opacity-25 disabled:pointer-events-none"
-                        aria-label={`Excluir ${nome}`}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-            <button
-              type="button"
-              className="mt-3 w-full text-[10px] font-bold uppercase tracking-wider py-2 rounded-xl bg-white/10 border border-white/15 text-zinc-200 hover:bg-white/15"
-              onClick={() => setModalGerirPlaylists(false)}
-            >
-              Fechar
-            </button>
-          </div>
-        </div>
-      )}
 
       {modalPlaylist.isOpen && (
         <div
