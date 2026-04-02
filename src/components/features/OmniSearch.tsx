@@ -9,7 +9,7 @@ import {
   Youtube,
   Compass,
   Trash2,
-  Plus,
+  BookmarkPlus,
   Check,
   ListPlus,
   Loader2,
@@ -29,7 +29,7 @@ import {
   RADIO_HUNTER_ADD_QUEUE,
   type RadioHunterTrackDetail,
 } from "@/lib/radioHunterEvents";
-import type { AbaPrincipal, EstanteItem, ResultadoBusca, TipoObra } from "@/types/hunter_registry";
+import type { AbaPrincipal, EstanteItem, NovoObraDraft, ResultadoBusca, TipoObra } from "@/types/hunter_registry";
 import {
   TIPO_OBRA_PARA_ABA,
   TIPO_OBRA_TABELA_DB,
@@ -38,6 +38,7 @@ import {
   TIPO_OBRA_TAG_MINI,
   resultadoBuscaParaEstanteItem,
 } from "@/types/hunter_registry";
+import { InspecaoModal, type InspecaoDraft } from "@/components/features/InspecaoModal";
 
 export type { EstanteItem, TipoObra } from "@/types/hunter_registry";
 
@@ -91,6 +92,50 @@ function titulosProvavelmenteMesmaObra(a: string, b: string): boolean {
   if (na.length >= 8 && nb.includes(na)) return true;
   if (nb.length >= 8 && na.includes(nb)) return true;
   return false;
+}
+
+function chaveEscudoObra(titulo: string, tipo: TipoObra): string {
+  return `${String(titulo).trim()}-${tipo}`.toLowerCase();
+}
+
+function urlEhYoutube(url: string): boolean {
+  const u = url.trim().toLowerCase();
+  return u.includes("youtube.com") || u.includes("youtu.be");
+}
+
+function itemCombinaComBusca(term: string, titulo: string): boolean {
+  const q = normalizarTitulo(term);
+  const t = normalizarTitulo(titulo);
+  if (!q || !t) return false;
+  if (t.includes(q) || q.includes(t)) return true;
+  return titulosProvavelmenteMesmaObra(term, titulo);
+}
+
+/** Injeta itens do escudo otimista que ainda não vieram na resposta oficial, mas batem com o termo. */
+function mergeHitsComEscudoOptimista(
+  term: string,
+  hits: EstanteItem[],
+  escudoMap: Map<string, EstanteItem>
+): EstanteItem[] {
+  for (const h of hits) {
+    for (const [k, opt] of [...escudoMap.entries()]) {
+      if (opt.tipo_obra === h.tipo_obra && titulosProvavelmenteMesmaObra(h.titulo, opt.titulo)) {
+        escudoMap.delete(k);
+      }
+    }
+  }
+
+  const merged = [...hits];
+  const vistos = new Set(merged.map((h) => `${normalizarTitulo(h.titulo)}|${h.tipo_obra}`));
+
+  for (const opt of escudoMap.values()) {
+    const dedupe = `${normalizarTitulo(opt.titulo)}|${opt.tipo_obra}`;
+    if (vistos.has(dedupe)) continue;
+    if (!itemCombinaComBusca(term, opt.titulo)) continue;
+    merged.push(opt);
+    vistos.add(dedupe);
+  }
+  return merged;
 }
 
 function itemJaNaEstanteCatalogo(item: ResultadoBusca, hits: EstanteItem[]): boolean {
@@ -158,7 +203,13 @@ export default function OmniSearch() {
   const [soloMotor, setSoloMotor] = useState<GalaxiaModo | null>(null);
   const [webSugestaoAuto, setWebSugestaoAuto] = useState(false);
 
-  const [importandoChave, setImportandoChave] = useState<string | null>(null);
+  const [inspecaoModalAberto, setInspecaoModalAberto] = useState(false);
+  const [inspecaoDraft, setInspecaoDraft] = useState<InspecaoDraft>({});
+  const [inspecaoModoEdicao, setInspecaoModoEdicao] = useState(false);
+  const [inspecaoIsManual, setInspecaoIsManual] = useState(false);
+  const [inspecaoIsEditing, setInspecaoIsEditing] = useState(false);
+  const [galaxiaInspecaoChave, setGalaxiaInspecaoChave] = useState<string | null>(null);
+  const optimisticItemsRef = useRef<Map<string, EstanteItem>>(new Map());
   const [galaxiaImportadas, setGalaxiaImportadas] = useState<Set<string>>(() => new Set());
   const [excluindoChave, setExcluindoChave] = useState<string | null>(null);
   const [feedbackInline, setFeedbackInline] = useState<string | null>(null);
@@ -255,7 +306,7 @@ export default function OmniSearch() {
             hits.push(r as EstanteItem);
           }
         }
-        setEstanteHits(hits);
+        setEstanteHits(mergeHitsComEscudoOptimista(term, hits, optimisticItemsRef.current));
 
         if (cancelled || buscaEstanteSerialRef.current !== serial) return;
 
@@ -314,7 +365,15 @@ export default function OmniSearch() {
     buscarPorAba,
   ]);
 
+  const fecharInspecao = useCallback(() => {
+    setInspecaoModalAberto(false);
+    setGalaxiaInspecaoChave(null);
+    setInspecaoDraft({});
+    setInspecaoIsEditing(false);
+  }, []);
+
   const close = useCallback(() => {
+    fecharInspecao();
     setSearchTerm("");
     setEstanteHits([]);
     setSearchError(null);
@@ -326,7 +385,7 @@ export default function OmniSearch() {
     setFeedbackInline(null);
     setFiltroCategoria("todos");
     setIsOpen(false);
-  }, [limparGalaxia]);
+  }, [fecharInspecao, limparGalaxia]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -477,42 +536,297 @@ export default function OmniSearch() {
 
   async function aoClicarGalaxia(modo: GalaxiaModo) {
     if (!podeAcionarGalaxia) return;
+    if (soloMotor === modo && galaxiaModoAtivo === modo) {
+      setSoloMotor(null);
+      setGalaxiaModoAtivo(null);
+      limparGalaxia();
+      setWebSugestaoAuto(false);
+      const term = searchTerm.trim();
+      if (term.length >= 2) {
+        const filtro = filtroCategoriaRef.current;
+        try {
+          if (filtro === "todos") {
+            const termoMin = term.toLowerCase();
+            const isBuscaMusical =
+              termoMin.includes("musica") ||
+              termoMin.includes("música") ||
+              termoMin.includes("ost") ||
+              termoMin.includes("opening") ||
+              termoMin.includes("ending") ||
+              termoMin.includes("cover");
+            if (isBuscaMusical) await buscarGalaxia(term, "youtube");
+            else await buscarGalaxia(term, "anilist");
+          } else {
+            const aba: AbaPrincipal = TIPO_OBRA_PARA_ABA[filtro];
+            await buscarPorAba(term, aba);
+          }
+        } catch (e) {
+          logSearchFailure("busca inteligente após desligar motor", e);
+        }
+      }
+      return;
+    }
     setSoloMotor(modo);
     setWebSugestaoAuto(false);
     setGalaxiaModoAtivo(modo);
     await buscarGalaxia(termoWeb, modo);
   }
 
-  async function importarDaGalaxia(r: ResultadoBusca, chave: string) {
+  const abrirPainelInspecao = useCallback((r: ResultadoBusca, chave: string) => {
     if (!podeImportar || itemJaNaEstanteCatalogo(r, estanteHits)) return;
-    setImportandoChave(chave);
-    try {
-      const draft = resultadoParaDraft(r);
-      const aba = TIPO_OBRA_PARA_ABA[r.tipoCatalogo];
-      const out = await salvarObra(draft, aba);
-      if (out.ok) {
-        setGalaxiaImportadas((prev) => new Set(prev).add(chave));
-        const novoItem: EstanteItem = {
-          ...(out.insertedId != null ? { id: out.insertedId } : {}),
-          titulo: r.titulo,
-          capa: r.capa,
-          capa_url: r.capa,
-          progresso: 0,
-          tipo_obra: r.tipoCatalogo,
-          link_url: r.link_url?.trim() || null,
-        };
-        setEstanteHits((prev) => {
-          if (itemJaNaEstanteCatalogo(r, prev)) return prev;
-          return [...prev, novoItem];
-        });
-        setEstanteRefreshNonce((n) => n + 1);
-        setFeedbackInline(`"${r.titulo}" na estante.`);
-        window.setTimeout(() => setFeedbackInline(null), 3200);
-      }
-    } finally {
-      setImportandoChave(null);
+    setInspecaoDraft({
+      ...resultadoParaDraft(r),
+      tipo_obra: r.tipoCatalogo,
+    });
+    setInspecaoIsManual(false);
+    setInspecaoModoEdicao(true);
+    setInspecaoIsEditing(false);
+    setGalaxiaInspecaoChave(chave);
+    setInspecaoModalAberto(true);
+  }, [estanteHits, podeImportar]);
+
+  const abrirRegistroManual = useCallback(() => {
+    if (!podeImportar) return;
+    const tipo: TipoObra = filtroCategoria === "todos" ? "manga" : filtroCategoria;
+    setInspecaoDraft({
+      titulo: "",
+      capa: "",
+      capitulo_atual: 0,
+      total_capitulos: 0,
+      status: "Planejo Ler",
+      sinopse: "",
+      favorito: false,
+      link_url: "",
+      provider_data: [],
+      duracao_episodio_minutos: 0,
+      tipo_obra: tipo,
+    });
+    setInspecaoIsManual(true);
+    setInspecaoModoEdicao(false);
+    setInspecaoIsEditing(false);
+    setGalaxiaInspecaoChave(null);
+    setInspecaoModalAberto(true);
+  }, [filtroCategoria, podeImportar]);
+
+  const handleSaveInspecao = useCallback(async () => {
+    if (!hunterUserId) {
+      setFeedbackInline("Erro: Selecione um Perfil de Hunter antes de salvar.");
+      window.setTimeout(() => setFeedbackInline(null), 4000);
+      return;
     }
-  }
+
+    const d = inspecaoDraft;
+    const tipoObra: TipoObra =
+      d.tipo_obra ?? (filtroCategoria !== "todos" ? filtroCategoria : "manga");
+    const aba = TIPO_OBRA_PARA_ABA[tipoObra];
+
+    const novo: NovoObraDraft = {
+      titulo: String(d.titulo ?? "").trim(),
+      capa: String(d.capa || d.capa_url || "").trim(),
+      capitulo_atual: Number(d.capitulo_atual) || 0,
+      total_capitulos: Number(d.total_capitulos) || 0,
+      status: String(d.status || "Planejo Ler"),
+      sinopse: String(d.sinopse ?? ""),
+      favorito: Boolean(d.favorito),
+      link_url: String(d.link_url ?? "").trim(),
+      provider_data: Array.isArray(d.provider_data) ? d.provider_data : [],
+      duracao_episodio_minutos: Number(d.duracao_episodio_minutos) || 0,
+    };
+
+    if (!novo.titulo.trim()) {
+      setSearchError("Título é obrigatório.");
+      return;
+    }
+
+    const idEstante = d.id;
+    const editandoNoBanco =
+      inspecaoIsEditing &&
+      idEstante != null &&
+      !(typeof idEstante === "string" && idEstante.startsWith("__opt__"));
+
+    if (editandoNoBanco) {
+      let senha = obterSenhaMestreRevelada();
+      if (!senha) senha = await obterSenhaMestreInterativa();
+      if (!senha) {
+        setFeedbackInline("Senha mestra necessária para salvar alterações.");
+        window.setTimeout(() => setFeedbackInline(null), 4000);
+        return;
+      }
+
+      const tabela = TIPO_OBRA_TABELA_DB[tipoObra];
+      const dadosUpdate: Record<string, unknown> = {
+        titulo: novo.titulo,
+        capa: novo.capa,
+        capitulo_atual: novo.capitulo_atual,
+        status: novo.status,
+        sinopse: novo.sinopse,
+        link_url: novo.link_url || null,
+      };
+
+      const prevItem = estanteHits.find(
+        (h) => h.tipo_obra === tipoObra && h.id === idEstante
+      );
+
+      setEstanteHits((prev) =>
+        prev.map((h) =>
+          h.tipo_obra === tipoObra && h.id === idEstante
+            ? {
+                ...h,
+                titulo: novo.titulo,
+                capa: novo.capa,
+                capa_url: novo.capa,
+                progresso: novo.capitulo_atual,
+                link_url: novo.link_url || null,
+              }
+            : h
+        )
+      );
+
+      const body: Record<string, unknown> = {
+        tabela,
+        operacao: "update",
+        dados: dadosUpdate,
+        senhaMestre: senha,
+      };
+      if (typeof idEstante === "number" && Number.isFinite(idEstante)) {
+        body.id = idEstante;
+      } else if (typeof idEstante === "string" && idEstante.trim()) {
+        body.id = idEstante.trim();
+      } else {
+        if (prevItem) {
+          setEstanteHits((prev) =>
+            prev.map((h) => (h.tipo_obra === tipoObra && h.id === idEstante ? prevItem : h))
+          );
+        }
+        setFeedbackInline("Id inválido para atualização.");
+        window.setTimeout(() => setFeedbackInline(null), 4000);
+        return;
+      }
+
+      try {
+        const res = await fetch(API_DB_PATH, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = (await res.json()) as { success?: boolean; error?: string };
+        if (res.status === 401) limparSenhaMestreNaSessao();
+        if (!res.ok || !data.success) {
+          if (prevItem) {
+            setEstanteHits((prev) =>
+              prev.map((h) => (h.tipo_obra === tipoObra && h.id === idEstante ? prevItem : h))
+            );
+          }
+          setFeedbackInline(data.error || "Erro ao atualizar.");
+          window.setTimeout(() => setFeedbackInline(null), 4000);
+          return;
+        }
+        const atualizado: EstanteItem = {
+          ...(prevItem ?? { progresso: novo.capitulo_atual, tipo_obra: tipoObra }),
+          id: idEstante,
+          titulo: novo.titulo,
+          capa: novo.capa,
+          capa_url: novo.capa,
+          progresso: novo.capitulo_atual,
+          tipo_obra: tipoObra,
+          link_url: novo.link_url || null,
+        };
+        const shieldKey = chaveEscudoObra(novo.titulo, tipoObra);
+        optimisticItemsRef.current.set(shieldKey, atualizado);
+        setEstanteRefreshNonce((n) => n + 1);
+        setFeedbackInline(`"${novo.titulo}" atualizado.`);
+        window.setTimeout(() => setFeedbackInline(null), 3200);
+        fecharInspecao();
+      } catch (e) {
+        if (prevItem) {
+          setEstanteHits((prev) =>
+            prev.map((h) => (h.tipo_obra === tipoObra && h.id === idEstante ? prevItem : h))
+          );
+        }
+        logSearchFailure("atualizar inspeção", e);
+        setFeedbackInline("Erro ao atualizar.");
+        window.setTimeout(() => setFeedbackInline(null), 4000);
+      }
+      return;
+    }
+
+    if (!podeImportar) return;
+
+    const fakeR: ResultadoBusca = {
+      id: 0,
+      titulo: novo.titulo,
+      capa: novo.capa,
+      total: novo.total_capitulos,
+      sinopse: novo.sinopse,
+      fonte: "AniList",
+      tipoCatalogo: tipoObra,
+      link_url: novo.link_url || undefined,
+    };
+    if (itemJaNaEstanteCatalogo(fakeR, estanteHits)) {
+      setFeedbackInline("Já existe um título parecido na estante.");
+      window.setTimeout(() => setFeedbackInline(null), 4000);
+      return;
+    }
+
+    const tempId = `__opt__${crypto.randomUUID()}`;
+    const optItem: EstanteItem = {
+      id: tempId,
+      titulo: novo.titulo,
+      capa: novo.capa,
+      capa_url: novo.capa,
+      progresso: novo.capitulo_atual,
+      tipo_obra: tipoObra,
+      link_url: novo.link_url || null,
+    };
+    setEstanteHits((prev) => [...prev, optItem]);
+
+    try {
+      const out = await salvarObra(novo, aba);
+      if (!out.ok) {
+        setEstanteHits((prev) => prev.filter((h) => h.id !== tempId));
+        return;
+      }
+      const added: EstanteItem = {
+        ...(out.insertedId != null ? { id: out.insertedId } : {}),
+        titulo: novo.titulo,
+        capa: novo.capa,
+        capa_url: novo.capa,
+        progresso: novo.capitulo_atual,
+        tipo_obra: tipoObra,
+        link_url: novo.link_url || null,
+      };
+      const shieldKey = chaveEscudoObra(novo.titulo, tipoObra);
+      optimisticItemsRef.current.set(shieldKey, added);
+      setEstanteHits((prev) => {
+        const rest = prev.filter((h) => h.id !== tempId);
+        return [...rest, added];
+      });
+      if (galaxiaInspecaoChave) {
+        setGalaxiaImportadas((prev) => new Set(prev).add(galaxiaInspecaoChave));
+      }
+      setEstanteRefreshNonce((n) => n + 1);
+      setFeedbackInline(`"${novo.titulo}" na estante.`);
+      window.setTimeout(() => setFeedbackInline(null), 3200);
+      fecharInspecao();
+      if (tipoObra === "song") {
+        window.dispatchEvent(new Event("music-updated"));
+      }
+    } catch (e) {
+      setEstanteHits((prev) => prev.filter((h) => h.id !== tempId));
+      logSearchFailure("salvar inspeção", e);
+    }
+  }, [
+    hunterUserId,
+    inspecaoDraft,
+    inspecaoIsEditing,
+    filtroCategoria,
+    podeImportar,
+    estanteHits,
+    salvarObra,
+    obterSenhaMestreInterativa,
+    fecharInspecao,
+    galaxiaInspecaoChave,
+  ]);
 
   const gridClass =
     "grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4";
@@ -746,6 +1060,18 @@ export default function OmniSearch() {
                     </div>
                   </div>
 
+                  <div className="border-t border-emerald-500/10 pt-3">
+                    <button
+                      type="button"
+                      disabled={!podeImportar}
+                      onClick={() => abrirRegistroManual()}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-500/20 bg-zinc-900/50 px-3 py-2.5 text-left text-[11px] font-semibold text-zinc-200 transition-colors hover:border-emerald-500/35 hover:bg-zinc-800/80 disabled:pointer-events-none disabled:opacity-40"
+                    >
+                      <BookmarkPlus className="h-3.5 w-3.5 shrink-0 text-emerald-500/80" aria-hidden />
+                      Registro manual
+                    </button>
+                  </div>
+
                   <p className="text-[10px] text-zinc-600">ESC fecha</p>
                 </aside>
 
@@ -868,13 +1194,14 @@ export default function OmniSearch() {
                         const naEstante =
                           itemJaNaEstanteCatalogo(r, estanteHits) ||
                           galaxiaImportadas.has(chave);
-                        const busy = importandoChave === chave || salvando;
+                        const busy = salvando && galaxiaInspecaoChave === chave;
                         const capaSrc =
                           (typeof webItem.capa_url === "string" && webItem.capa_url.trim()) ||
                           (typeof webItem.capa === "string" && webItem.capa.trim()) ||
                           "";
                         const isMusic = r.tipoCatalogo === "song";
                         const webUrl = r.link_url?.trim() || "";
+                        const linkYoutube = urlEhYoutube(webUrl);
 
                         return (
                           <motion.article
@@ -904,7 +1231,7 @@ export default function OmniSearch() {
                               <div className={capaAcOverlay}>
                                 {!naEstante ? (
                                   <>
-                                    {isMusic && webUrl ? (
+                                    {linkYoutube ? (
                                       <button
                                         type="button"
                                         className={acaoIconBtn}
@@ -915,18 +1242,29 @@ export default function OmniSearch() {
                                         <Play className="h-4 w-4" />
                                       </button>
                                     ) : null}
+                                    {isMusic && linkYoutube ? (
+                                      <button
+                                        type="button"
+                                        className={acaoIconBtn}
+                                        title="Adicionar à playlist"
+                                        aria-label="Adicionar à playlist"
+                                        onClick={() => dispararSelecaoPlaylist(webItem.titulo, webUrl, chave)}
+                                      >
+                                        <ListPlus className="h-4 w-4" />
+                                      </button>
+                                    ) : null}
                                     <button
                                       type="button"
                                       disabled={!podeImportar || busy}
                                       className={acaoIconBtn}
-                                      title="Importar para a estante"
-                                      aria-label="Importar para a estante"
-                                      onClick={() => void importarDaGalaxia(r, chave)}
+                                      title="Revisar e adicionar à estante"
+                                      aria-label="Revisar e adicionar à estante"
+                                      onClick={() => abrirPainelInspecao(r, chave)}
                                     >
                                       {busy ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />
                                       ) : (
-                                        <Plus className="h-4 w-4" />
+                                        <BookmarkPlus className="h-4 w-4" />
                                       )}
                                     </button>
                                   </>
@@ -948,7 +1286,7 @@ export default function OmniSearch() {
                               <div className="mt-auto flex justify-end gap-1.5 border-t border-emerald-500/10 pt-2 md:hidden">
                                 {!naEstante ? (
                                   <>
-                                    {isMusic && webUrl ? (
+                                    {linkYoutube ? (
                                       <button
                                         type="button"
                                         className={acaoIconBtn}
@@ -959,18 +1297,29 @@ export default function OmniSearch() {
                                         <Play className="h-4 w-4" />
                                       </button>
                                     ) : null}
+                                    {isMusic && linkYoutube ? (
+                                      <button
+                                        type="button"
+                                        className={acaoIconBtn}
+                                        title="Adicionar à playlist"
+                                        aria-label="Adicionar à playlist"
+                                        onClick={() => dispararSelecaoPlaylist(webItem.titulo, webUrl, chave)}
+                                      >
+                                        <ListPlus className="h-4 w-4" />
+                                      </button>
+                                    ) : null}
                                     <button
                                       type="button"
                                       disabled={!podeImportar || busy}
                                       className={acaoIconBtn}
-                                      title="Importar para a estante"
-                                      aria-label="Importar para a estante"
-                                      onClick={() => void importarDaGalaxia(r, chave)}
+                                      title="Revisar e adicionar à estante"
+                                      aria-label="Revisar e adicionar à estante"
+                                      onClick={() => abrirPainelInspecao(r, chave)}
                                     >
                                       {busy ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />
                                       ) : (
-                                        <Plus className="h-4 w-4" />
+                                        <BookmarkPlus className="h-4 w-4" />
                                       )}
                                     </button>
                                   </>
@@ -1018,6 +1367,18 @@ export default function OmniSearch() {
           </motion.div>
         ) : null}
       </AnimatePresence>
+      <InspecaoModal
+        isOpen={inspecaoModalAberto}
+        onClose={fecharInspecao}
+        draft={inspecaoDraft}
+        onDraftChange={setInspecaoDraft}
+        isManual={inspecaoIsManual}
+        modoGalaxia={inspecaoModoEdicao}
+        isEditing={inspecaoIsEditing}
+        onSave={handleSaveInspecao}
+        onError={(msg) => setSearchError(msg)}
+        salvando={salvando}
+      />
       {modalSenhaMestra}
     </>
   );

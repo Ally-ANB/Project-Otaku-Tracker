@@ -68,7 +68,10 @@ export async function POST(request: Request) {
 
     if (operacao === 'insert') {
       const payload = Array.isArray(dados) ? dados : [dados];
-      const { data, error } = await admin.from(tabela).insert(payload).select();
+      const { data, error } =
+        tabela === 'search_cache'
+          ? await admin.from(tabela).upsert(payload, { onConflict: 'termo_original' }).select()
+          : await admin.from(tabela).insert(payload).select();
       if (error) throw error;
       return NextResponse.json({ success: true, data });
     }
