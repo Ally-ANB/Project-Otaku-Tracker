@@ -664,18 +664,21 @@ export default function Home() {
             onClick={() =>
               window.dispatchEvent(new CustomEvent(OMNISEARCH_OPEN_EVENT))
             }
-            className="flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-zinc-900/50 px-4 py-3 shadow-[0_0_20px_rgba(34,197,94,0.12)] backdrop-blur-md transition-all hover:border-emerald-400/50 hover:bg-zinc-800/55 hover:shadow-[0_0_24px_rgba(34,197,94,0.2)]"
+            className="group flex items-center gap-2.5 rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2.5 shadow-[0_8px_40px_rgba(0,0,0,0.35)] ring-1 ring-emerald-500/10 backdrop-blur-xl transition-all hover:border-emerald-500/25 hover:bg-white/[0.1] hover:shadow-[0_12px_48px_rgba(34,197,94,0.08)] sm:gap-3 sm:px-4 sm:py-3"
             title="Abrir busca global (/)"
           >
             <Search
-              className="h-4 w-4 shrink-0 text-emerald-400"
+              className="h-4 w-4 shrink-0 text-emerald-400/90 group-hover:text-emerald-300"
               strokeWidth={2.25}
               aria-hidden
             />
-            <span className="hidden text-[10px] font-black uppercase tracking-[0.12em] text-zinc-200 sm:inline">
-              Pesquisar na Estante...{" "}
-              <span className="text-zinc-500">[/]</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-200">
+              <span className="hidden sm:inline">Pesquisar na Estante</span>
+              <span className="sm:hidden">Busca</span>
             </span>
+            <kbd className="pointer-events-none rounded-md border border-emerald-500/20 bg-zinc-950/55 px-2 py-1 font-mono text-[10px] font-semibold tabular-nums text-emerald-400/95 shadow-inner">
+              /
+            </kbd>
           </button>
 
           {/* BOTÃO ADICIONAR (GRADIENTE & DESTAQUE) */}

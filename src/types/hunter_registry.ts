@@ -42,6 +42,50 @@ export const ABA_PARA_TIPO_OBRA: Record<AbaPrincipal, TipoObra> = {
   MUSICA: "song",
 };
 
+/** Tabela Supabase por tipo (ex.: DELETE em `/api/db`). */
+export const TIPO_OBRA_TABELA_DB: Record<TipoObra, string> = {
+  manga: "mangas",
+  anime: "animes",
+  movie: "filmes",
+  series: "series",
+  book: "livros",
+  game: "jogos",
+  song: "musicas",
+};
+
+/** Ordem das categorias no OmniSearch. */
+export const TIPO_OBRA_ORDEM_UI: readonly TipoObra[] = [
+  "manga",
+  "anime",
+  "series",
+  "movie",
+  "book",
+  "game",
+  "song",
+] as const;
+
+/** Título da categoria na UI. */
+export const TIPO_OBRA_LABEL_SECAO: Record<TipoObra, string> = {
+  manga: "Mangá",
+  anime: "Anime",
+  series: "Série",
+  movie: "Filme",
+  book: "Livro",
+  game: "Jogo",
+  song: "Música",
+};
+
+/** Tag compacta no card (OmniSearch). */
+export const TIPO_OBRA_TAG_MINI: Record<TipoObra, string> = {
+  manga: "MAN",
+  anime: "ANM",
+  series: "SÉR",
+  movie: "FIL",
+  book: "LIV",
+  game: "JGO",
+  song: "MUS",
+};
+
 /** Fontes retornadas pelo catálogo externo. */
 export type FonteCatalogo =
   | "AniList"
@@ -93,6 +137,19 @@ export interface EstanteItem {
   link_url?: string | null;
   progresso: number;
   tipo_obra: TipoObra;
+}
+
+/** Converte resultado de catálogo externo para o mesmo shape da estante (grid unificada). */
+export function resultadoBuscaParaEstanteItem(r: ResultadoBusca): EstanteItem {
+  return {
+    id: r.id,
+    titulo: r.titulo,
+    capa: r.capa,
+    capa_url: r.capa,
+    link_url: r.link_url?.trim() ? r.link_url.trim() : null,
+    progresso: 0,
+    tipo_obra: r.tipoCatalogo,
+  };
 }
 
 /** Registro de obra na estante (todas as abas de mídia). */

@@ -238,9 +238,10 @@ type RadioPlaylistTrackReorderRowProps = {
   item: RadioQueueItem;
   thumbUrl: string;
   onPlay: () => void;
+  onRemove: () => void;
 };
 
-function RadioPlaylistTrackReorderRow({ item, thumbUrl, onPlay }: RadioPlaylistTrackReorderRowProps) {
+function RadioPlaylistTrackReorderRow({ item, thumbUrl, onPlay, onRemove }: RadioPlaylistTrackReorderRowProps) {
   const dragControls = useDragControls();
   return (
     <Reorder.Item
@@ -270,15 +271,26 @@ function RadioPlaylistTrackReorderRow({ item, thumbUrl, onPlay }: RadioPlaylistT
       >
         {item.titulo}
       </p>
-      <button
-        type="button"
-        title="Tocar esta faixa"
-        aria-label={`Tocar ${item.titulo}`}
-        onClick={onPlay}
-        className="shrink-0 rounded-md border border-green-500/30 bg-green-500/10 p-1.5 text-green-400 transition-colors hover:bg-green-500/20"
-      >
-        <Play className="h-3 w-3 text-green-500" aria-hidden />
-      </button>
+      <div className="ml-auto flex shrink-0 items-center gap-1.5">
+        <button
+          type="button"
+          title="Tocar esta faixa"
+          aria-label={`Tocar ${item.titulo}`}
+          onClick={onPlay}
+          className="shrink-0 rounded-md border border-green-500/30 bg-green-500/10 p-1.5 text-green-400 transition-colors hover:bg-green-500/20"
+        >
+          <Play className="h-3 w-3 text-green-500" aria-hidden />
+        </button>
+        <button
+          type="button"
+          title="Remover da playlist"
+          aria-label={`Remover ${item.titulo}`}
+          onClick={onRemove}
+          className="shrink-0 rounded-md border border-red-500/30 bg-red-500/10 p-1.5 text-red-400 transition-colors hover:bg-red-500/20"
+        >
+          <Trash2 className="h-3 w-3" aria-hidden />
+        </button>
+      </div>
     </Reorder.Item>
   );
 }
@@ -377,6 +389,11 @@ export default function RadioHunter() {
     idAlvo: string | null;
   }>({ isOpen: false, tipo: "", valorInicial: "", idAlvo: null });
   const [playlistModalInputKey, setPlaylistModalInputKey] = useState(0);
+  const [pendingPlaylistItem, setPendingPlaylistItem] = useState<{
+    titulo: string;
+    url: string;
+    id: string;
+  } | null>(null);
 
   const usuarioAtivoRef = useRef<string | null>(null);
   const playerRef = useRef<HTMLElement | null>(null);
@@ -1090,20 +1107,31 @@ export default function RadioHunter() {
       if (!d?.url?.trim()) return;
       setPreviewItem(null);
       const name = activePlaylistNameRef.current;
-      const item: RadioQueueItem = {
-        titulo: (d.titulo || "Faixa").trim(),
-        url: d.url.trim(),
-        id: (d.id && String(d.id).trim()) || d.url.trim(),
-        uid: newUid(),
-      };
+      const trackUrl = d.url.trim();
+      const trackId = (d.id && String(d.id).trim()) || trackUrl;
       const holder = { newCi: 0 };
+
       flushSync(() => {
         setPlaylists((prev) => {
           const q = [...(prev[name] ?? [])];
-          holder.newCi = q.length;
-          q.push(item);
-          queueRef.current = q;
-          return { ...prev, [name]: q };
+          // Trava de Duplicidade: Verifica se já existe na playlist
+          const existingIndex = q.findIndex((t) => t.id === trackId || t.url === trackUrl);
+
+          if (existingIndex >= 0) {
+            holder.newCi = existingIndex;
+            return prev; // Apenas move o index para a música, não duplica
+          } else {
+            holder.newCi = q.length;
+            const newItem: RadioQueueItem = {
+              titulo: (d.titulo || "Faixa").trim(),
+              url: trackUrl,
+              id: trackId,
+              uid: newUid(),
+            };
+            q.push(newItem);
+            queueRef.current = q;
+            return { ...prev, [name]: q };
+          }
         });
       });
       setCurrentIndex(holder.newCi);
@@ -1111,11 +1139,27 @@ export default function RadioHunter() {
       mostrarToast("Tocando no Radio", "sucesso");
     };
 
+    const onSelectPlaylist = (e: Event) => {
+      if (!usuarioAtivoRef.current) return;
+      const d = (e as CustomEvent<RadioHunterTrackDetail>).detail;
+      if (!d?.url?.trim()) return;
+      setPendingPlaylistItem({
+        titulo: (d.titulo || "Faixa").trim(),
+        url: d.url.trim(),
+        id: (d.id && String(d.id).trim()) || d.url.trim(),
+      });
+    };
+
     window.addEventListener(RADIO_HUNTER_ADD_QUEUE, onAddQueue);
     window.addEventListener(RADIO_HUNTER_PLAY_URL, onPlayUrl);
+    window.addEventListener("RADIO_HUNTER_PLAY_NOW", onPlayUrl);
+    window.addEventListener("RADIO_HUNTER_SELECT_PLAYLIST", onSelectPlaylist);
+
     return () => {
       window.removeEventListener(RADIO_HUNTER_ADD_QUEUE, onAddQueue);
       window.removeEventListener(RADIO_HUNTER_PLAY_URL, onPlayUrl);
+      window.removeEventListener("RADIO_HUNTER_PLAY_NOW", onPlayUrl);
+      window.removeEventListener("RADIO_HUNTER_SELECT_PLAYLIST", onSelectPlaylist);
     };
   }, [mostrarToast]);
 
@@ -1125,11 +1169,11 @@ export default function RadioHunter() {
     <>
       <div
         ref={constraintsRef}
-        className="fixed inset-0 z-[998] pointer-events-none"
+        className="fixed inset-0 z-[9998] pointer-events-none"
         aria-hidden
       >
         <motion.div
-          className="pointer-events-auto absolute bottom-6 right-6 z-[999] flex flex-col items-end gap-2"
+          className="pointer-events-auto absolute bottom-6 right-6 z-[9999] flex flex-col items-end gap-2"
           aria-label="Rádio Global Hunter"
           drag={true}
           dragMomentum={false}
@@ -1487,6 +1531,14 @@ export default function RadioHunter() {
                                       onPlay={() =>
                                         tocarFaixaNaPlaylistBiblioteca(idPlaylistVisualizando, idx)
                                       }
+                                      onRemove={() => {
+                                        if (!idPlaylistVisualizando) return;
+                                        setPlaylists((prev) => {
+                                          const currentList = prev[idPlaylistVisualizando] ?? [];
+                                          const newList = currentList.filter((_, i) => i !== idx);
+                                          return { ...prev, [idPlaylistVisualizando]: newList };
+                                        });
+                                      }}
                                     />
                                   );
                                 })}
@@ -1956,6 +2008,68 @@ export default function RadioHunter() {
                 Confirmar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Seleção de Playlist (Disparado pelo OmniSearch) */}
+      {pendingPlaylistItem && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-emerald-500/20 bg-zinc-950 p-6 shadow-2xl">
+            <h2 className="mb-4 text-center text-sm font-bold uppercase tracking-widest text-emerald-400">
+              Adicionar à Playlist
+            </h2>
+            <p className="mb-6 text-center text-xs text-zinc-400">
+              <span className="font-semibold text-white">{pendingPlaylistItem.titulo}</span>
+            </p>
+            <div className="flex max-h-60 flex-col gap-2 overflow-y-auto pr-2 custom-scrollbar">
+              {nomesPlaylistsOrdenados.map((nome) => (
+                <button
+                  key={nome}
+                  type="button"
+                  onClick={() => {
+                    const currentList = playlists[nome] ?? [];
+                    const alreadyExists = currentList.some(
+                      (t) => t.id === pendingPlaylistItem.id || t.url === pendingPlaylistItem.url
+                    );
+
+                    if (alreadyExists) {
+                      mostrarToast(`A faixa já está na playlist "${nome}"`, "erro");
+                      setPendingPlaylistItem(null);
+                      return;
+                    }
+
+                    setPlaylists((prev) => ({
+                      ...prev,
+                      [nome]: [
+                        ...currentList,
+                        {
+                          titulo: pendingPlaylistItem.titulo,
+                          url: pendingPlaylistItem.url,
+                          id: pendingPlaylistItem.id,
+                          uid: newUid(),
+                        },
+                      ],
+                    }));
+                    mostrarToast(`Adicionado à playlist "${nome}"`, "sucesso");
+                    setPendingPlaylistItem(null);
+                  }}
+                  className="flex w-full items-center justify-between rounded-lg border border-white/5 bg-zinc-900 px-4 py-3 text-left text-sm text-zinc-300 transition-colors hover:border-emerald-500/30 hover:bg-zinc-800 hover:text-emerald-400"
+                >
+                  <span className="truncate font-medium">{nome}</span>
+                  <span className="text-xs text-zinc-500">
+                    {(playlists[nome] ?? []).length} faixas
+                  </span>
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setPendingPlaylistItem(null)}
+              className="mt-6 w-full rounded-lg border border-red-500/20 py-3 text-xs font-bold uppercase tracking-widest text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
+            >
+              Cancelar
+            </button>
           </div>
         </div>
       )}
