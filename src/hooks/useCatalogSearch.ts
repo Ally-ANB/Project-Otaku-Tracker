@@ -121,27 +121,38 @@ export async function fetchCatalogForAba(
 
   if (abaPrincipal === "LIVRO") {
     const res = await fetch(`/api/books?q=${encodeURIComponent(termoFinal)}`);
-    const json = await res.json();
-
-    if (json.items) {
-      return dedupe(
-        json.items.map((m: Record<string, unknown>): ResultadoBusca => {
-          const vi = m.volumeInfo as Record<string, unknown> | undefined;
-          const links = vi?.imageLinks as Record<string, string> | undefined;
-          return {
-            id: m.id as string,
-            titulo: (vi?.title as string) || "Sem Título",
-            capa:
-              links?.thumbnail?.replace("http:", "https:") || CAPA_PLACEHOLDER,
-            total: (vi?.pageCount as number) || 1,
-            sinopse: (vi?.description as string) || "Sem sinopse.",
-            fonte: "Google Books",
-            tipoCatalogo: "book",
-          };
-        })
-      );
+    if (!res.ok) return [];
+    const contentType = res.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) return [];
+    let json: Record<string, unknown>;
+    try {
+      json = (await res.json()) as Record<string, unknown>;
+    } catch {
+      return [];
     }
-    return [];
+    console.log("DEBUG BOOKS:", json);
+
+    const rawItems = Array.isArray(json.items) ? json.items : [];
+    const items = rawItems.map((entry: unknown): ResultadoBusca => {
+      const m = entry as Record<string, unknown>;
+      const vi = m.volumeInfo as Record<string, unknown> | undefined;
+      const links = vi?.imageLinks as Record<string, string> | undefined;
+      const thumb = links?.thumbnail;
+      const fonteRaw = m.fonteCatalogo;
+      const fonte: ResultadoBusca["fonte"] =
+        fonteRaw === "Open Library" ? "Open Library" : "Google Books";
+      return {
+        id: m.id as string,
+        titulo: (vi?.title as string) || "Sem Título",
+        capa: thumb?.replace("http:", "https:") || CAPA_PLACEHOLDER,
+        total: (vi?.pageCount as number) || 1,
+        sinopse: (vi?.description as string) || "Sem sinopse.",
+        fonte,
+        tipoCatalogo: "book",
+      };
+    });
+
+    return dedupe(items);
   }
 
   if (abaPrincipal === "JOGO") {

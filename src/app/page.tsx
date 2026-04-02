@@ -8,7 +8,6 @@ import { supabase } from "./supabase";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import MangaCard from "@/components/ui/MangaCard";
-import AddMangaModal from "@/components/ui/AddMangaModal";
 import MangaDetailsModal from "@/components/ui/MangaDetailsModal";
 import AdminPanel from "@/components/ui/AdminPanel";
 import ProfileSelection from "@/components/ui/ProfileSelection";
@@ -16,7 +15,7 @@ import { useSenhaMestraInterativa } from "@/hooks/useSenhaMestraInterativa";
 import { dbClient, requisicaoDbApi } from "@/lib/dbClient";
 // ✅ ADICIONADO: Componente de Identidade Universal e Player Card
 import HunterAvatar from "@/components/ui/HunterAvatar";
-import { BookOpen, Film, Tv, Gamepad2, Music, Book, Search } from "lucide-react";
+import { BookOpen, Film, Tv, Gamepad2, Music, Book, PlusCircle, Search } from "lucide-react";
 import { OMNISEARCH_OPEN_EVENT } from "@/components/features/OmniSearch";
 import type { Manga } from "@/types/hunter_registry";
 
@@ -65,7 +64,6 @@ export default function Home() {
     chat_balao: "" 
   });
 
-  const [estaAbertoAdd, setEstaAbertoAdd] = useState(false);
   const [mangaDetalhe, setMangaDetalhe] = useState<Manga | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [sincronizando, setSincronizando] = useState(false);
@@ -665,29 +663,20 @@ export default function Home() {
               window.dispatchEvent(new CustomEvent(OMNISEARCH_OPEN_EVENT))
             }
             className="group flex items-center gap-2.5 rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2.5 shadow-[0_8px_40px_rgba(0,0,0,0.35)] ring-1 ring-emerald-500/10 backdrop-blur-xl transition-all hover:border-emerald-500/25 hover:bg-white/[0.1] hover:shadow-[0_12px_48px_rgba(34,197,94,0.08)] sm:gap-3 sm:px-4 sm:py-3"
-            title="Abrir busca global (/)"
+            title="Adicionar nova obra ou pesquisar no catálogo"
+            aria-label="Adicionar nova obra ou pesquisar no catálogo"
           >
-            <Search
-              className="h-4 w-4 shrink-0 text-emerald-400/90 group-hover:text-emerald-300"
-              strokeWidth={2.25}
-              aria-hidden
-            />
+            <span className="flex shrink-0 items-center gap-1 text-emerald-400/90 group-hover:text-emerald-300">
+              <PlusCircle className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+              <Search className="h-3.5 w-3.5 opacity-95" strokeWidth={2.25} aria-hidden />
+            </span>
             <span className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-200">
-              <span className="hidden sm:inline">Pesquisar na Estante</span>
-              <span className="sm:hidden">Busca</span>
+              <span className="hidden sm:inline">Adicionar ou Buscar Obras</span>
+              <span className="sm:hidden">Obras</span>
             </span>
             <kbd className="pointer-events-none rounded-md border border-emerald-500/20 bg-zinc-950/55 px-2 py-1 font-mono text-[10px] font-semibold tabular-nums text-emerald-400/95 shadow-inner">
               /
             </kbd>
-          </button>
-
-          {/* BOTÃO ADICIONAR (GRADIENTE & DESTAQUE) */}
-          <button 
-            onClick={() => setEstaAbertoAdd(true)} 
-            className={`hidden md:flex items-center gap-3 px-8 py-3.5 bg-gradient-to-r from-blue-600/10 to-indigo-600/10 hover:from-blue-600 hover:to-indigo-600 border border-blue-500/20 rounded-2xl group transition-all duration-500 shadow-lg hover:shadow-blue-500/20`}
-          >
-            <span className="text-blue-400 group-hover:text-white transition-colors text-lg font-light">+</span>
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white">Adicionar Obra</span>
           </button>
 
           {/* CAPSULA DE UTILITÁRIOS (GLASSMORPISM) */}
@@ -840,17 +829,6 @@ export default function Home() {
         </div>
       )}
 
-      <AddMangaModal
-        estaAberto={estaAbertoAdd}
-        fechar={() => setEstaAbertoAdd(false)}
-        usuarioAtual={usuarioAtual}
-        abaPrincipal={abaPrincipal}
-        solicitarSenhaMestre={obterSenhaMestreInterativa}
-        mostrarFeedback={mostrarToast}
-        anilistToken={perfis.find((p) => p.nome_original === usuarioAtual)?.anilist_token ?? null}
-        aoSalvar={() => { buscarMangas(); buscarAnimes(); buscarFilmes(); buscarLivros(); buscarSeries(); buscarJogos(); buscarMusicas(); setEstaAbertoAdd(false); }}
-      />
-      
       {mangaDetalhe && (
         <MangaDetailsModal
           manga={mangaDetalhe}

@@ -92,6 +92,7 @@ export type FonteCatalogo =
   | "MyAnimeList"
   | "TMDB"
   | "Google Books"
+  | "Open Library"
   | "RAWG"
   | "Apple Music"
   | "YouTube";

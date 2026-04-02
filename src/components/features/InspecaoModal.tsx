@@ -92,7 +92,7 @@ export function InspecaoModal({
             initial={{ scale: 0.95, opacity: 0, y: 10 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 10 }}
-            className="flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-emerald-500/20 bg-zinc-950/80 shadow-[0_0_40px_-10px_rgba(16,185,129,0.15)] backdrop-blur-xl"
+            className="flex max-h-full w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-emerald-500/20 bg-zinc-950/80 shadow-[0_0_40px_-10px_rgba(16,185,129,0.15)] backdrop-blur-xl sm:max-w-2xl lg:max-w-3xl"
           >
             <div className="flex items-center justify-between border-b border-white/5 bg-black/20 p-5">
               <h2 className="text-sm font-black uppercase tracking-widest text-emerald-400">{tituloHeader}</h2>
@@ -105,9 +105,9 @@ export function InspecaoModal({
               </button>
             </div>
 
-            <div className="custom-scrollbar space-y-5 overflow-y-auto p-6">
+            <div className="custom-scrollbar space-y-6 overflow-y-auto p-6">
               {isManual ? (
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                <>
                   <div className="space-y-1.5">
                     <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-zinc-500">
                       Título
@@ -132,10 +132,10 @@ export function InspecaoModal({
                       className="w-full rounded-xl border border-white/5 bg-black/20 p-3 text-sm text-zinc-300 outline-none transition-all focus:border-emerald-500/40 focus:bg-black/40"
                     />
                   </div>
-                </div>
+                </>
               ) : (
-                <div className="flex items-center gap-4 rounded-xl border border-white/5 bg-black/20 p-3">
-                  <div className="relative h-16 w-12 shrink-0 overflow-hidden rounded-md bg-zinc-900">
+                <div className="flex flex-col items-center gap-4 rounded-xl border border-white/5 bg-black/20 p-4 sm:flex-row sm:items-start sm:gap-5">
+                  <div className="relative aspect-[2/3] h-36 w-24 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-zinc-900 shadow-md sm:h-40 sm:w-[6.5rem]">
                     {draft.capa || draft.capa_url ? (
                       <img
                         src={draft.capa || draft.capa_url || ""}
@@ -144,16 +144,16 @@ export function InspecaoModal({
                       />
                     ) : null}
                   </div>
-                  <div className="flex flex-1 flex-col">
-                    <h3 className="line-clamp-2 text-sm font-bold text-white">{draft.titulo}</h3>
-                    <span className="mt-1 text-[9px] font-black uppercase tracking-widest text-emerald-500">
+                  <div className="flex min-w-0 flex-1 flex-col text-center sm:text-left">
+                    <h3 className="text-base font-bold leading-snug text-white sm:text-lg">{draft.titulo}</h3>
+                    <span className="mt-2 text-[9px] font-black uppercase tracking-widest text-emerald-500">
                       {draft.tipo_obra} • Dados Oficiais
                     </span>
                   </div>
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-5">
+              <div className="grid grid-cols-2 gap-4 sm:gap-5">
                 <div className="space-y-1.5">
                   <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-zinc-500">Status</label>
                   <select
@@ -247,7 +247,7 @@ export function InspecaoModal({
                 <textarea
                   value={draft.sinopse || ""}
                   onChange={(e) => onDraftChange({ ...draft, sinopse: e.target.value })}
-                  className="custom-scrollbar h-28 w-full resize-none rounded-xl border border-white/5 bg-black/20 p-4 text-xs leading-relaxed text-zinc-300 outline-none transition-all focus:border-emerald-500/40 focus:bg-black/40"
+                  className="custom-scrollbar min-h-[200px] w-full resize-y rounded-xl border border-white/5 bg-black/20 p-4 text-sm leading-relaxed text-zinc-300 outline-none transition-all focus:border-emerald-500/40 focus:bg-black/40 sm:min-h-[220px]"
                 />
               </div>
 

@@ -39,6 +39,7 @@ import { aplicarEconomiaPosAdicaoEstante } from "@/app/guilda/guildaRankEconomia
 import {
   RADIO_HUNTER_ADD_QUEUE,
   RADIO_HUNTER_PLAY_URL,
+  RADIO_HUNTER_SELECT_PLAYLIST,
   type RadioHunterTrackDetail,
 } from "@/lib/radioHunterEvents";
 
@@ -1180,13 +1181,13 @@ export default function RadioHunter() {
     window.addEventListener(RADIO_HUNTER_ADD_QUEUE, onAddQueue);
     window.addEventListener(RADIO_HUNTER_PLAY_URL, onPlayUrl);
     window.addEventListener("RADIO_HUNTER_PLAY_NOW", onPlayUrl);
-    window.addEventListener("RADIO_HUNTER_SELECT_PLAYLIST", onSelectPlaylist);
+    window.addEventListener(RADIO_HUNTER_SELECT_PLAYLIST, onSelectPlaylist);
 
     return () => {
       window.removeEventListener(RADIO_HUNTER_ADD_QUEUE, onAddQueue);
       window.removeEventListener(RADIO_HUNTER_PLAY_URL, onPlayUrl);
       window.removeEventListener("RADIO_HUNTER_PLAY_NOW", onPlayUrl);
-      window.removeEventListener("RADIO_HUNTER_SELECT_PLAYLIST", onSelectPlaylist);
+      window.removeEventListener(RADIO_HUNTER_SELECT_PLAYLIST, onSelectPlaylist);
     };
   }, [mostrarToast]);
 
@@ -1594,7 +1595,7 @@ export default function RadioHunter() {
               <div className="flex flex-col w-full min-w-0">
                 <div className="flex items-center justify-between w-full min-h-20 pl-0.5 pr-4 sm:pr-6 py-2.5 gap-2">
                   {/* 1. ESQUERDA: Info */}
-                  <div className="flex items-center gap-3 sm:gap-4 w-1/3 min-w-0">
+                  <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
                     <button
                       type="button"
                       title="Mover o player"
@@ -1615,7 +1616,7 @@ export default function RadioHunter() {
                         <Music className="w-6 h-6 text-zinc-500" aria-hidden />
                       )}
                     </div>
-                    <div className="min-w-0 flex flex-col flex-1">
+                    <div className="min-w-0 flex-1 flex flex-col justify-center">
                       <span
                         className="text-sm font-bold text-white truncate"
                         title={`${tituloExibicao} (${posFila})`}
@@ -1629,41 +1630,41 @@ export default function RadioHunter() {
                   </div>
 
                   {/* 2. CENTRO: Controles */}
-                  <div className="flex flex-col items-center justify-center w-1/3 max-w-md min-w-0 gap-2">
-                    <div className="flex items-center justify-center gap-4 sm:gap-6">
+                  <div className="flex max-w-md shrink-0 flex-col items-center justify-center gap-2">
+                    <div className="flex shrink-0 items-center justify-center gap-5 px-4">
                       <button
                         type="button"
                         title={isShuffle ? "Desativar aleatório" : "Ordem aleatória"}
                         onClick={() => setIsShuffle((v) => !v)}
-                        className={`transition-colors ${
+                        className={`flex items-center justify-center transition-colors ${
                           isShuffle ? "text-green-500" : "text-zinc-400 hover:text-white"
                         }`}
                         aria-label={isShuffle ? "Desativar aleatório" : "Ativar aleatório"}
                         aria-pressed={isShuffle}
                       >
-                        <Shuffle className="w-4 h-4" aria-hidden />
+                        <Shuffle className="h-4 w-4" aria-hidden />
                       </button>
                       <button
                         type="button"
                         title="Faixa anterior"
                         onClick={playPrev}
                         disabled={navPrevDisabled}
-                        className="text-zinc-300 hover:text-white transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                        className="flex items-center justify-center text-zinc-300 transition-colors hover:text-white disabled:pointer-events-none disabled:opacity-30"
                         aria-label="Faixa anterior"
                       >
-                        <SkipBack className="w-5 h-5 fill-current" aria-hidden />
+                        <SkipBack className="h-5 w-5 fill-current" aria-hidden />
                       </button>
                       <button
                         type="button"
                         title={isPlaying ? "Pausar" : "Tocar"}
                         onClick={() => setIsPlaying((v) => !v)}
-                        className="w-10 h-10 flex items-center justify-center bg-green-500 text-black rounded-full hover:scale-105 transition-transform shadow-[0_0_14px_rgba(34,197,94,0.35)]"
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-500 text-black shadow-[0_0_14px_rgba(34,197,94,0.35)] transition-transform hover:scale-105"
                         aria-label={isPlaying ? "Pausar" : "Tocar"}
                       >
                         {isPlaying ? (
-                          <Pause className="w-5 h-5 fill-current" aria-hidden />
+                          <Pause className="h-5 w-5 fill-current" aria-hidden />
                         ) : (
-                          <Play className="w-5 h-5 fill-current ml-0.5" aria-hidden />
+                          <Play className="ml-0.5 h-5 w-5 fill-current" aria-hidden />
                         )}
                       </button>
                       <button
@@ -1671,34 +1672,34 @@ export default function RadioHunter() {
                         title="Próxima faixa"
                         onClick={playNext}
                         disabled={navNextDisabled}
-                        className="text-zinc-300 hover:text-white transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                        className="flex items-center justify-center text-zinc-300 transition-colors hover:text-white disabled:pointer-events-none disabled:opacity-30"
                         aria-label="Próxima faixa"
                       >
-                        <SkipForward className="w-5 h-5 fill-current" aria-hidden />
+                        <SkipForward className="h-5 w-5 fill-current" aria-hidden />
                       </button>
                       <button
                         type="button"
                         title={isRepeat ? "Desativar repetir faixa" : "Repetir faixa atual"}
                         onClick={() => setIsRepeat((v) => !v)}
-                        className={`transition-colors ${
+                        className={`flex items-center justify-center transition-colors ${
                           isRepeat ? "text-green-500" : "text-zinc-400 hover:text-white"
                         }`}
                         aria-label={isRepeat ? "Desativar repetir" : "Repetir faixa atual"}
                         aria-pressed={isRepeat}
                       >
-                        <Repeat className="w-4 h-4" aria-hidden />
+                        <Repeat className="h-4 w-4" aria-hidden />
                       </button>
                       <button
                         type="button"
                         title={repeatAll ? "Desativar repetir tudo" : "Repetir tudo"}
                         onClick={() => setRepeatAll((v) => !v)}
-                        className={`transition-colors ${
+                        className={`flex items-center justify-center transition-colors ${
                           repeatAll ? "text-sky-400" : "text-zinc-400 hover:text-white"
                         }`}
                         aria-label={repeatAll ? "Desativar repetir tudo" : "Repetir tudo"}
                         aria-pressed={repeatAll}
                       >
-                        <Repeat2 className="w-4 h-4" aria-hidden />
+                        <Repeat2 className="h-4 w-4" aria-hidden />
                       </button>
                     </div>
                     <input
@@ -1724,7 +1725,7 @@ export default function RadioHunter() {
                   </div>
 
                   {/* 3. DIREITA: Volume + ações */}
-                  <div className="flex flex-col items-end justify-center w-1/3 min-w-0 gap-2">
+                  <div className="flex min-w-0 shrink-0 flex-col items-end justify-center gap-2">
                     <div className="flex items-center justify-end gap-2 sm:gap-3 w-full">
                       <button
                         type="button"
