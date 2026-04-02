@@ -4,12 +4,18 @@ import { useCallback, useState } from "react";
 import { supabase } from "@/app/supabase";
 import { API_DB_PATH } from "@/lib/dbClient";
 import { anilistExternalToProviders } from "@/lib/watchProviders";
-import type { AbaPrincipal, ResultadoBusca } from "@/types/hunter_registry";
+import type { AbaPrincipal, ResultadoBusca, TipoObra } from "@/types/hunter_registry";
 
 const CAPA_PLACEHOLDER =
   "https://placehold.co/400x600/1f1f22/52525b.png?text=SEM+CAPA";
 
-export type GalaxiaModo = "anilist" | "tmdb" | "youtube";
+export type GalaxiaModo =
+  | "anilist"
+  | "tmdb"
+  | "youtube"
+  | "rawg"
+  | "books"
+  | "musica";
 
 function dedupeResultados(arr: ResultadoBusca[]): ResultadoBusca[] {
   return arr.filter(
@@ -277,6 +283,81 @@ export async function fetchCatalogForAba(
   return [];
 }
 
+/** Heurística para busca com filtro “Todos” no OmniSearch (Galáxia). */
+export function inferirModoGalaxiaParaTermoTodos(termo: string): GalaxiaModo {
+  const t = termo.toLowerCase();
+  if (
+    t.includes("musica") ||
+    t.includes("música") ||
+    t.includes("ost") ||
+    t.includes("opening") ||
+    t.includes("ending") ||
+    t.includes("cover")
+  ) {
+    return "musica";
+  }
+  if (/\blivro\b/.test(t) || /\bbook\b/.test(t)) return "books";
+  if (/\bjogo\b/.test(t) || /\bgame\b/.test(t)) return "rawg";
+  if (/\bfilme\b/.test(t) || /\bmovie\b/.test(t)) return "tmdb";
+  if (/\bsérie\b/.test(t) || /\bserie\b/.test(t) || /\btv\b/.test(t)) return "tmdb";
+  if (/\banime\b/.test(t)) return "anilist";
+  if (/\bmangá\b/.test(t) || /\bmanga\b/.test(t)) return "anilist";
+  return "anilist";
+}
+
+/**
+ * Motor prioritário por tipo de obra (AniList → TMDB fallback só para anime quando vazio).
+ */
+export async function fetchCatalogPrioritarioTipo(
+  termo: string,
+  tipo: TipoObra
+): Promise<ResultadoBusca[]> {
+  const t = termo.trim();
+  if (t.length < 2) return [];
+
+  switch (tipo) {
+    case "manga":
+      return fetchCatalogForAba(t, "MANGA");
+    case "anime": {
+      const ani = await fetchCatalogForAba(t, "ANIME");
+      if (ani.length > 0) return ani;
+      return fetchCatalogForAba(t, "SERIE");
+    }
+    case "movie":
+      return fetchCatalogForAba(t, "FILME");
+    case "series":
+      return fetchCatalogForAba(t, "SERIE");
+    case "game":
+      return fetchCatalogForAba(t, "JOGO");
+    case "book":
+      return fetchCatalogForAba(t, "LIVRO");
+    case "song": {
+      const [albums, videos] = await Promise.all([
+        fetchCatalogForAba(t, "MUSICA"),
+        fetchYoutubeCatalog(t),
+      ]);
+      return dedupeResultados([...albums, ...videos]);
+    }
+    default:
+      return [];
+  }
+}
+
+/** Exploração genérica em “Todos”: AniList (mangá/anime) + TMDB (filme/série) em paralelo. */
+export async function fetchExploracaoTodosAnilistTmdb(
+  termo: string
+): Promise<ResultadoBusca[]> {
+  const t = termo.trim();
+  if (t.length < 2) return [];
+  const [manga, anime, filme, serie] = await Promise.all([
+    fetchCatalogForAba(t, "MANGA"),
+    fetchCatalogForAba(t, "ANIME"),
+    fetchCatalogForAba(t, "FILME"),
+    fetchCatalogForAba(t, "SERIE"),
+  ]);
+  return dedupeResultados([...manga, ...anime, ...filme, ...serie]);
+}
+
 async function fetchYoutubeCatalog(termo: string): Promise<ResultadoBusca[]> {
   const res = await fetch(
     `/api/youtube?q=${encodeURIComponent(termo.trim())}`
@@ -330,6 +411,38 @@ export function useCatalogSearch() {
     []
   );
 
+  const buscarGalaxiaPrioritario = useCallback(async (termo: string, tipo: TipoObra) => {
+    const t = termo.trim();
+    if (t.length < 2) return;
+    setBuscando(true);
+    setResultados([]);
+    try {
+      const lista = await fetchCatalogPrioritarioTipo(t, tipo);
+      setResultados(lista);
+    } catch (e) {
+      console.error("[useCatalogSearch] prioritário", e);
+      setResultados([]);
+    } finally {
+      setBuscando(false);
+    }
+  }, []);
+
+  const buscarGalaxiaExploracaoTodos = useCallback(async (termo: string) => {
+    const t = termo.trim();
+    if (t.length < 2) return;
+    setBuscando(true);
+    setResultados([]);
+    try {
+      const lista = await fetchExploracaoTodosAnilistTmdb(t);
+      setResultados(lista);
+    } catch (e) {
+      console.error("[useCatalogSearch] exploração todos", e);
+      setResultados([]);
+    } finally {
+      setBuscando(false);
+    }
+  }, []);
+
   const buscarGalaxia = useCallback(
     async (termoBruto: string, modo: GalaxiaModo) => {
       const t = termoBruto.trim();
@@ -350,9 +463,20 @@ export function useCatalogSearch() {
             fetchCatalogForAba(t, "SERIE"),
           ]);
           setResultados(dedupeResultados([...filme, ...serie]));
+        } else if (modo === "rawg") {
+          setResultados(await fetchCatalogForAba(t, "JOGO"));
+        } else if (modo === "books") {
+          setResultados(await fetchCatalogForAba(t, "LIVRO"));
+        } else if (modo === "musica") {
+          const [albums, videos] = await Promise.all([
+            fetchCatalogForAba(t, "MUSICA"),
+            fetchYoutubeCatalog(t),
+          ]);
+          setResultados(dedupeResultados([...albums, ...videos]));
+        } else if (modo === "youtube") {
+          setResultados(await fetchYoutubeCatalog(t));
         } else {
-          const videos = await fetchYoutubeCatalog(t);
-          setResultados(videos);
+          setResultados([]);
         }
       } catch (e) {
         console.error("[useCatalogSearch] galaxia", e);
@@ -369,6 +493,8 @@ export function useCatalogSearch() {
     buscando,
     buscarPorAba,
     buscarGalaxia,
+    buscarGalaxiaPrioritario,
+    buscarGalaxiaExploracaoTodos,
     limpar,
     setResultados,
   };

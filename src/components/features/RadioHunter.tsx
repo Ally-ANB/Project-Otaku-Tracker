@@ -22,6 +22,7 @@ import {
   PlayCircle,
   Plus,
   Repeat,
+  Repeat2,
   Save,
   Search,
   Shuffle,
@@ -357,6 +358,8 @@ export default function RadioHunter() {
   const [idPlaylistVisualizando, setIdPlaylistVisualizando] = useState<string | null>(null);
   const [isShuffle, setIsShuffle] = useState(false);
   const [isRepeat, setIsRepeat] = useState(false);
+  /** Repetir a fila inteira ao chegar na última faixa. */
+  const [repeatAll, setRepeatAll] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
   const queue = playlists[activePlaylistName] ?? [];
@@ -401,6 +404,7 @@ export default function RadioHunter() {
   const isPlayingRef = useRef(false);
   const isShuffleRef = useRef(isShuffle);
   const isRepeatRef = useRef(isRepeat);
+  const repeatAllRef = useRef(repeatAll);
   const queueRef = useRef<RadioQueueItem[]>(queue);
   const playlistsRef = useRef<RadioPlaylistsMap>(playlists);
   const currentIndexRef = useRef(currentIndex);
@@ -446,6 +450,10 @@ export default function RadioHunter() {
   useEffect(() => {
     isRepeatRef.current = isRepeat;
   }, [isRepeat]);
+
+  useEffect(() => {
+    repeatAllRef.current = repeatAll;
+  }, [repeatAll]);
 
   useEffect(() => {
     if (idPlaylistVisualizando == null) return;
@@ -590,15 +598,28 @@ export default function RadioHunter() {
       });
       return;
     }
-    setCurrentIndex((idx) => {
-      const qq = queueRef.current;
-      if (qq.length === 0) return 0;
-      if (isShuffleRef.current) {
-        return Math.floor(Math.random() * qq.length);
-      }
-      const max = qq.length - 1;
-      return idx >= max ? idx : idx + 1;
-    });
+    const qq = queueRef.current;
+    if (qq.length === 0) {
+      setIsPlaying(false);
+      return;
+    }
+    if (isShuffleRef.current) {
+      setCurrentIndex(Math.floor(Math.random() * qq.length));
+      setIsPlaying(true);
+      return;
+    }
+    const max = qq.length - 1;
+    if (i < max) {
+      setCurrentIndex(i + 1);
+      setIsPlaying(true);
+      return;
+    }
+    if (repeatAllRef.current) {
+      setCurrentIndex(0);
+      setIsPlaying(true);
+      return;
+    }
+    setIsPlaying(false);
   }, []);
 
   const playNext = useCallback(() => {
@@ -617,7 +638,9 @@ export default function RadioHunter() {
         return j;
       }
       const max = q.length - 1;
-      return i >= max ? i : i + 1;
+      if (i < max) return i + 1;
+      if (repeatAllRef.current) return 0;
+      return i;
     });
   }, []);
 
@@ -1037,7 +1060,11 @@ export default function RadioHunter() {
         : "—";
   const navNextDisabled =
     !previewItem &&
-    (queue.length === 0 || (!isShuffle && queue.length > 0 && currentIndex >= queue.length - 1));
+    (queue.length === 0 ||
+      (!isShuffle &&
+        !repeatAll &&
+        queue.length > 0 &&
+        currentIndex >= queue.length - 1));
   const navPrevDisabled = !previewItem && currentIndex <= 0;
 
   const painelFilaAtivo = mostrarFila && abaFila === "FILA";
@@ -1661,6 +1688,18 @@ export default function RadioHunter() {
                       >
                         <Repeat className="w-4 h-4" aria-hidden />
                       </button>
+                      <button
+                        type="button"
+                        title={repeatAll ? "Desativar repetir tudo" : "Repetir tudo"}
+                        onClick={() => setRepeatAll((v) => !v)}
+                        className={`transition-colors ${
+                          repeatAll ? "text-sky-400" : "text-zinc-400 hover:text-white"
+                        }`}
+                        aria-label={repeatAll ? "Desativar repetir tudo" : "Repetir tudo"}
+                        aria-pressed={repeatAll}
+                      >
+                        <Repeat2 className="w-4 h-4" aria-hidden />
+                      </button>
                     </div>
                     <input
                       type="range"
@@ -1910,6 +1949,7 @@ export default function RadioHunter() {
               ref={playerRef as React.Ref<HTMLVideoElement>}
               src={urlAtual}
               playing={isPlaying}
+              loop={isRepeat}
               volume={volume}
               muted={isMuted}
               width="0"

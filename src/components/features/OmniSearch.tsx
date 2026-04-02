@@ -15,6 +15,8 @@ import {
   Loader2,
   Globe,
   Play,
+  Gamepad2,
+  BookOpen,
 } from "lucide-react";
 import { useHunterAtivo } from "@/hooks/useHunterAtivo";
 import { useCatalogSearch, type GalaxiaModo } from "@/hooks/useCatalogSearch";
@@ -29,7 +31,7 @@ import {
   RADIO_HUNTER_ADD_QUEUE,
   type RadioHunterTrackDetail,
 } from "@/lib/radioHunterEvents";
-import type { AbaPrincipal, EstanteItem, NovoObraDraft, ResultadoBusca, TipoObra } from "@/types/hunter_registry";
+import type { EstanteItem, NovoObraDraft, ResultadoBusca, TipoObra } from "@/types/hunter_registry";
 import {
   TIPO_OBRA_PARA_ABA,
   TIPO_OBRA_TABELA_DB,
@@ -150,6 +152,106 @@ function chaveResultadoGalaxia(r: ResultadoBusca, index: number): string {
   return `${r.fonte}-${r.id}-${r.tipoCatalogo}-${index}`;
 }
 
+function rotuloMotorGalaxia(m: GalaxiaModo): string {
+  switch (m) {
+    case "anilist":
+      return "AniList";
+    case "tmdb":
+      return "TMDB";
+    case "youtube":
+      return "YouTube";
+    case "rawg":
+      return "RAWG";
+    case "books":
+      return "Google Books";
+    case "musica":
+      return "Apple Music + YouTube";
+    default:
+      return "Web";
+  }
+}
+
+/** Ordem dos chips “O que você está procurando?” (Filme antes de Série). */
+const CHIP_RUMO_ORDEM: readonly TipoObra[] = [
+  "manga",
+  "anime",
+  "movie",
+  "series",
+  "book",
+  "game",
+  "song",
+] as const;
+
+/** Cores neon por categoria — chips “O que você está procurando?”. */
+const CHIP_RUMO_NEON: Record<
+  TipoObra,
+  {
+    border: string;
+    text: string;
+    hoverBg: string;
+    hoverBorder: string;
+    ring: string;
+    shadow: string;
+  }
+> = {
+  manga: {
+    border: "border-emerald-500/30",
+    text: "text-emerald-300/90",
+    hoverBg: "hover:bg-emerald-500/20",
+    hoverBorder: "hover:border-emerald-500/60",
+    ring: "ring-emerald-400/50",
+    shadow: "shadow-[0_0_15px_rgba(16,185,129,0.35)]",
+  },
+  anime: {
+    border: "border-sky-500/30",
+    text: "text-sky-300/90",
+    hoverBg: "hover:bg-sky-500/20",
+    hoverBorder: "hover:border-sky-500/60",
+    ring: "ring-sky-400/50",
+    shadow: "shadow-[0_0_15px_rgba(56,189,248,0.35)]",
+  },
+  movie: {
+    border: "border-rose-500/30",
+    text: "text-rose-300/90",
+    hoverBg: "hover:bg-rose-500/20",
+    hoverBorder: "hover:border-rose-500/60",
+    ring: "ring-rose-400/50",
+    shadow: "shadow-[0_0_15px_rgba(251,113,133,0.32)]",
+  },
+  series: {
+    border: "border-amber-500/30",
+    text: "text-amber-300/90",
+    hoverBg: "hover:bg-amber-500/20",
+    hoverBorder: "hover:border-amber-500/60",
+    ring: "ring-amber-400/50",
+    shadow: "shadow-[0_0_15px_rgba(245,158,11,0.35)]",
+  },
+  book: {
+    border: "border-violet-500/30",
+    text: "text-violet-300/90",
+    hoverBg: "hover:bg-violet-500/20",
+    hoverBorder: "hover:border-violet-500/60",
+    ring: "ring-violet-400/50",
+    shadow: "shadow-[0_0_15px_rgba(167,139,250,0.35)]",
+  },
+  game: {
+    border: "border-cyan-500/30",
+    text: "text-cyan-300/90",
+    hoverBg: "hover:bg-cyan-500/20",
+    hoverBorder: "hover:border-cyan-500/60",
+    ring: "ring-cyan-400/50",
+    shadow: "shadow-[0_0_15px_rgba(34,211,238,0.35)]",
+  },
+  song: {
+    border: "border-fuchsia-500/30",
+    text: "text-fuchsia-300/90",
+    hoverBg: "hover:bg-fuchsia-500/20",
+    hoverBorder: "hover:border-fuchsia-500/60",
+    ring: "ring-fuchsia-400/50",
+    shadow: "shadow-[0_0_15px_rgba(217,70,239,0.35)]",
+  },
+};
+
 function resultadoParaDraft(r: ResultadoBusca) {
   return {
     titulo: r.titulo,
@@ -193,6 +295,9 @@ export default function OmniSearch() {
   const filtroCategoriaRef = useRef(filtroCategoria);
   const buscaEstanteSerialRef = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const prevFiltroGalaxiaRef = useRef<FiltroCategoria | null>(null);
+  const searchTermGalaxiaRef = useRef(searchTerm);
+  const podeBuscarGalaxiaRef = useRef(false);
 
   const [estanteHits, setEstanteHits] = useState<EstanteItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -220,7 +325,8 @@ export default function OmniSearch() {
     resultados: externalHits,
     buscando: galaxiaLoading,
     buscarGalaxia,
-    buscarPorAba,
+    buscarGalaxiaPrioritario,
+    buscarGalaxiaExploracaoTodos,
     limpar: limparGalaxia,
   } = useCatalogSearch();
 
@@ -245,6 +351,14 @@ export default function OmniSearch() {
     if (!hunterUserId || hunterUserId === "Admin") return false;
     return searchTerm.trim().length >= 2;
   }, [hunterUserId, searchTerm]);
+
+  useEffect(() => {
+    searchTermGalaxiaRef.current = searchTerm;
+  }, [searchTerm]);
+
+  useEffect(() => {
+    podeBuscarGalaxiaRef.current = podeBuscar;
+  }, [podeBuscar]);
 
   useEffect(() => {
     setSoloMotor(null);
@@ -318,23 +432,9 @@ export default function OmniSearch() {
           setWebSugestaoAuto(true);
           try {
             if (filtro === "todos") {
-              const termoMin = term.toLowerCase();
-              const isBuscaMusical =
-                termoMin.includes("musica") ||
-                termoMin.includes("música") ||
-                termoMin.includes("ost") ||
-                termoMin.includes("opening") ||
-                termoMin.includes("ending") ||
-                termoMin.includes("cover");
-
-              if (isBuscaMusical) {
-                await buscarGalaxia(term, "youtube");
-              } else {
-                await buscarGalaxia(term, "anilist");
-              }
+              await buscarGalaxiaExploracaoTodos(term);
             } else {
-              const aba: AbaPrincipal = TIPO_OBRA_PARA_ABA[filtro];
-              await buscarPorAba(term, aba);
+              await buscarGalaxiaPrioritario(term, filtro);
             }
           } catch (e) {
             logSearchFailure("sugestões web automáticas", e);
@@ -361,9 +461,33 @@ export default function OmniSearch() {
     hunterUserId,
     estanteRefreshNonce,
     limparGalaxia,
-    buscarGalaxia,
-    buscarPorAba,
+    buscarGalaxiaExploracaoTodos,
+    buscarGalaxiaPrioritario,
   ]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const prev = prevFiltroGalaxiaRef.current;
+    const term = searchTermGalaxiaRef.current.trim();
+    const pode = podeBuscarGalaxiaRef.current;
+    if (
+      prev !== null &&
+      prev !== filtroCategoria &&
+      pode &&
+      term.length >= 2
+    ) {
+      if (filtroCategoria === "todos") {
+        limparGalaxia();
+        setSoloMotor(null);
+        setGalaxiaModoAtivo(null);
+      } else {
+        setSoloMotor(null);
+        setGalaxiaModoAtivo(null);
+        void buscarGalaxiaPrioritario(term, filtroCategoria);
+      }
+    }
+    prevFiltroGalaxiaRef.current = filtroCategoria;
+  }, [filtroCategoria, isOpen, buscarGalaxiaPrioritario, limparGalaxia]);
 
   const fecharInspecao = useCallback(() => {
     setInspecaoModalAberto(false);
@@ -384,6 +508,7 @@ export default function OmniSearch() {
     setGalaxiaImportadas(new Set());
     setFeedbackInline(null);
     setFiltroCategoria("todos");
+    prevFiltroGalaxiaRef.current = null;
     setIsOpen(false);
   }, [fecharInspecao, limparGalaxia]);
 
@@ -445,6 +570,12 @@ export default function OmniSearch() {
       chave: chaveResultadoGalaxia(r, idx),
     }));
   }, [externalFiltrados]);
+
+  const categoriaSugeridaPorWeb = useMemo((): TipoObra | null => {
+    if (filtroCategoria !== "todos") return null;
+    const first = externalHits[0];
+    return first?.tipoCatalogo ?? null;
+  }, [filtroCategoria, externalHits]);
 
   const termoWeb = searchTerm.trim();
   const podeAcionarGalaxia = termoWeb.length >= 2;
@@ -546,19 +677,9 @@ export default function OmniSearch() {
         const filtro = filtroCategoriaRef.current;
         try {
           if (filtro === "todos") {
-            const termoMin = term.toLowerCase();
-            const isBuscaMusical =
-              termoMin.includes("musica") ||
-              termoMin.includes("música") ||
-              termoMin.includes("ost") ||
-              termoMin.includes("opening") ||
-              termoMin.includes("ending") ||
-              termoMin.includes("cover");
-            if (isBuscaMusical) await buscarGalaxia(term, "youtube");
-            else await buscarGalaxia(term, "anilist");
+            await buscarGalaxiaExploracaoTodos(term);
           } else {
-            const aba: AbaPrincipal = TIPO_OBRA_PARA_ABA[filtro];
-            await buscarPorAba(term, aba);
+            await buscarGalaxiaPrioritario(term, filtro);
           }
         } catch (e) {
           logSearchFailure("busca inteligente após desligar motor", e);
@@ -778,7 +899,7 @@ export default function OmniSearch() {
       tipo_obra: tipoObra,
       link_url: novo.link_url || null,
     };
-    setEstanteHits((prev) => [...prev, optItem]);
+    setEstanteHits((prev) => [optItem, ...prev]);
 
     try {
       const out = await salvarObra(novo, aba);
@@ -786,6 +907,7 @@ export default function OmniSearch() {
         setEstanteHits((prev) => prev.filter((h) => h.id !== tempId));
         return;
       }
+      const shieldKey = chaveEscudoObra(novo.titulo, tipoObra);
       const added: EstanteItem = {
         ...(out.insertedId != null ? { id: out.insertedId } : {}),
         titulo: novo.titulo,
@@ -795,11 +917,10 @@ export default function OmniSearch() {
         tipo_obra: tipoObra,
         link_url: novo.link_url || null,
       };
-      const shieldKey = chaveEscudoObra(novo.titulo, tipoObra);
       optimisticItemsRef.current.set(shieldKey, added);
       setEstanteHits((prev) => {
         const rest = prev.filter((h) => h.id !== tempId);
-        return [...rest, added];
+        return [added, ...rest];
       });
       if (galaxiaInspecaoChave) {
         setGalaxiaImportadas((prev) => new Set(prev).add(galaxiaInspecaoChave));
@@ -932,7 +1053,7 @@ export default function OmniSearch() {
               )}
 
               <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-                <aside className="flex w-full shrink-0 flex-col gap-4 border-b border-emerald-500/10 p-4 md:w-[280px] md:border-b-0 md:border-r md:border-emerald-500/10">
+                <aside className="flex max-h-full min-h-0 w-full shrink-0 flex-col gap-3 overflow-y-auto border-b border-emerald-500/10 p-4 md:w-[260px] md:max-h-full md:border-b-0 md:border-r md:border-emerald-500/10">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-500/70">
                       OmniSearch
@@ -972,104 +1093,131 @@ export default function OmniSearch() {
                     />
                   </div>
 
-                  <div className="min-h-0 flex-1 overflow-y-auto">
-                    <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-500">
-                      Categorias
-                    </p>
-                    <nav className="flex flex-col gap-1" aria-label="Filtrar por tipo">
-                      <button
-                        type="button"
-                        onClick={() => selecionarCategoria("todos")}
-                        className={`flex items-center justify-between rounded-lg border px-3 py-2.5 text-left text-xs font-semibold transition-colors ${
-                          filtroCategoria === "todos"
-                            ? "border-emerald-500/35 bg-emerald-500/10 text-white"
-                            : "border-emerald-500/10 bg-zinc-900/40 text-zinc-400 hover:border-emerald-500/25 hover:text-zinc-200"
-                        }`}
-                      >
-                        <span>Todos</span>
-                        <span className="tabular-nums text-[10px] text-zinc-500">
-                          {estanteHits.length}
-                        </span>
-                      </button>
-                      {TIPO_OBRA_ORDEM_UI.map((tipo) => {
-                        const n = contagensEstante.get(tipo) ?? 0;
-                        const ativo = filtroCategoria === tipo;
-                        return (
-                          <button
-                            key={tipo}
-                            type="button"
-                            onClick={() => selecionarCategoria(tipo)}
-                            className={`flex items-center justify-between rounded-lg border px-3 py-2.5 text-left text-xs font-semibold transition-colors ${
-                              ativo
-                                ? "border-emerald-500/35 bg-emerald-500/10 text-white"
-                                : "border-emerald-500/10 bg-zinc-900/40 text-zinc-400 hover:border-emerald-500/25 hover:text-zinc-200"
-                            }`}
-                          >
-                            <span>{TIPO_OBRA_LABEL_SECAO[tipo]}</span>
-                            <span className="tabular-nums text-[10px] text-zinc-500">{n}</span>
-                          </button>
-                        );
-                      })}
-                    </nav>
-                  </div>
+                  <div className="space-y-6">
+                    <div>
+                      <p className="ml-1 mb-2 text-[9px] font-black uppercase tracking-[0.15em] text-zinc-500/80">
+                        Categorias
+                      </p>
+                      <nav className="flex flex-col gap-1" aria-label="Filtrar por tipo">
+                        <button
+                          type="button"
+                          onClick={() => selecionarCategoria("todos")}
+                          className={`flex items-center justify-between rounded-lg border py-2 px-3.5 text-left text-xs font-semibold leading-snug transition-colors ${
+                            filtroCategoria === "todos"
+                              ? "border-emerald-500/35 bg-emerald-500/10 text-white"
+                              : "border-emerald-500/10 bg-zinc-900/40 text-zinc-400 hover:border-emerald-500/25 hover:text-zinc-200"
+                          }`}
+                        >
+                          <span>Todos</span>
+                          <span className="tabular-nums text-xs text-zinc-500">
+                            {estanteHits.length}
+                          </span>
+                        </button>
+                        {TIPO_OBRA_ORDEM_UI.map((tipo) => {
+                          const n = contagensEstante.get(tipo) ?? 0;
+                          const ativo = filtroCategoria === tipo;
+                          return (
+                            <button
+                              key={tipo}
+                              type="button"
+                              onClick={() => selecionarCategoria(tipo)}
+                              className={`flex items-center justify-between gap-2 rounded-lg border py-2 px-3.5 text-left text-xs font-semibold leading-snug transition-colors ${
+                                ativo
+                                  ? "border-emerald-500/35 bg-emerald-500/10 text-white"
+                                  : "border-emerald-500/10 bg-zinc-900/40 text-zinc-400 hover:border-emerald-500/25 hover:text-zinc-200"
+                              }`}
+                            >
+                              <span className="min-w-0 truncate">{TIPO_OBRA_LABEL_SECAO[tipo]}</span>
+                              <span className="shrink-0 tabular-nums text-xs text-zinc-500">{n}</span>
+                            </button>
+                          );
+                        })}
+                      </nav>
+                    </div>
 
-                  <div className="border-t border-emerald-500/10 pt-3">
-                    <p className="mb-2 text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-500">
-                      Motores
-                    </p>
-                    <div className="flex flex-col gap-2">
+                    <div className="border-t border-emerald-500/10">
+                      <p className="ml-1 mb-2 text-[9px] font-black uppercase tracking-[0.15em] text-zinc-500/80">
+                        Motores
+                      </p>
+                      <div className="flex flex-col gap-1">
+                        <button
+                          type="button"
+                          disabled={!podeAcionarGalaxia || galaxiaLoading}
+                          onClick={() => void aoClicarGalaxia("anilist")}
+                          className={`inline-flex w-full items-center rounded-lg border py-2 px-3.5 text-left text-xs font-semibold leading-snug transition-colors disabled:pointer-events-none disabled:opacity-40 ${
+                            galaxiaModoAtivo === "anilist"
+                              ? "border-emerald-500/45 bg-emerald-500/15 text-white"
+                              : "border-emerald-500/10 bg-zinc-900/50 text-zinc-300 hover:border-emerald-500/30 hover:bg-zinc-800/80"
+                          }`}
+                        >
+                          <Compass className="mr-3 h-4 w-4 shrink-0 text-emerald-500/80" aria-hidden />
+                          <span className="truncate">AniList</span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!podeAcionarGalaxia || galaxiaLoading}
+                          onClick={() => void aoClicarGalaxia("tmdb")}
+                          className={`inline-flex w-full items-center rounded-lg border py-2 px-3.5 text-left text-xs font-semibold leading-snug transition-colors disabled:pointer-events-none disabled:opacity-40 ${
+                            galaxiaModoAtivo === "tmdb"
+                              ? "border-sky-500/45 bg-sky-500/10 text-white"
+                              : "border-emerald-500/10 bg-zinc-900/50 text-zinc-300 hover:border-sky-500/30 hover:bg-zinc-800/80"
+                          }`}
+                        >
+                          <Globe className="mr-3 h-4 w-4 shrink-0 text-sky-400/85" aria-hidden />
+                          <span className="truncate">TMDB</span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!podeAcionarGalaxia || galaxiaLoading}
+                          onClick={() => void aoClicarGalaxia("youtube")}
+                          className={`inline-flex w-full items-center rounded-lg border py-2 px-3.5 text-left text-xs font-semibold leading-snug transition-colors disabled:pointer-events-none disabled:opacity-40 ${
+                            galaxiaModoAtivo === "youtube"
+                              ? "border-fuchsia-500/40 bg-fuchsia-500/10 text-white"
+                              : "border-emerald-500/10 bg-zinc-900/50 text-zinc-300 hover:border-fuchsia-500/30 hover:bg-zinc-800/80"
+                          }`}
+                        >
+                          <Youtube className="mr-3 h-4 w-4 shrink-0 text-fuchsia-400/85" aria-hidden />
+                          <span className="truncate">YouTube</span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!podeAcionarGalaxia || galaxiaLoading}
+                          onClick={() => void aoClicarGalaxia("rawg")}
+                          className={`inline-flex w-full items-center rounded-lg border py-2 px-3.5 text-left text-xs font-semibold leading-snug transition-colors disabled:pointer-events-none disabled:opacity-40 ${
+                            galaxiaModoAtivo === "rawg"
+                              ? "border-cyan-500/45 bg-cyan-500/10 text-white"
+                              : "border-emerald-500/10 bg-zinc-900/50 text-zinc-300 hover:border-cyan-500/30 hover:bg-zinc-800/80"
+                          }`}
+                          title="Jogos (RAWG)"
+                        >
+                          <Gamepad2 className="mr-3 h-4 w-4 shrink-0 text-cyan-400/85" aria-hidden />
+                          <span className="min-w-0 truncate">Jogos</span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!podeAcionarGalaxia || galaxiaLoading}
+                          onClick={() => void aoClicarGalaxia("books")}
+                          className={`inline-flex w-full items-center rounded-lg border py-2 px-3.5 text-left text-xs font-semibold leading-snug transition-colors disabled:pointer-events-none disabled:opacity-40 ${
+                            galaxiaModoAtivo === "books"
+                              ? "border-violet-500/45 bg-violet-500/10 text-white"
+                              : "border-emerald-500/10 bg-zinc-900/50 text-zinc-300 hover:border-violet-500/30 hover:bg-zinc-800/80"
+                          }`}
+                        >
+                          <BookOpen className="mr-3 h-4 w-4 shrink-0 text-violet-400/85" aria-hidden />
+                          <span className="truncate">Livros</span>
+                        </button>
+                      </div>
+
                       <button
                         type="button"
-                        disabled={!podeAcionarGalaxia || galaxiaLoading}
-                        onClick={() => void aoClicarGalaxia("anilist")}
-                        className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-[11px] font-semibold transition-colors disabled:pointer-events-none disabled:opacity-40 ${
-                          galaxiaModoAtivo === "anilist"
-                            ? "border-emerald-500/45 bg-emerald-500/15 text-white"
-                            : "border-emerald-500/10 bg-zinc-900/50 text-zinc-300 hover:border-emerald-500/30 hover:bg-zinc-800/80"
-                        }`}
+                        disabled={!podeImportar}
+                        onClick={() => abrirRegistroManual()}
+                        className="mt-4 inline-flex w-full items-center justify-center rounded-lg border border-emerald-500/20 bg-transparent py-2.5 px-3.5 text-xs font-medium text-zinc-400 transition-colors hover:border-emerald-500/40 hover:text-zinc-200 disabled:pointer-events-none disabled:opacity-40"
                       >
-                        <Compass className="h-3.5 w-3.5 shrink-0 text-emerald-500/80" aria-hidden />
-                        AniList
-                      </button>
-                      <button
-                        type="button"
-                        disabled={!podeAcionarGalaxia || galaxiaLoading}
-                        onClick={() => void aoClicarGalaxia("tmdb")}
-                        className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-[11px] font-semibold transition-colors disabled:pointer-events-none disabled:opacity-40 ${
-                          galaxiaModoAtivo === "tmdb"
-                            ? "border-sky-500/45 bg-sky-500/10 text-white"
-                            : "border-emerald-500/10 bg-zinc-900/50 text-zinc-300 hover:border-sky-500/30 hover:bg-zinc-800/80"
-                        }`}
-                      >
-                        <Globe className="h-3.5 w-3.5 shrink-0 text-sky-400/85" aria-hidden />
-                        TMDB
-                      </button>
-                      <button
-                        type="button"
-                        disabled={!podeAcionarGalaxia || galaxiaLoading}
-                        onClick={() => void aoClicarGalaxia("youtube")}
-                        className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-[11px] font-semibold transition-colors disabled:pointer-events-none disabled:opacity-40 ${
-                          galaxiaModoAtivo === "youtube"
-                            ? "border-red-500/35 bg-red-500/10 text-white"
-                            : "border-emerald-500/10 bg-zinc-900/50 text-zinc-300 hover:border-red-500/25 hover:bg-zinc-800/80"
-                        }`}
-                      >
-                        <Youtube className="h-3.5 w-3.5 shrink-0 text-red-400/85" aria-hidden />
-                        YouTube
+                        <BookmarkPlus className="mr-3 h-4 w-4 shrink-0 text-emerald-500/70" aria-hidden />
+                        Registro manual
                       </button>
                     </div>
-                  </div>
-
-                  <div className="border-t border-emerald-500/10 pt-3">
-                    <button
-                      type="button"
-                      disabled={!podeImportar}
-                      onClick={() => abrirRegistroManual()}
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-500/20 bg-zinc-900/50 px-3 py-2.5 text-left text-[11px] font-semibold text-zinc-200 transition-colors hover:border-emerald-500/35 hover:bg-zinc-800/80 disabled:pointer-events-none disabled:opacity-40"
-                    >
-                      <BookmarkPlus className="h-3.5 w-3.5 shrink-0 text-emerald-500/80" aria-hidden />
-                      Registro manual
-                    </button>
                   </div>
 
                   <p className="text-[10px] text-zinc-600">ESC fecha</p>
@@ -1179,14 +1327,44 @@ export default function OmniSearch() {
 
                   {soloMotor && webEntries.length > 0 && (
                     <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                      Descoberta:{" "}
-                      {soloMotor === "anilist"
-                        ? "AniList"
-                        : soloMotor === "tmdb"
-                          ? "TMDB"
-                          : "YouTube"}
+                      Descoberta: {rotuloMotorGalaxia(soloMotor)}
                     </p>
                   )}
+
+                  {filtroCategoria === "todos" &&
+                    !soloMotor &&
+                    podeBuscar &&
+                    !searchError &&
+                    webSugestaoAuto &&
+                    estanteHits.length < 3 && (
+                      <div className="mb-4 rounded-xl border border-zinc-700/40 bg-zinc-900/35 px-3 py-3">
+                        <p className="text-center text-xs font-bold text-zinc-400">
+                          O que você está procurando hoje?
+                        </p>
+                        <div className="mt-3 flex flex-wrap justify-center gap-2" role="group" aria-label="Escolher categoria">
+                          {CHIP_RUMO_ORDEM.map((cat) => {
+                            const neon = CHIP_RUMO_NEON[cat];
+                            const sugerido =
+                              categoriaSugeridaPorWeb != null &&
+                              categoriaSugeridaPorWeb === cat;
+                            return (
+                              <button
+                                key={cat}
+                                type="button"
+                                onClick={() => selecionarCategoria(cat)}
+                                className={`min-w-0 rounded-md border bg-zinc-900/80 px-3 py-1.5 text-left text-xs font-semibold leading-snug transition-all ${neon.border} ${neon.text} ${neon.hoverBg} ${neon.hoverBorder} ${
+                                  sugerido
+                                    ? `ring-2 ${neon.ring} ${neon.shadow} animate-pulse`
+                                    : ""
+                                }`}
+                              >
+                                {TIPO_OBRA_LABEL_SECAO[cat]}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                   <div className={gridClass}>
                     <AnimatePresence mode="popLayout">
@@ -1210,14 +1388,16 @@ export default function OmniSearch() {
                             initial={{ opacity: 1 }}
                             exit={{ opacity: 0, scale: 0.96 }}
                             transition={{ duration: 0.2, ease: "easeOut" }}
-                            className="group/card flex flex-col overflow-hidden rounded-xl border border-emerald-500/10 bg-zinc-900/40 transition-colors hover:border-emerald-500/25 hover:bg-zinc-900/60"
+                            className={`group/card flex flex-col overflow-hidden rounded-xl border border-emerald-500/10 bg-zinc-900/40 transition-colors hover:border-emerald-500/25 hover:bg-zinc-900/60 ${
+                              naEstante ? "opacity-60 grayscale-[0.5]" : "opacity-100"
+                            }`}
                           >
                             <div className="relative aspect-[2/3] w-full overflow-hidden bg-zinc-800/80">
                               {capaSrc ? (
                                 <img src={capaSrc} alt="" className="h-full w-full object-cover" />
                               ) : null}
-                              <span className="pointer-events-none absolute bottom-2 left-2 z-[5] rounded border border-white/10 bg-zinc-950/70 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-zinc-400 backdrop-blur-sm">
-                                Web
+                              <span className="pointer-events-none absolute bottom-2 left-2 z-[5] max-w-[calc(100%-1rem)] truncate rounded border border-white/10 bg-zinc-950/70 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-zinc-300 backdrop-blur-sm">
+                                {r.fonte}
                               </span>
                               {naEstante ? (
                                 <div
