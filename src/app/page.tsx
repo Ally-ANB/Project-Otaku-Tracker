@@ -5,19 +5,18 @@
 // ==========================================
 import AcessoMestre from "@/components/ui/AcessoMestre";
 import { supabase } from "./supabase";
-import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
 import MangaCard from "@/components/ui/MangaCard";
 import MangaDetailsModal from "@/components/ui/MangaDetailsModal";
 import AdminPanel from "@/components/ui/AdminPanel";
 import ProfileSelection from "@/components/ui/ProfileSelection";
 import { useSenhaMestraInterativa } from "@/hooks/useSenhaMestraInterativa";
 import { dbClient, requisicaoDbApi } from "@/lib/dbClient";
-// ✅ ADICIONADO: Componente de Identidade Universal e Player Card
-import HunterAvatar from "@/components/ui/HunterAvatar";
-import { BookOpen, Film, Tv, Gamepad2, Music, Book, PlusCircle, Search } from "lucide-react";
-import { OMNISEARCH_OPEN_EVENT } from "@/components/features/OmniSearch";
-import type { Manga } from "@/types/hunter_registry";
+import SoraSidebar from "@/components/features/sora/SoraSidebar";
+import SoraHomeView from "@/components/features/sora/SoraHomeView";
+import type { ObraComTipo } from "@/components/features/sora/soraUtils";
+import { AlertTriangle, CheckCircle2, Globe, XCircle } from "lucide-react";
+import type { AbaPrincipal, Manga } from "@/types/hunter_registry";
 
 // ==========================================
 // 🎨 [SESSÃO 2] - TEMAS E ESTILOS (AURAS)
@@ -78,8 +77,7 @@ export default function Home() {
   const [pinAdminAberto, setPinAdminAberto] = useState(false);
   const { obterSenhaMestreInterativa, modalSenhaMestra } = useSenhaMestraInterativa();
 
-  const [menuHubAberto, setMenuHubAberto] = useState(false);
-  const menuHubRef = useRef<HTMLDivElement>(null);
+  const [soraNavMode, setSoraNavMode] = useState<"HOME" | "ESTANTE">("HOME");
 
   // ==========================================
   // 🔔 [SESSÃO 4] - SISTEMA DE NOTIFICAÇÕES
@@ -121,15 +119,6 @@ export default function Home() {
     buscarLoja(); 
     buscarPerfis().then(() => setCarregando(false));
   }, []);
-
-  useEffect(() => {
-    if (!menuHubAberto) return;
-    const fechar = (e: MouseEvent) => {
-      if (menuHubRef.current && !menuHubRef.current.contains(e.target as Node)) setMenuHubAberto(false);
-    };
-    document.addEventListener("mousedown", fechar);
-    return () => document.removeEventListener("mousedown", fechar);
-  }, [menuHubAberto]);
 
   useEffect(() => {
     if (usuarioAtual) {
@@ -644,182 +633,112 @@ export default function Home() {
     return m.status === filtroAtivo;
   }).filter(m => m.titulo.toLowerCase().includes(pesquisaInterna.toLowerCase()));
 
-  const molduraHeader = lojaItens.find(i => i.id === perfilAtivo.cosmeticos?.ativos?.moldura);
+  const handleEstanteNav = (aba: AbaPrincipal) => {
+    setSoraNavMode("ESTANTE");
+    setAbaPrincipal(aba);
+    setFiltroAtivo(
+      aba === "ANIME" || aba === "FILME" || aba === "SERIE"
+        ? "Assistindo"
+        : aba === "JOGO"
+          ? "Jogando"
+          : aba === "MUSICA"
+            ? "Ouvindo"
+            : "Lendo"
+    );
+  };
+
+  const handleAbrirObraSora = (obra: ObraComTipo) => {
+    const { tipoObra, ...rest } = obra;
+    setAbaPrincipal(tipoObra);
+    setMangaDetalhe(rest as Manga);
+  };
 
   return (
-    <main className="min-h-screen bg-transparent p-6 md:p-12 text-white relative overflow-x-hidden" style={perfilAtivo.cor_tema?.startsWith('#') ? { '--aura': perfilAtivo.cor_tema } as any : {}}>
-      
-      {/* ✅ HEADER REESTILIZADO (COMMAND CENTER) */}
-      <header className="flex flex-col md:flex-row justify-between items-center gap-6 mb-16 border-b border-zinc-800/50 pb-10 relative z-20">
-        <div className="text-center md:text-left">
-          <h1 className="text-5xl font-black italic tracking-tighter">Hunter<span className={aura.text}>.</span>Tracker</h1>
-          <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-zinc-500 mt-2">Central de Operações Hunter</p>
-        </div>
+    <main
+      className="relative flex min-h-screen gap-2 overflow-x-hidden bg-transparent p-3 text-white sm:gap-3 sm:p-4 md:gap-4 md:p-6"
+      style={perfilAtivo.cor_tema?.startsWith("#") ? ({ "--aura": perfilAtivo.cor_tema } as Record<string, string>) : undefined}
+    >
+      <SoraSidebar
+        navMode={soraNavMode}
+        abaPrincipal={abaPrincipal}
+        onHome={() => setSoraNavMode("HOME")}
+        onEstante={handleEstanteNav}
+        modoCinema={modoCinema}
+        onToggleCinema={toggleModoCinema}
+        anilistDisponivel={
+          Boolean(perfilAtivo.anilist_token) &&
+          (abaPrincipal === "MANGA" || abaPrincipal === "ANIME")
+        }
+        sincronizando={sincronizando}
+        onSyncAnilist={puxarProgressoDoAniList}
+      />
 
-        <div className="flex items-center gap-4">
-          <button
-            type="button"
-            onClick={() =>
-              window.dispatchEvent(new CustomEvent(OMNISEARCH_OPEN_EVENT))
-            }
-            className="group flex items-center gap-2.5 rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2.5 shadow-[0_8px_40px_rgba(0,0,0,0.35)] ring-1 ring-emerald-500/10 backdrop-blur-xl transition-all hover:border-emerald-500/25 hover:bg-white/[0.1] hover:shadow-[0_12px_48px_rgba(34,197,94,0.08)] sm:gap-3 sm:px-4 sm:py-3"
-            title="Adicionar nova obra ou pesquisar no catálogo"
-            aria-label="Adicionar nova obra ou pesquisar no catálogo"
-          >
-            <span className="flex shrink-0 items-center gap-1 text-emerald-400/90 group-hover:text-emerald-300">
-              <PlusCircle className="h-4 w-4" strokeWidth={2.25} aria-hidden />
-              <Search className="h-3.5 w-3.5 opacity-95" strokeWidth={2.25} aria-hidden />
-            </span>
-            <span className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-200">
-              <span className="hidden sm:inline">Adicionar ou Buscar Obras</span>
-              <span className="sm:hidden">Obras</span>
-            </span>
-            <kbd className="pointer-events-none rounded-md border border-emerald-500/20 bg-zinc-950/55 px-2 py-1 font-mono text-[10px] font-semibold tabular-nums text-emerald-400/95 shadow-inner">
-              /
-            </kbd>
-          </button>
+      <div className="relative z-20 flex min-w-0 flex-1 flex-col gap-6">
+        <header className="shrink-0 border-b border-zinc-800/40 pb-4">
+          <h1 className="text-2xl font-black italic tracking-tighter md:text-4xl">
+            Hunter<span className={aura.text}>.</span>Tracker
+          </h1>
+          <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.35em] text-zinc-500">
+            Projeto da Estante · Sora
+          </p>
+        </header>
 
-          {/* CAPSULA DE UTILITÁRIOS (GLASSMORPISM) */}
-          <div className="flex items-center gap-1.5 bg-white/5 backdrop-blur-md border border-white/10 p-1.5 rounded-2xl">
-            <button 
-              onClick={toggleModoCinema} 
-              className={`p-3 rounded-xl transition-all ${modoCinema ? 'bg-blue-600 text-white shadow-lg' : 'text-zinc-500 hover:bg-white/10'}`} 
-              title="Modo Cinema"
-            >
-              {modoCinema ? "📺" : "👓"}
-            </button>
-            
-            {perfilAtivo.anilist_token && (abaPrincipal === "MANGA" || abaPrincipal === "ANIME") && (
-              <button 
-                onClick={puxarProgressoDoAniList} 
-                disabled={sincronizando} 
-                className={`p-3 text-zinc-500 hover:text-blue-400 hover:bg-white/10 rounded-xl transition-all ${sincronizando ? 'animate-spin' : ''}`}
-                title="Sincronizar AniList"
-              >
-                🔄
-              </button>
-            )}
+        <SoraHomeView
+          navMode={soraNavMode}
+          abaFiltro={soraNavMode === "HOME" ? null : abaPrincipal}
+          mangas={mangas}
+          animes={animes}
+          filmes={filmes}
+          series={series}
+          jogos={jogos}
+          musicas={musicas}
+          livros={livros}
+          aura={aura}
+          onAbrirObra={handleAbrirObraSora}
+        />
 
-            <Link 
-              href="/guilda" 
-              className="p-3 text-zinc-500 hover:text-purple-400 hover:bg-white/10 rounded-xl transition-all" 
-              title="A Guilda Global"
-            >
-              🌍
-            </Link>
-          </div>
+        {soraNavMode === "ESTANTE" ? (
+          <>
+            <section className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex max-w-full overflow-x-auto rounded-2xl border border-zinc-800/60 bg-zinc-900/50 p-1">
+                {filtrosAtuais.map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setFiltroAtivo(f)}
+                    className={`shrink-0 rounded-xl px-5 py-3 text-[10px] font-black uppercase transition-all ${
+                      filtroAtivo === f ? `${aura.bg} text-black` : "text-zinc-500 hover:text-white"
+                    }`}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="search"
+                placeholder="Pesquisar na estante…"
+                className="w-full rounded-2xl border border-zinc-800 bg-zinc-900/90 p-3 text-xs font-bold uppercase outline-none transition-all focus:border-white md:w-80"
+                value={pesquisaInterna}
+                onChange={(e) => setPesquisaInterna(e.target.value)}
+              />
+            </section>
 
-          {/* HUB DO HUNTER INTEGRADO */}
-          <div className="relative group">
-            <div className="flex items-center gap-3 pl-2 pr-4 py-1.5 bg-zinc-900/40 hover:bg-zinc-800/60 border border-white/5 rounded-2xl transition-all duration-300 cursor-pointer shadow-lg">
-              
-              <Link href="/perfil" className="relative flex-shrink-0">
-                <HunterAvatar 
-                  avatarUrl={perfilAtivo.avatar} 
-                  idMoldura={perfilAtivo.cosmeticos?.ativos?.moldura} 
-                  imagemMolduraUrl={molduraHeader?.imagem_url}
-                  tamanho="sm"
-                  temaCor={perfilAtivo.custom_color}
+            <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-6">
+              {obrasFiltradas.map((m) => (
+                <MangaCard
+                  key={m.id}
+                  manga={m}
+                  aura={aura}
+                  abaPrincipal={abaPrincipal}
+                  atualizarCapitulo={atualizarCapitulo}
+                  deletarManga={deletarMangaDaEstante}
+                  mudarStatusManual={(id, s) => atualizarDados(id, { status: s })}
+                  abrirDetalhes={setMangaDetalhe}
                 />
-                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-zinc-950 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
-              </Link>
-
-              <div className="hidden lg:flex flex-col text-left">
-                <span className="text-[9px] font-black uppercase tracking-wider text-white/90 leading-none">
-                  {perfilAtivo.nome_exibicao}
-                </span>
-                <span className="text-[7px] font-bold text-blue-500/80 uppercase tracking-widest mt-1">Status: Online</span>
-              </div>
-
-              <div className="w-px h-4 bg-white/10 mx-1 hidden sm:block" />
-              
-              <div className="relative" ref={menuHubRef}>
-                <button
-                  type="button"
-                  onClick={() => setMenuHubAberto((v) => !v)}
-                  className="p-1.5 text-zinc-600 group-hover:text-white group-hover:rotate-90 transition-all duration-500"
-                  title="Menu"
-                  aria-expanded={menuHubAberto}
-                >
-                  ⚙️
-                </button>
-                {menuHubAberto && (
-                  <div className="absolute right-0 top-full mt-2 z-[400] min-w-[210px] rounded-2xl border border-cyan-500/25 bg-zinc-950/98 backdrop-blur-md shadow-[0_0_28px_rgba(34,211,238,0.18)] py-1 overflow-hidden pointer-events-auto">
-                    <Link
-                      href="/perfil?aba=config"
-                      className="block px-4 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-300 hover:bg-cyan-500/10 hover:text-cyan-300 transition-colors"
-                      onClick={() => setMenuHubAberto(false)}
-                    >
-                      Configurações
-                    </Link>
-                    <button
-                      type="button"
-                      className="w-full text-left px-4 py-3 text-[9px] font-black uppercase tracking-widest text-zinc-500 hover:bg-red-500/10 hover:text-red-400 transition-colors border-t border-white/5"
-                      onClick={() => {
-                        sessionStorage.removeItem("hunter_ativo");
-                        window.location.href = "/";
-                      }}
-                    >
-                      Encerrar Sessão
-                    </button>
-                  </div>
-                )}
-              </div>
+              ))}
             </div>
-          </div>
-        </div>
-      </header>
-
-      <nav className="flex gap-3 md:gap-4 mb-10 border-b border-zinc-800/50 pb-4 overflow-x-auto relative z-20">
-        {(
-          [
-            { id: "MANGA" as const, label: "Mangás", Icon: BookOpen },
-            { id: "ANIME" as const, label: "Animes", Icon: Tv },
-            { id: "FILME" as const, label: "Filmes", Icon: Film },
-            { id: "SERIE" as const, label: "Séries", Icon: Tv },
-            { id: "LIVRO" as const, label: "Livros", Icon: Book },
-            { id: "JOGO" as const, label: "Jogos", Icon: Gamepad2 },
-            { id: "MUSICA" as const, label: "Músicas", Icon: Music },
-          ] as const
-        ).map(({ id: aba, label, Icon }) => (
-          <button
-            key={aba}
-            type="button"
-            onClick={() => {
-              setAbaPrincipal(aba);
-              setFiltroAtivo(
-                aba === "ANIME" || aba === "FILME" || aba === "SERIE"
-                  ? "Assistindo"
-                  : aba === "JOGO"
-                    ? "Jogando"
-                    : aba === "MUSICA"
-                      ? "Ouvindo"
-                      : "Lendo"
-              );
-            }}
-            className={`flex shrink-0 items-center gap-2 rounded-2xl border px-4 py-2.5 text-[10px] md:text-xs font-black uppercase tracking-widest transition-all duration-300 ${
-              abaPrincipal === aba
-                ? "border-cyan-400 bg-zinc-950/95 text-cyan-200 shadow-[0_0_22px_rgba(34,211,238,0.45)]"
-                : "border-zinc-800 bg-zinc-950/70 text-zinc-500 hover:border-cyan-500/55 hover:text-cyan-100 hover:shadow-[0_0_18px_rgba(34,211,238,0.28)]"
-            }`}
-          >
-            <Icon className={`h-4 w-4 md:h-5 md:w-5 ${abaPrincipal === aba ? "text-cyan-300" : ""}`} strokeWidth={2.25} />
-            {label}
-          </button>
-        ))}
-      </nav>
-
-      <section className="mb-12 flex flex-col md:flex-row gap-6 items-center justify-between relative z-20">
-        <div className="flex bg-zinc-900/50 p-1 rounded-2xl border border-zinc-800 overflow-x-auto">
-          {filtrosAtuais.map(f => <button key={f} onClick={() => setFiltroAtivo(f)} className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase transition-all ${filtroAtivo === f ? `${aura.bg} text-black` : 'text-zinc-500 hover:text-white'}`}>{f}</button>)}
-        </div>
-        <input type="text" placeholder="Pesquisar..." className="w-full md:w-80 bg-zinc-900 border border-zinc-800 p-4 rounded-2xl text-xs font-bold uppercase outline-none focus:border-white transition-all" value={pesquisaInterna} onChange={(e) => setPesquisaInterna(e.target.value)} />
-      </section>
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8 relative z-20">
-        {obrasFiltradas.map(m => (
-          <MangaCard key={m.id} manga={m} aura={aura} abaPrincipal={abaPrincipal} atualizarCapitulo={atualizarCapitulo} deletarManga={deletarMangaDaEstante} mudarStatusManual={(id, s) => atualizarDados(id, {status: s})} abrirDetalhes={setMangaDetalhe} />
-        ))}
+          </>
+        ) : null}
       </div>
 
       {modoCinema && (
@@ -876,7 +795,15 @@ export default function Home() {
       <div className="fixed bottom-10 right-10 z-[300] flex flex-col gap-3 pointer-events-none">
         {toasts.map(t => (
           <div key={t.id} className={`flex items-center gap-4 px-6 py-4 rounded-2xl border backdrop-blur-md shadow-2xl animate-in slide-in-from-right-8 fade-in duration-300 ${t.tipo === "sucesso" ? "bg-green-500/10 border-green-500/50 text-green-400" : t.tipo === "erro" ? "bg-red-500/10 border-red-500/50 text-red-400" : t.tipo === "aviso" ? "bg-orange-500/10 border-orange-500/50 text-orange-400" : "bg-blue-500/10 border-blue-500/50 text-blue-400"}`}>
-            <span className="text-2xl">{t.tipo === "sucesso" ? "✅" : t.tipo === "erro" ? "❌" : t.tipo === "aviso" ? "⚠️" : "🌐"}</span>
+            {t.tipo === "sucesso" ? (
+              <CheckCircle2 className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
+            ) : t.tipo === "erro" ? (
+              <XCircle className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
+            ) : t.tipo === "aviso" ? (
+              <AlertTriangle className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
+            ) : (
+              <Globe className="h-5 w-5 shrink-0" strokeWidth={2.25} aria-hidden />
+            )}
             <span className="text-[10px] font-black uppercase tracking-widest mt-1">{t.mensagem}</span>
           </div>
         ))}

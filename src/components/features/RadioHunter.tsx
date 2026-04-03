@@ -1844,7 +1844,7 @@ export default function RadioHunter() {
                 </div>
               </div>
             ) : (
-              <div className="flex w-full min-w-0 items-center bg-black/95 rounded-full border border-green-500/20 shadow-[0_0_15px_rgba(34,197,94,0.1)] p-2 backdrop-blur-sm">
+              <div className="flex w-full min-w-0 items-center rounded-full border border-cyan-500/25 bg-[#0a0a0c]/90 p-2 shadow-[0_0_18px_rgba(34,211,238,0.12)] backdrop-blur-md">
                 <button
                   type="button"
                   title="Mover o player"
@@ -1868,17 +1868,19 @@ export default function RadioHunter() {
                       </div>
                     )}
                   </div>
-                  <div className="ml-2 flex min-w-0 flex-1 flex-col">
-                    <span
-                      className="w-full truncate text-sm font-bold text-white"
-                      title={tituloExibicao}
-                    >
-                      {tituloExibicao}
+                  <div
+                    className="ml-2 flex min-w-0 flex-1 flex-col"
+                    title={tituloExibicao}
+                  >
+                    <span className="w-full truncate text-[11px] font-black uppercase tracking-[0.14em] text-cyan-100/95">
+                      RADIÖHUNTER
                     </span>
-                    <span className="w-full truncate text-xs text-zinc-400">RadioHunter</span>
+                    <span className="w-full truncate text-xs font-semibold text-zinc-400">
+                      Roasted Hunter
+                    </span>
                   </div>
                 </div>
-                <div className="ml-4 flex shrink-0 items-center justify-end gap-3">
+                <div className="ml-3 flex shrink-0 items-center justify-end gap-2 sm:gap-2.5">
                   <button
                     type="button"
                     title="Faixa anterior"
@@ -1893,7 +1895,7 @@ export default function RadioHunter() {
                     type="button"
                     title={isPlaying ? "Pausar" : "Tocar"}
                     onClick={() => setIsPlaying((v) => !v)}
-                    className="text-white transition-colors hover:text-green-500"
+                    className="text-white transition-colors hover:text-cyan-300"
                     aria-label={isPlaying ? "Pausar" : "Tocar"}
                   >
                     {isPlaying ? (
@@ -1911,6 +1913,20 @@ export default function RadioHunter() {
                     aria-label="Próxima faixa"
                   >
                     <SkipForward className="h-4 w-4" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    title={isShuffle ? "Desativar aleatório" : "Ordem aleatória"}
+                    onClick={() => setIsShuffle((v) => !v)}
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors ${
+                      isShuffle
+                        ? "border-cyan-400/45 bg-cyan-500/20 text-cyan-200"
+                        : "border-white/10 bg-white/[0.04] text-zinc-400 hover:border-cyan-500/35 hover:text-cyan-200"
+                    }`}
+                    aria-label={isShuffle ? "Desativar aleatório" : "Ativar aleatório"}
+                    aria-pressed={isShuffle}
+                  >
+                    <Shuffle className="h-3.5 w-3.5" aria-hidden />
                   </button>
                   <button
                     type="button"

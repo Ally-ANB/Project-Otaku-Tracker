@@ -29,7 +29,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#040405] min-h-screen relative`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#050505] min-h-screen relative`}
       >
         {/* ✅ COMPONENTE QUE GERE O FUNDO (GIF/VIDEO/PARTÍCULAS) EM TODAS AS TELAS */}
         <GlobalVFXManager />
