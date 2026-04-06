@@ -86,20 +86,20 @@ export function InspecaoModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           data-inspecao-galaxia={modoGalaxia ? "1" : "0"}
-          className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md sm:p-6"
+          className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/90 p-4 backdrop-blur-md sm:p-6"
         >
           <motion.div
             initial={{ scale: 0.95, opacity: 0, y: 10 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 10 }}
-            className="flex max-h-full w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-emerald-500/20 bg-zinc-950/80 shadow-[0_0_40px_-10px_rgba(16,185,129,0.15)] backdrop-blur-xl sm:max-w-2xl lg:max-w-3xl"
+            className="flex max-h-full w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-cyan-900/50 bg-zinc-950/80 shadow-[0_0_15px_rgba(8,145,178,0.15)] backdrop-blur-xl sm:max-w-2xl lg:max-w-3xl"
           >
-            <div className="flex items-center justify-between border-b border-white/5 bg-black/20 p-5">
-              <h2 className="text-sm font-black uppercase tracking-widest text-emerald-400">{tituloHeader}</h2>
+            <div className="flex items-center justify-between border-b border-cyan-500/10 bg-black/30 p-5">
+              <h2 className="text-sm font-black uppercase tracking-widest text-cyan-300">{tituloHeader}</h2>
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-lg p-2 text-zinc-500 transition-colors hover:bg-white/5 hover:text-white"
+                className="rounded-md border border-cyan-500/20 bg-cyan-500/[0.06] p-2 text-zinc-400 transition-all hover:border-cyan-400/40 hover:bg-cyan-500/10 hover:text-cyan-100"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -116,7 +116,7 @@ export function InspecaoModal({
                       type="text"
                       value={draft.titulo || ""}
                       onChange={(e) => onDraftChange({ ...draft, titulo: e.target.value })}
-                      className="w-full rounded-xl border border-white/5 bg-black/20 p-3 text-sm font-bold text-emerald-50 outline-none transition-all focus:border-emerald-500/40 focus:bg-black/40"
+                      className="w-full rounded-lg border border-white/10 bg-black/25 p-3 text-sm font-bold text-cyan-50/95 outline-none transition-all focus:border-cyan-500/40 focus:bg-black/40 focus:shadow-[0_0_12px_rgba(34,211,238,0.12)]"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -129,7 +129,7 @@ export function InspecaoModal({
                       onChange={(e) =>
                         onDraftChange({ ...draft, capa: e.target.value, capa_url: e.target.value })
                       }
-                      className="w-full rounded-xl border border-white/5 bg-black/20 p-3 text-sm text-zinc-300 outline-none transition-all focus:border-emerald-500/40 focus:bg-black/40"
+                      className="w-full rounded-lg border border-white/10 bg-black/25 p-3 text-sm text-zinc-300 outline-none transition-all focus:border-cyan-500/40 focus:bg-black/40 focus:shadow-[0_0_12px_rgba(34,211,238,0.12)]"
                     />
                   </div>
                 </>
@@ -146,7 +146,7 @@ export function InspecaoModal({
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col text-center sm:text-left">
                     <h3 className="text-base font-bold leading-snug text-white sm:text-lg">{draft.titulo}</h3>
-                    <span className="mt-2 text-[9px] font-black uppercase tracking-widest text-emerald-500">
+                    <span className="mt-2 text-[9px] font-black uppercase tracking-widest text-cyan-500/90">
                       {draft.tipo_obra} • Dados Oficiais
                     </span>
                   </div>
@@ -167,7 +167,7 @@ export function InspecaoModal({
                         onDraftChange({ ...draft, status: v });
                       }
                     }}
-                    className="w-full cursor-pointer rounded-xl border border-white/5 bg-black/20 p-3 text-sm font-bold uppercase tracking-wider text-emerald-100 outline-none transition-all focus:border-emerald-500/40 focus:bg-black/40"
+                    className="w-full cursor-pointer rounded-lg border border-white/10 bg-black/25 p-3 text-sm font-bold uppercase tracking-wider text-cyan-100/90 outline-none transition-all focus:border-cyan-500/40 focus:bg-black/40 focus:shadow-[0_0_12px_rgba(34,211,238,0.12)]"
                   >
                     <option value="Lendo" className="bg-zinc-900 text-white">
                       Lendo / Assistindo
@@ -190,7 +190,7 @@ export function InspecaoModal({
                   <label className="ml-1 text-[9px] font-black uppercase tracking-widest text-zinc-500">
                     Progresso Atual
                   </label>
-                  <div className="flex h-[46px] items-center gap-2 rounded-xl border border-white/5 bg-black/20 p-1 transition-all focus-within:border-emerald-500/40 focus-within:bg-black/40">
+                  <div className="flex h-[46px] items-center gap-2 rounded-lg border border-white/10 bg-black/25 p-1 transition-all focus-within:border-cyan-500/40 focus-within:bg-black/40 focus-within:shadow-[0_0_12px_rgba(34,211,238,0.12)]">
                     <button
                       type="button"
                       onClick={() =>
@@ -199,7 +199,7 @@ export function InspecaoModal({
                           capitulo_atual: Math.max(0, (prev.capitulo_atual || 0) - 1),
                         }))
                       }
-                      className="flex h-full w-10 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-white/10 hover:text-white"
+                      className="flex h-full w-10 items-center justify-center rounded-md border border-transparent text-zinc-500 transition-all hover:border-cyan-500/25 hover:bg-cyan-500/10 hover:text-cyan-100"
                     >
                       -
                     </button>
@@ -209,7 +209,7 @@ export function InspecaoModal({
                       onChange={(e) =>
                         onDraftChange({ ...draft, capitulo_atual: parseInt(e.target.value, 10) || 0 })
                       }
-                      className="h-full flex-1 bg-transparent text-center text-lg font-bold text-emerald-400 outline-none"
+                      className="h-full flex-1 bg-transparent text-center text-lg font-bold text-cyan-400 outline-none"
                     />
                     <button
                       type="button"
@@ -219,7 +219,7 @@ export function InspecaoModal({
                           capitulo_atual: (prev.capitulo_atual || 0) + 1,
                         }))
                       }
-                      className="flex h-full w-10 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-white/10 hover:text-white"
+                      className="flex h-full w-10 items-center justify-center rounded-md border border-transparent text-zinc-500 transition-all hover:border-cyan-500/25 hover:bg-cyan-500/10 hover:text-cyan-100"
                     >
                       +
                     </button>
@@ -247,7 +247,7 @@ export function InspecaoModal({
                 <textarea
                   value={draft.sinopse || ""}
                   onChange={(e) => onDraftChange({ ...draft, sinopse: e.target.value })}
-                  className="custom-scrollbar min-h-[200px] w-full resize-y rounded-xl border border-white/5 bg-black/20 p-4 text-sm leading-relaxed text-zinc-300 outline-none transition-all focus:border-emerald-500/40 focus:bg-black/40 sm:min-h-[220px]"
+                  className="custom-scrollbar min-h-[200px] w-full resize-y rounded-lg border border-white/10 bg-black/25 p-4 text-sm leading-relaxed text-zinc-300 outline-none transition-all focus:border-cyan-500/40 focus:bg-black/40 focus:shadow-[0_0_12px_rgba(34,211,238,0.12)] sm:min-h-[220px]"
                 />
               </div>
 
@@ -260,17 +260,17 @@ export function InspecaoModal({
                   placeholder="https://..."
                   value={draft.link_url || ""}
                   onChange={(e) => onDraftChange({ ...draft, link_url: e.target.value })}
-                  className="w-full rounded-xl border border-white/5 bg-black/20 p-3 text-sm text-zinc-300 outline-none transition-all focus:border-emerald-500/40 focus:bg-black/40 placeholder:text-zinc-700"
+                  className="w-full rounded-lg border border-white/10 bg-black/25 p-3 text-sm text-zinc-300 outline-none transition-all focus:border-cyan-500/40 focus:bg-black/40 placeholder:text-zinc-700 focus:shadow-[0_0_12px_rgba(34,211,238,0.12)]"
                 />
               </div>
             </div>
 
-            <div className="border-t border-white/5 bg-black/40 p-5">
+            <div className="border-t border-cyan-500/10 bg-black/35 p-5">
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => void handleSalvar()}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-4 text-xs font-black uppercase tracking-widest text-emerald-400 transition-all hover:bg-emerald-500/20 hover:text-emerald-300 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-cyan-500/35 bg-cyan-500/[0.08] py-4 text-xs font-black uppercase tracking-widest text-cyan-300 transition-all hover:border-cyan-400/50 hover:bg-cyan-500/15 hover:text-cyan-100 hover:shadow-[0_0_18px_rgba(34,211,238,0.2)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {busy ? (
                   <>

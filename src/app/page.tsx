@@ -6,7 +6,6 @@
 import AcessoMestre from "@/components/ui/AcessoMestre";
 import { supabase } from "./supabase";
 import { useCallback, useEffect, useState } from "react";
-import MangaCard from "@/components/ui/MangaCard";
 import MangaDetailsModal from "@/components/ui/MangaDetailsModal";
 import AdminPanel from "@/components/ui/AdminPanel";
 import ProfileSelection from "@/components/ui/ProfileSelection";
@@ -66,8 +65,6 @@ export default function Home() {
   const [mangaDetalhe, setMangaDetalhe] = useState<Manga | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [sincronizando, setSincronizando] = useState(false);
-  const [filtroAtivo, setFiltroAtivo] = useState("Lendo");
-  const [pesquisaInterna, setPesquisaInterna] = useState("");
   const [config, setConfig] = useState({ mostrar_busca: true, mostrar_stats: true, mostrar_backup: true });
   const [modoCinema, setModoCinema] = useState(false);
 
@@ -600,7 +597,6 @@ export default function Home() {
 
   const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual) || { nome_exibicao: usuarioAtual, avatar: "👤", cor_tema: "verde", custom_color: "#22c55e", cosmeticos: { ativos: {} } };
   const aura = perfilAtivo.cor_tema?.startsWith('#') ? TEMAS.custom : (TEMAS[perfilAtivo.cor_tema as keyof typeof TEMAS] || TEMAS.verde);
-  const listaExibicao = abaPrincipal === "MANGA" ? mangas : abaPrincipal === "ANIME" ? animes : abaPrincipal === "FILME" ? filmes : abaPrincipal === "LIVRO" ? livros : abaPrincipal === "SERIE" ? series : abaPrincipal === "JOGO" ? jogos : musicas;
   const tabelaObraAtual =
     abaPrincipal === "MANGA"
       ? "mangas"
@@ -615,36 +611,9 @@ export default function Home() {
               : abaPrincipal === "JOGO"
                 ? "jogos"
                 : "musicas";
-  const filtrosAtuais = (abaPrincipal === "MANGA" || abaPrincipal === "LIVRO") ? ["Todos", "Lendo", "Completos", "Planejo Ler", "Pausados", "Dropados"] : abaPrincipal === "JOGO" ? ["Todos", "Jogando", "Completos", "Planejo Jogar", "Pausados", "Dropados"] : abaPrincipal === "MUSICA" ? ["Todos", "Ouvindo", "Favoritas", "Playlist", "Pausados", "Dropados"] : ["Todos", "Assistindo", "Completos", "Planejo Assistir", "Pausados", "Dropados"];
-
-  const obrasFiltradas = listaExibicao.filter(m => {
-    if (filtroAtivo === "Todos") return true;
-    if (abaPrincipal === "ANIME" || abaPrincipal === "FILME" || abaPrincipal === "SERIE") {
-      if (filtroAtivo === "Assistindo") return m.status === "Lendo";
-      if (filtroAtivo === "Planejo Assistir") return m.status === "Planejo Ler";
-    }
-    if (abaPrincipal === "JOGO") {
-      if (filtroAtivo === "Jogando") return m.status === "Lendo";
-      if (filtroAtivo === "Planejo Jogar") return m.status === "Planejo Ler";
-    }
-    if (abaPrincipal === "MUSICA") {
-      if (filtroAtivo === "Ouvindo") return m.status === "Lendo";
-    }
-    return m.status === filtroAtivo;
-  }).filter(m => m.titulo.toLowerCase().includes(pesquisaInterna.toLowerCase()));
-
   const handleEstanteNav = (aba: AbaPrincipal) => {
     setSoraNavMode("ESTANTE");
     setAbaPrincipal(aba);
-    setFiltroAtivo(
-      aba === "ANIME" || aba === "FILME" || aba === "SERIE"
-        ? "Assistindo"
-        : aba === "JOGO"
-          ? "Jogando"
-          : aba === "MUSICA"
-            ? "Ouvindo"
-            : "Lendo"
-    );
   };
 
   const handleAbrirObraSora = (obra: ObraComTipo) => {
@@ -695,50 +664,10 @@ export default function Home() {
           livros={livros}
           aura={aura}
           onAbrirObra={handleAbrirObraSora}
+          atualizarCapitulo={atualizarCapitulo}
+          deletarManga={deletarMangaDaEstante}
+          mudarStatusManual={(id, s) => atualizarDados(id, { status: s })}
         />
-
-        {soraNavMode === "ESTANTE" ? (
-          <>
-            <section className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="flex max-w-full overflow-x-auto rounded-2xl border border-zinc-800/60 bg-zinc-900/50 p-1">
-                {filtrosAtuais.map((f) => (
-                  <button
-                    key={f}
-                    type="button"
-                    onClick={() => setFiltroAtivo(f)}
-                    className={`shrink-0 rounded-xl px-5 py-3 text-[10px] font-black uppercase transition-all ${
-                      filtroAtivo === f ? `${aura.bg} text-black` : "text-zinc-500 hover:text-white"
-                    }`}
-                  >
-                    {f}
-                  </button>
-                ))}
-              </div>
-              <input
-                type="search"
-                placeholder="Pesquisar na estante…"
-                className="w-full rounded-2xl border border-zinc-800 bg-zinc-900/90 p-3 text-xs font-bold uppercase outline-none transition-all focus:border-white md:w-80"
-                value={pesquisaInterna}
-                onChange={(e) => setPesquisaInterna(e.target.value)}
-              />
-            </section>
-
-            <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-6">
-              {obrasFiltradas.map((m) => (
-                <MangaCard
-                  key={m.id}
-                  manga={m}
-                  aura={aura}
-                  abaPrincipal={abaPrincipal}
-                  atualizarCapitulo={atualizarCapitulo}
-                  deletarManga={deletarMangaDaEstante}
-                  mudarStatusManual={(id, s) => atualizarDados(id, { status: s })}
-                  abrirDetalhes={setMangaDetalhe}
-                />
-              ))}
-            </div>
-          </>
-        ) : null}
       </div>
 
       {modoCinema && (

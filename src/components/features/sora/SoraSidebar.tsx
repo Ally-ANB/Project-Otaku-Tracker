@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import {
   BookOpen,
   Film,
   Gamepad2,
   Home,
   Library,
+  LogOut,
   MonitorPlay,
   Moon,
   Music,
@@ -16,6 +18,7 @@ import {
   Shield,
   Tv,
   User,
+  UserCog,
 } from "lucide-react";
 import type { AbaPrincipal } from "@/types/hunter_registry";
 import { OMNISEARCH_OPEN_EVENT } from "@/components/features/OmniSearch";
@@ -48,6 +51,25 @@ export default function SoraSidebar({
   sincronizando,
   onSyncAnilist,
 }: SoraSidebarProps) {
+  const [menuAberto, setMenuAberto] = useState(false);
+  const menuWrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuAberto) return;
+    const fechar = (e: MouseEvent) => {
+      if (menuWrapRef.current && !menuWrapRef.current.contains(e.target as Node)) {
+        setMenuAberto(false);
+      }
+    };
+    document.addEventListener("mousedown", fechar);
+    return () => document.removeEventListener("mousedown", fechar);
+  }, [menuAberto]);
+
+  const encerrarSessao = () => {
+    sessionStorage.removeItem("hunter_ativo");
+    window.location.href = "/";
+  };
+
   const shelfActive = navMode === "ESTANTE";
 
   const estanteBtn = (aba: AbaPrincipal, Icon: typeof BookOpen) => {
@@ -73,10 +95,10 @@ export default function SoraSidebar({
 
   return (
     <aside
-      className="sticky top-3 flex w-[3.25rem] shrink-0 flex-col items-center gap-0.5 self-start rounded-2xl border border-cyan-500/20 bg-[#08080a]/75 py-1.5 shadow-[0_0_24px_rgba(34,211,238,0.08)] backdrop-blur-xl"
+      className="sticky top-3 flex w-[3.25rem] shrink-0 flex-col items-center gap-3 self-start rounded-2xl border border-cyan-500/20 bg-[#08080a]/75 py-2 shadow-[0_0_24px_rgba(34,211,238,0.08)] backdrop-blur-xl"
       aria-label="Navegação principal"
     >
-      <div className="flex flex-col items-center gap-0.5">
+      <div className="flex flex-col items-center gap-3">
         <button
           type="button"
           title="Início"
@@ -107,7 +129,7 @@ export default function SoraSidebar({
         aria-hidden
       />
 
-      <div className="flex flex-col items-center gap-0.5">
+      <div className="flex flex-col items-center gap-3">
         {estanteBtn("MANGA", BookOpen)}
         {estanteBtn("ANIME", Tv)}
         {estanteBtn("FILME", Film)}
@@ -117,7 +139,7 @@ export default function SoraSidebar({
         {estanteBtn("LIVRO", Library)}
       </div>
 
-      <div className="mt-auto flex flex-col items-center gap-0.5 pt-1">
+      <div className="mt-auto flex flex-col items-center gap-3 pt-1">
         <div
           className="mb-0.5 h-px w-6 bg-gradient-to-r from-transparent via-cyan-500/25 to-transparent"
           aria-hidden
@@ -168,14 +190,49 @@ export default function SoraSidebar({
         >
           <User className="h-[18px] w-[18px]" strokeWidth={2.25} aria-hidden />
         </Link>
-        <Link
-          href="/perfil?aba=config"
-          title="Configurações"
-          aria-label="Configurações"
-          className={`${BTN_BASE} border-white/10 bg-white/[0.04] hover:border-cyan-400/35`}
-        >
-          <Settings className="h-[18px] w-[18px]" strokeWidth={2.25} aria-hidden />
-        </Link>
+        <div className="relative flex flex-col items-center" ref={menuWrapRef}>
+          <button
+            type="button"
+            title="Menu de configurações"
+            aria-label="Menu de configurações"
+            aria-expanded={menuAberto}
+            aria-haspopup="menu"
+            onClick={() => setMenuAberto((v) => !v)}
+            className={`${BTN_BASE} border-white/10 bg-white/[0.04] hover:border-cyan-400/35 ${
+              menuAberto ? "border-cyan-400/45 text-cyan-200 shadow-[0_0_14px_rgba(34,211,238,0.25)]" : ""
+            }`}
+          >
+            <Settings className="h-[18px] w-[18px]" strokeWidth={2.25} aria-hidden />
+          </button>
+          {menuAberto ? (
+            <div
+              role="menu"
+              className="absolute bottom-full left-1/2 z-50 mb-2 w-max min-w-[11.5rem] -translate-x-1/2 rounded-xl border border-cyan-500/25 bg-[#060607]/95 py-1 shadow-[0_0_20px_rgba(34,211,238,0.12)] backdrop-blur-xl"
+            >
+              <Link
+                href="/perfil?aba=config"
+                role="menuitem"
+                className="flex items-center gap-2 px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-zinc-300 transition-colors hover:bg-cyan-500/10 hover:text-cyan-100"
+                onClick={() => setMenuAberto(false)}
+              >
+                <UserCog className="h-3.5 w-3.5 shrink-0 text-cyan-400/90" aria-hidden />
+                Configurações de Perfil
+              </Link>
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-zinc-300 transition-colors hover:bg-red-500/10 hover:text-red-300"
+                onClick={() => {
+                  setMenuAberto(false);
+                  encerrarSessao();
+                }}
+              >
+                <LogOut className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden />
+                Encerrar Sessão
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
     </aside>
   );
