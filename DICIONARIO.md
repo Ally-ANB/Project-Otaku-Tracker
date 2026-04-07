@@ -1,4 +1,4 @@
-# 📖 Dicionário do Projeto da Estante (Sora Architecture)
+# 📖 Dicionário do Projeto da Estante (ANB Architecture)
 
 Este arquivo serve como mapa para entender onde cada peça do sistema vive e o que ela faz. Se você é novo no projeto, comece por aqui!
 
@@ -7,14 +7,15 @@ Este arquivo serve como mapa para entender onde cada peça do sistema vive e o q
 - `src/app/components/`: Onde guardamos os "blocos de Lego". São os pedaços menores (botões, modais, cards) que usamos para montar as telas grandes.
 
 ## 📄 Páginas (Telas Inteiras)
-- `page.tsx` (Raiz): A base da nossa **Estante Principal**. É ela que carrega o layout da Netflix/Sora, verifica quem está logado e exibe o painel principal.
+- `page.tsx` (Raiz): A base da nossa **Estante Principal**. É ela que carrega o layout principal da estante, verifica quem está logado e exibe o painel principal.
 - `perfil/page.tsx`: A **Página de Perfil**. Onde o usuário edita suas informações (Avatar, Bio, PIN) e escolhe a "Aura" (cor temática) do seu perfil.
 
 ## 🧩 Componentes Centrais (Os Blocos de Lego Mágicos)
 
 ### A Interface e Navegação
-- **`SoraSidebar.tsx`**: A barra lateral esquerda (Guia de Navegação). É compacta ("Zero Scroll") e usa ícones do `lucide-react`. Guarda os atalhos para animes, mangás, configurações e logout.
-- **`SoraHomeView.tsx`**: O cérebro da vitrine. Organiza a fileira de Favoritos, as abas de Status (Lendo, Completos, etc.) e controla a grade de obras que se expande para baixo.
+- **`ANBSidebar.tsx`**: A barra lateral esquerda (Guia de Navegação). É compacta ("Zero Scroll") e usa ícones do `lucide-react`. Guarda os atalhos para animes, mangás, configurações e logout.
+- **`ANBHomeView.tsx`**: O cérebro da vitrine. Organiza a fileira de Favoritos, as abas de Status (Lendo, Completos, etc.) e controla a grade de obras que se expande para baixo.
+- **`ANBCalendarView.tsx`**: Visão de calendário de lançamentos (semana e dia).
 - **`StatusMangaCarousel`**: O carrossel horizontal onde as obras deslizam. Ele possui a função de *Drag-to-Scroll* (arrastar com o mouse para o lado).
 
 ### Obras e Detalhes

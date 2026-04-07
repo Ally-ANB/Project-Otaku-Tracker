@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
   BookOpen,
+  CalendarDays,
   Film,
   Gamepad2,
   Home,
@@ -25,9 +26,13 @@ import { OMNISEARCH_OPEN_EVENT } from "@/components/features/OmniSearch";
 
 type NavMode = "HOME" | "ESTANTE";
 
-export type SoraSidebarProps = {
+export type ANBMainView = "home" | "calendar";
+
+export type ANBSidebarProps = {
   navMode: NavMode;
   abaPrincipal: AbaPrincipal;
+  activeView: ANBMainView;
+  onViewChange: (view: ANBMainView) => void;
   onHome: () => void;
   onEstante: (aba: AbaPrincipal) => void;
   modoCinema: boolean;
@@ -40,9 +45,11 @@ export type SoraSidebarProps = {
 const BTN_BASE =
   "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-zinc-400 transition-all duration-200 hover:text-cyan-100";
 
-export default function SoraSidebar({
+export default function ANBSidebar({
   navMode,
   abaPrincipal,
+  activeView,
+  onViewChange,
   onHome,
   onEstante,
   modoCinema,
@@ -50,7 +57,7 @@ export default function SoraSidebar({
   anilistDisponivel,
   sincronizando,
   onSyncAnilist,
-}: SoraSidebarProps) {
+}: ANBSidebarProps) {
   const [menuAberto, setMenuAberto] = useState(false);
   const menuWrapRef = useRef<HTMLDivElement>(null);
 
@@ -103,15 +110,32 @@ export default function SoraSidebar({
           type="button"
           title="Início"
           aria-label="Início"
-          aria-pressed={navMode === "HOME"}
-          onClick={onHome}
+          aria-pressed={activeView === "home" && navMode === "HOME"}
+          onClick={() => {
+            onViewChange("home");
+            onHome();
+          }}
           className={`${BTN_BASE} ${
-            navMode === "HOME"
+            activeView === "home" && navMode === "HOME"
               ? "border-cyan-400/70 bg-cyan-500/25 text-cyan-100 shadow-[0_0_22px_rgba(34,211,238,0.55)] ring-1 ring-cyan-400/30"
               : "border-white/10 bg-white/[0.04] hover:border-cyan-500/40"
           }`}
         >
           <Home className="h-[18px] w-[18px]" strokeWidth={2.25} aria-hidden />
+        </button>
+        <button
+          type="button"
+          title="Calendário de lançamentos"
+          aria-label="Calendário de lançamentos"
+          aria-pressed={activeView === "calendar"}
+          onClick={() => onViewChange("calendar")}
+          className={`${BTN_BASE} ${
+            activeView === "calendar"
+              ? "border-cyan-400/70 bg-cyan-500/25 text-cyan-100 shadow-[0_0_22px_rgba(34,211,238,0.55)] ring-1 ring-cyan-400/30"
+              : "border-white/10 bg-white/[0.04] hover:border-cyan-500/40"
+          }`}
+        >
+          <CalendarDays className="h-[18px] w-[18px]" strokeWidth={2.25} aria-hidden />
         </button>
         <button
           type="button"

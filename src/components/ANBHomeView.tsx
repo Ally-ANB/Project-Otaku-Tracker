@@ -15,11 +15,11 @@ import {
 } from "react";
 import MangaCard from "@/components/ui/MangaCard";
 import type { AbaPrincipal, Manga } from "@/types/hunter_registry";
-import { anexarTipo, type ObraComTipo } from "./soraUtils";
+import { anexarTipo, type ObraComTipo } from "@/components/anbUtils";
 
 type NavMode = "HOME" | "ESTANTE";
 
-export type SoraHomeViewProps = {
+export type ANBHomeViewProps = {
   navMode: NavMode;
   abaFiltro: AbaPrincipal | null;
   mangas: Manga[];
@@ -301,10 +301,10 @@ const StatusMangaCarousel = forwardRef<
   HTMLDivElement,
   {
     obras: ObraComTipo[];
-    aura: SoraHomeViewProps["aura"];
-    atualizarCapitulo: SoraHomeViewProps["atualizarCapitulo"];
-    deletarManga: SoraHomeViewProps["deletarManga"];
-    mudarStatusManual: SoraHomeViewProps["mudarStatusManual"];
+    aura: ANBHomeViewProps["aura"];
+    atualizarCapitulo: ANBHomeViewProps["atualizarCapitulo"];
+    deletarManga: ANBHomeViewProps["deletarManga"];
+    mudarStatusManual: ANBHomeViewProps["mudarStatusManual"];
     onAbrirObra: (obra: ObraComTipo) => void;
   }
 >(function StatusMangaCarousel(
@@ -532,7 +532,7 @@ function labelAbaProgresso(aba: AbaPrincipal | null): string {
   return "OUVINDO";
 }
 
-export default function SoraHomeView({
+export default function ANBHomeView({
   navMode,
   abaFiltro,
   mangas,
@@ -547,7 +547,7 @@ export default function SoraHomeView({
   atualizarCapitulo,
   deletarManga,
   mudarStatusManual,
-}: SoraHomeViewProps) {
+}: ANBHomeViewProps) {
   const universo = useMemo(() => {
     return [
       ...anexarTipo(mangas, "MANGA"),
@@ -739,7 +739,7 @@ export default function SoraHomeView({
           <AnimatePresence initial={false}>
             {isFiltersOpen ? (
               <motion.div
-                key="sora-filtros-globais"
+                key="anb-filtros-globais"
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: "auto", opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
@@ -905,7 +905,7 @@ export default function SoraHomeView({
       <AnimatePresence initial={false} mode="popLayout">
         {isGridExpanded && obrasStatusGridRest.length > 0 ? (
           <motion.div
-            key="sora-status-grid-extra"
+            key="anb-status-grid-extra"
             layout
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}

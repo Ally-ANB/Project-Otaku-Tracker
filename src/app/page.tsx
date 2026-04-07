@@ -11,9 +11,10 @@ import AdminPanel from "@/components/ui/AdminPanel";
 import ProfileSelection from "@/components/ui/ProfileSelection";
 import { useSenhaMestraInterativa } from "@/hooks/useSenhaMestraInterativa";
 import { dbClient, requisicaoDbApi } from "@/lib/dbClient";
-import SoraSidebar from "@/components/features/sora/SoraSidebar";
-import SoraHomeView from "@/components/features/sora/SoraHomeView";
-import type { ObraComTipo } from "@/components/features/sora/soraUtils";
+import ANBCalendarView from "@/components/ANBCalendarView";
+import ANBHomeView from "@/components/ANBHomeView";
+import ANBSidebar from "@/components/ANBSidebar";
+import type { ObraComTipo } from "@/components/anbUtils";
 import { AlertTriangle, CheckCircle2, Globe, XCircle } from "lucide-react";
 import type { AbaPrincipal, Manga } from "@/types/hunter_registry";
 
@@ -74,7 +75,8 @@ export default function Home() {
   const [pinAdminAberto, setPinAdminAberto] = useState(false);
   const { obterSenhaMestreInterativa, modalSenhaMestra } = useSenhaMestraInterativa();
 
-  const [soraNavMode, setSoraNavMode] = useState<"HOME" | "ESTANTE">("HOME");
+  const [anbNavMode, setAnbNavMode] = useState<"HOME" | "ESTANTE">("HOME");
+  const [viewAtiva, setViewAtiva] = useState<"home" | "calendar">("home");
 
   // ==========================================
   // 🔔 [SESSÃO 4] - SISTEMA DE NOTIFICAÇÕES
@@ -612,11 +614,12 @@ export default function Home() {
                 ? "jogos"
                 : "musicas";
   const handleEstanteNav = (aba: AbaPrincipal) => {
-    setSoraNavMode("ESTANTE");
+    setViewAtiva("home");
+    setAnbNavMode("ESTANTE");
     setAbaPrincipal(aba);
   };
 
-  const handleAbrirObraSora = (obra: ObraComTipo) => {
+  const handleAbrirObraAnb = (obra: ObraComTipo) => {
     const { tipoObra, ...rest } = obra;
     setAbaPrincipal(tipoObra);
     setMangaDetalhe(rest as Manga);
@@ -627,10 +630,12 @@ export default function Home() {
       className="relative flex min-h-screen gap-2 overflow-x-hidden bg-transparent p-3 text-white sm:gap-3 sm:p-4 md:gap-4 md:p-6"
       style={perfilAtivo.cor_tema?.startsWith("#") ? ({ "--aura": perfilAtivo.cor_tema } as Record<string, string>) : undefined}
     >
-      <SoraSidebar
-        navMode={soraNavMode}
+      <ANBSidebar
+        navMode={anbNavMode}
         abaPrincipal={abaPrincipal}
-        onHome={() => setSoraNavMode("HOME")}
+        activeView={viewAtiva}
+        onViewChange={setViewAtiva}
+        onHome={() => setAnbNavMode("HOME")}
         onEstante={handleEstanteNav}
         modoCinema={modoCinema}
         onToggleCinema={toggleModoCinema}
@@ -642,32 +647,38 @@ export default function Home() {
         onSyncAnilist={puxarProgressoDoAniList}
       />
 
-      <div className="relative z-20 flex min-w-0 flex-1 flex-col gap-6">
+      <div className="relative z-20 flex min-h-0 min-w-0 flex-1 flex-col gap-6">
         <header className="shrink-0 border-b border-zinc-800/40 pb-4">
           <h1 className="text-2xl font-black italic tracking-tighter md:text-4xl">
             Hunter<span className={aura.text}>.</span>Tracker
           </h1>
           <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.35em] text-zinc-500">
-            Projeto da Estante · Sora
+            Projeto da Estante · ANB
           </p>
         </header>
 
-        <SoraHomeView
-          navMode={soraNavMode}
-          abaFiltro={soraNavMode === "HOME" ? null : abaPrincipal}
-          mangas={mangas}
-          animes={animes}
-          filmes={filmes}
-          series={series}
-          jogos={jogos}
-          musicas={musicas}
-          livros={livros}
-          aura={aura}
-          onAbrirObra={handleAbrirObraSora}
-          atualizarCapitulo={atualizarCapitulo}
-          deletarManga={deletarMangaDaEstante}
-          mudarStatusManual={(id, s) => atualizarDados(id, { status: s })}
-        />
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {viewAtiva === "home" ? (
+            <ANBHomeView
+              navMode={anbNavMode}
+              abaFiltro={anbNavMode === "HOME" ? null : abaPrincipal}
+              mangas={mangas}
+              animes={animes}
+              filmes={filmes}
+              series={series}
+              jogos={jogos}
+              musicas={musicas}
+              livros={livros}
+              aura={aura}
+              onAbrirObra={handleAbrirObraAnb}
+              atualizarCapitulo={atualizarCapitulo}
+              deletarManga={deletarMangaDaEstante}
+              mudarStatusManual={(id, s) => atualizarDados(id, { status: s })}
+            />
+          ) : (
+            <ANBCalendarView />
+          )}
+        </div>
       </div>
 
       {modoCinema && (
