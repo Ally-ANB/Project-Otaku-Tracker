@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, SlidersHorizontal } from "lucide-react";
 import {
   forwardRef,
   useCallback,
@@ -455,6 +455,73 @@ function filtrarPorTipo(lista: ObraComTipo[], tipo: AbaPrincipal | null): ObraCo
   return lista.filter((o) => o.tipoObra === tipo);
 }
 
+type FiltroFormatoId = "todos" | "tv" | "filme" | "ova" | "webtoon" | "manga" | "livro";
+
+function textoObraParaHeuristica(o: ObraComTipo): string {
+  return `${o.sinopse ?? ""} ${o.titulo ?? ""}`.toLowerCase();
+}
+
+function obraPassaFiltroFormato(o: ObraComTipo, formato: FiltroFormatoId): boolean {
+  if (formato === "todos") return true;
+  const t = o.tipoObra;
+  const s = textoObraParaHeuristica(o);
+  switch (formato) {
+    case "tv":
+      return t === "ANIME" || t === "SERIE";
+    case "filme":
+      return t === "FILME";
+    case "ova":
+      return t === "ANIME" && /\bova\b|original video animation/i.test(s);
+    case "webtoon":
+      return (
+        t === "MANGA" &&
+        /webtoon|manhwa|manhua|web comic|webcomic/i.test(s)
+      );
+    case "manga":
+      return (
+        t === "MANGA" &&
+        !/webtoon|manhwa|manhua|web comic|webcomic/i.test(s)
+      );
+    case "livro":
+      return t === "LIVRO";
+    default:
+      return true;
+  }
+}
+
+type FiltroOrdenacaoId = "recentes" | "alfabetica" | "maior_nota" | "maior_progresso";
+
+function progressoFracao(o: Manga): number {
+  const total = Math.max(o.total_capitulos ?? 0, 1);
+  return o.capitulo_atual / total;
+}
+
+function ordenarObras(lista: ObraComTipo[], ord: FiltroOrdenacaoId): ObraComTipo[] {
+  const out = [...lista];
+  switch (ord) {
+    case "recentes":
+      out.sort((a, b) => {
+        const ta = Date.parse(a.ultima_leitura) || 0;
+        const tb = Date.parse(b.ultima_leitura) || 0;
+        if (tb !== ta) return tb - ta;
+        return b.id - a.id;
+      });
+      break;
+    case "alfabetica":
+      out.sort((a, b) => a.titulo.localeCompare(b.titulo, "pt", { sensitivity: "base" }));
+      break;
+    case "maior_nota":
+      out.sort((a, b) => (b.nota_pessoal ?? 0) - (a.nota_pessoal ?? 0));
+      break;
+    case "maior_progresso":
+      out.sort((a, b) => progressoFracao(b) - progressoFracao(a));
+      break;
+    default:
+      break;
+  }
+  return out;
+}
+
 type StatusTabId = "TODOS" | "PROGRESSO" | "COMPLETOS" | "PLANEJO" | "PAUSADOS" | "DROPADOS";
 
 function labelAbaProgresso(aba: AbaPrincipal | null): string {
@@ -502,6 +569,10 @@ export default function SoraHomeView({
   const [isGridExpanded, setIsGridExpanded] = useState(false);
   const [buscaEstante, setBuscaEstante] = useState("");
   const [buscaAberta, setBuscaAberta] = useState(false);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [filtroOrdenacao, setFiltroOrdenacao] =
+    useState<FiltroOrdenacaoId>("recentes");
+  const [filtroFormato, setFiltroFormato] = useState<FiltroFormatoId>("todos");
 
   const escopoFiltradoBusca = useMemo(() => {
     const q = buscaEstante.trim().toLowerCase();
@@ -509,35 +580,48 @@ export default function SoraHomeView({
     return escopo.filter((o) => o.titulo.toLowerCase().includes(q));
   }, [escopo, buscaEstante]);
 
+  const escopoComFiltrosGlobais = useMemo(() => {
+    return escopoFiltradoBusca.filter((o) => obraPassaFiltroFormato(o, filtroFormato));
+  }, [escopoFiltradoBusca, filtroFormato]);
+
   const favoritas = useMemo(
     () =>
-      escopoFiltradoBusca
-        .filter((o) => o.favorito)
-        .sort((a, b) => (a.titulo > b.titulo ? 1 : -1)),
-    [escopoFiltradoBusca]
+      ordenarObras(
+        escopoComFiltrosGlobais.filter((o) => o.favorito),
+        filtroOrdenacao
+      ),
+    [escopoComFiltrosGlobais, filtroOrdenacao]
   );
 
   const progressoLabel = labelAbaProgresso(navMode === "HOME" ? null : abaFiltro);
 
   const obrasPorStatusTab = useMemo(() => {
-    const base = escopoFiltradoBusca;
+    const base = escopoComFiltrosGlobais;
+    let filtrado: ObraComTipo[];
     switch (statusTab) {
       case "TODOS":
-        return base;
+        filtrado = base;
+        break;
       case "PROGRESSO":
-        return base.filter((o) => o.status === "Lendo");
+        filtrado = base.filter((o) => o.status === "Lendo");
+        break;
       case "COMPLETOS":
-        return base.filter((o) => o.status === "Completos");
+        filtrado = base.filter((o) => o.status === "Completos");
+        break;
       case "PLANEJO":
-        return base.filter((o) => o.status === "Planejo Ler");
+        filtrado = base.filter((o) => o.status === "Planejo Ler");
+        break;
       case "PAUSADOS":
-        return base.filter((o) => o.status === "Pausados");
+        filtrado = base.filter((o) => o.status === "Pausados");
+        break;
       case "DROPADOS":
-        return base.filter((o) => o.status === "Dropados");
+        filtrado = base.filter((o) => o.status === "Dropados");
+        break;
       default:
-        return base;
+        filtrado = base;
     }
-  }, [escopoFiltradoBusca, statusTab]);
+    return ordenarObras(filtrado, filtroOrdenacao);
+  }, [escopoComFiltrosGlobais, statusTab, filtroOrdenacao]);
 
   const obrasStatusCarousel = useMemo(
     () => obrasPorStatusTab.slice(0, STATUS_CAROUSEL_LIMIT),
@@ -574,16 +658,29 @@ export default function SoraHomeView({
     </button>
   );
 
-  const campoBusca = (
-    <input
-      type="search"
-      value={buscaEstante}
-      onChange={(e) => setBuscaEstante(e.target.value)}
-      placeholder="Filtrar por título…"
-      autoFocus
-      className="w-full rounded-xl border border-cyan-500/30 bg-black/40 px-3 py-2.5 text-[11px] font-semibold text-zinc-200 shadow-[inset_0_1px_0_rgba(34,211,238,0.08)] outline-none backdrop-blur-md transition-all placeholder:text-zinc-600 focus:border-cyan-400/50 focus:bg-black/50 focus:shadow-[0_0_16px_rgba(34,211,238,0.12)]"
-    />
-  );
+  const filtrosAtivos =
+    filtroOrdenacao !== "recentes" || filtroFormato !== "todos";
+
+  const limparFiltros = useCallback(() => {
+    setFiltroOrdenacao("recentes");
+    setFiltroFormato("todos");
+  }, []);
+
+  const opcoesOrdenacao: { id: FiltroOrdenacaoId; label: string }[] = [
+    { id: "recentes", label: "Recentes" },
+    { id: "alfabetica", label: "Ordem Alfabética" },
+    { id: "maior_nota", label: "Maior Nota" },
+    { id: "maior_progresso", label: "Maior Progresso" },
+  ];
+
+  const opcoesFormato: { id: FiltroFormatoId; label: string }[] = [
+    { id: "tv", label: "TV" },
+    { id: "filme", label: "Filme" },
+    { id: "ova", label: "OVA" },
+    { id: "webtoon", label: "Webtoon" },
+    { id: "manga", label: "Mangá" },
+    { id: "livro", label: "Livro" },
+  ];
 
   const favScroll = useHorizontalScroll(340);
   const statusScroll = useHorizontalScroll(280);
@@ -610,7 +707,113 @@ export default function SoraHomeView({
 
       {buscaAberta ? (
         <motion.div layout className="col-span-full xl:col-span-4 2xl:col-span-6">
-          {campoBusca}
+          <div className="flex items-stretch gap-2">
+            <input
+              type="search"
+              value={buscaEstante}
+              onChange={(e) => setBuscaEstante(e.target.value)}
+              placeholder="Filtrar por título…"
+              autoFocus
+              className="min-w-0 flex-1 rounded-xl border border-cyan-500/30 bg-black/40 px-3 py-2.5 text-[11px] font-semibold text-zinc-200 shadow-[inset_0_1px_0_rgba(34,211,238,0.08)] outline-none backdrop-blur-md transition-all placeholder:text-zinc-600 focus:border-cyan-400/50 focus:bg-black/50 focus:shadow-[0_0_16px_rgba(34,211,238,0.12)]"
+            />
+            <div className="relative shrink-0 self-stretch">
+              <button
+                type="button"
+                title="Filtros"
+                aria-label="Abrir ou fechar painel de filtros"
+                aria-expanded={isFiltersOpen}
+                onClick={() => setIsFiltersOpen((v) => !v)}
+                className="flex h-full items-center justify-center rounded-xl border border-cyan-500/25 bg-white/[0.04] px-3 text-cyan-200/90 transition-all hover:border-cyan-400/45 hover:bg-cyan-500/10"
+              >
+                <SlidersHorizontal className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+              </button>
+              {filtrosAtivos ? (
+                <span
+                  className="pointer-events-none absolute top-0.5 right-0.5 h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.95)]"
+                  aria-hidden
+                />
+              ) : null}
+            </div>
+          </div>
+
+          <AnimatePresence initial={false}>
+            {isFiltersOpen ? (
+              <motion.div
+                key="sora-filtros-globais"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                className="overflow-hidden"
+              >
+                <div className="mt-2 w-full space-y-4 rounded-xl border border-cyan-900/30 bg-[#08080a]/80 p-4 shadow-[inset_0_1px_0_rgba(34,211,238,0.06)] backdrop-blur-md">
+                  <div>
+                    <p className="mb-2 text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">
+                      Ordenação
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {opcoesOrdenacao.map((op) => {
+                        const ativo = filtroOrdenacao === op.id;
+                        return (
+                          <button
+                            key={op.id}
+                            type="button"
+                            aria-pressed={ativo}
+                            onClick={() => setFiltroOrdenacao(op.id)}
+                            className={`rounded-lg border px-3 py-2 text-[10px] font-bold uppercase tracking-widest transition-all ${
+                              ativo
+                                ? "border-cyan-400/70 bg-cyan-500/20 text-cyan-100 shadow-[0_0_14px_rgba(34,211,238,0.35)]"
+                                : "border-white/10 bg-white/[0.04] text-zinc-500 hover:border-cyan-500/35 hover:text-cyan-200/90"
+                            }`}
+                          >
+                            {op.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="mb-2 text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">
+                      Formato
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {opcoesFormato.map((op) => {
+                        const ativo = filtroFormato === op.id;
+                        return (
+                          <button
+                            key={op.id}
+                            type="button"
+                            aria-pressed={ativo}
+                            onClick={() =>
+                              setFiltroFormato((f) => (f === op.id ? "todos" : op.id))
+                            }
+                            className={`rounded-lg border px-3 py-2 text-[10px] font-bold uppercase tracking-widest transition-all ${
+                              ativo
+                                ? "border-cyan-400/70 bg-cyan-500/20 text-cyan-100 shadow-[0_0_14px_rgba(34,211,238,0.35)]"
+                                : "border-white/10 bg-white/[0.04] text-zinc-500 hover:border-cyan-500/35 hover:text-cyan-200/90"
+                            }`}
+                          >
+                            {op.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end border-t border-white/5 pt-3">
+                    <button
+                      type="button"
+                      onClick={limparFiltros}
+                      className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 transition-colors hover:text-cyan-300/90"
+                    >
+                      Limpar filtros
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
         </motion.div>
       ) : null}
 

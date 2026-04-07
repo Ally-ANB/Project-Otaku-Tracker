@@ -15,6 +15,7 @@ function mensagemErroSupabase(error: unknown): string {
 
 let supabaseAdmin: SupabaseClient | null = null;
 
+/** Cliente com SUPABASE_SERVICE_ROLE_KEY: ignora RLS; uso restrito a esta rota após validar SENHA_MESTRA. */
 function getSupabaseAdmin(): SupabaseClient {
   if (!supabaseAdmin) {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
