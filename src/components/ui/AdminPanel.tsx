@@ -1,13 +1,14 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/app/supabase";
 import EfeitosVisuais from "@/components/ui/EfeitosVisuais";
 import { obterSenhaMestreRevelada, requisicaoDbApi } from "@/lib/dbClient";
+import { LogOut, Shield } from "lucide-react";
 
 interface AdminPanelProps {
   perfis: any[];
   config: any;
-  setUsuarioAtual: (v: string | null) => void;
   atualizarConfig: (k: string, v: boolean) => void;
   deletarPerfil: (p: any) => void;
   solicitarSenhaMestre?: () => Promise<string | null>;
@@ -26,16 +27,22 @@ const TITULO_PRESETS = [
   { id: "carmesim", nome: "🩸 Carmesim Vampírico", classes: "text-red-700 drop-shadow-[0_0_12px_rgba(153,27,27,0.9)]" }
 ];
 
-export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarConfig, deletarPerfil, solicitarSenhaMestre }: AdminPanelProps) {
+export default function AdminPanel({
+  perfis,
+  config,
+  atualizarConfig,
+  deletarPerfil,
+  solicitarSenhaMestre,
+}: AdminPanelProps) {
+  const router = useRouter();
   // ==========================================
   // ⚙️ [SESSÃO] - ESTADOS GLOBAIS
   // ==========================================
   const [abaAtiva, setAbaAtiva] = useState("GUILDA");
   const [localPerfis, setLocalPerfis] = useState<any[]>([]);
   const [usuarioEditando, setUsuarioEditando] = useState<any | null>(null);
-  const [formEdit, setFormEdit] = useState({ nome_exibicao: "", avatar: "", pin: "", cor_tema: "", esmolas: 0 });
+  const [formEdit, setFormEdit] = useState({ nome_exibicao: "", avatar: "", cor_tema: "", esmolas: 0 });
   const [carregandoAcao, setCarregandoAcao] = useState(false);
-  const [mostrarPins, setMostrarPins] = useState(false);
 
   // ==========================================
   // 🛒 [SESSÃO] - ESTADOS DA LOJA
@@ -94,8 +101,7 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
     setUsuarioEditando(perfil);
     setFormEdit({
       nome_exibicao: perfil.nome_exibicao || perfil.nome_original,
-      avatar: perfil.avatar || "👤",
-      pin: perfil.pin || "",
+      avatar: perfil.avatar || "",
       cor_tema: perfil.cor_tema || "azul",
       esmolas: perfil.esmolas || 0
     });
@@ -111,7 +117,6 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
         dados: {
           nome_exibicao: formEdit.nome_exibicao,
           avatar: formEdit.avatar,
-          pin: formEdit.pin,
           cor_tema: formEdit.cor_tema,
           esmolas: formEdit.esmolas
         }
@@ -120,40 +125,9 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
       
       setLocalPerfis(prev => prev.map(p => p.nome_original === usuarioEditando.nome_original ? { ...p, ...formEdit } : p));
       setUsuarioEditando(null);
-      alert("✅ Caçador atualizado com sucesso!");
+      alert("Caçador atualizado com sucesso.");
     } catch (err: any) {
       alert("Erro ao salvar: " + err.message);
-    } finally {
-      setCarregandoAcao(false);
-    }
-  }
-
-  async function criarNovoUsuario() {
-    const nomeOriginal = prompt("Digite o Nome ÚNICO do novo usuário (usado para login):");
-    if (!nomeOriginal) return;
-    if (localPerfis.find(p => p.nome_original.toLowerCase() === nomeOriginal.toLowerCase())) {
-      return alert("❌ Já existe um usuário com esse nome de login!");
-    }
-
-    setCarregandoAcao(true);
-    try {
-      const resultado = await requisicaoDbSegura("POST", {
-        tabela: "perfis",
-        operacao: "insert",
-        dados: { 
-        nome_original: nomeOriginal, 
-        nome_exibicao: nomeOriginal, 
-        avatar: "👤", 
-        cor_tema: "azul",
-        esmolas: 0 
-        }
-      }, false);
-      if (!resultado.ok) throw new Error(resultado.data?.error || "Falha ao criar usuário.");
-      const novoPerfil = Array.isArray(resultado.data?.data) ? resultado.data.data[0] : null;
-      if (novoPerfil) setLocalPerfis(prev => [...prev, novoPerfil]);
-      alert("🎉 Novo Caçador recrutado com sucesso!");
-    } catch (err: any) {
-      alert("Erro ao criar: " + err.message);
     } finally {
       setCarregandoAcao(false);
     }
@@ -404,7 +378,6 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
     setCarregandoAcao(true);
     try {
       for (const p of localPerfis) {
-        if (p.nome_original === "Admin") continue;
         const resultado = await requisicaoDbSegura("POST", {
           tabela: "perfis",
           nome_original: p.nome_original,
@@ -412,8 +385,8 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
         }, false);
         if (!resultado.ok) throw new Error(resultado.data?.error || "Falha ao atualizar esmolas.");
       }
-      setLocalPerfis(prev => prev.map(p => p.nome_original === "Admin" ? p : { ...p, esmolas: (p.esmolas || 0) + quantia }));
-      alert(`🌧️ Chuva de ${quantia} Esmolas realizada com sucesso!`);
+      setLocalPerfis(prev => prev.map(p => ({ ...p, esmolas: (p.esmolas || 0) + quantia })));
+      alert(`Chuva de ${quantia} esmolas concluída com sucesso.`);
     } catch (err) {
       alert("Erro durante a chuva de esmolas.");
     } finally {
@@ -430,12 +403,23 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
       <header className="flex justify-between items-center mb-12 border-b border-yellow-500/20 pb-8">
         <div>
           <h1 className="text-4xl font-black text-white italic tracking-tighter flex items-center gap-3">
-            <span className="text-yellow-500">👑</span> Painel S+
+            <Shield className="h-10 w-10 shrink-0 text-yellow-500" strokeWidth={2.25} aria-hidden />
+            Painel S+
           </h1>
           <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-yellow-500/60 mt-2">Controle Absoluto do Sistema</p>
         </div>
-        <button onClick={() => { sessionStorage.removeItem("hunter_ativo"); setUsuarioAtual(null); }} className="px-6 py-3 bg-red-500/10 border border-red-500/30 text-red-500 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-red-500 hover:text-white transition-all shadow-[0_0_15px_rgba(234,179,8,0.2)]">
-          Desconectar
+        <button
+          type="button"
+          onClick={async () => {
+            await supabase.auth.signOut();
+            localStorage.clear();
+            router.push("/login");
+            router.refresh();
+          }}
+          className="flex items-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-6 py-3 font-black uppercase text-[10px] tracking-widest text-cyan-200 transition-all hover:border-cyan-400/50 hover:bg-cyan-500/20"
+        >
+          <LogOut className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
+          Encerrar Sessão
         </button>
       </header>
 
@@ -443,7 +427,7 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
       <div className="flex flex-wrap gap-4 mb-10">
         {(["GUILDA", "LOJA", "FORJA", "SISTEMA", "FERRAMENTAS"] as const).map((aba) => (
           <button key={aba} onClick={() => setAbaAtiva(aba)} className={`px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all border ${abaAtiva === aba ? 'bg-yellow-500 text-black border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.3)]' : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-white hover:border-zinc-600'}`}>
-            {aba === "GUILDA" ? "👥 A Guilda" : aba === "LOJA" ? "🛒 Loja S+" : aba === "FORJA" ? "⚒️ Forja de Ranks" : aba === "SISTEMA" ? "⚙️ Sistema" : "⚡ Ferramentas"}
+            {aba === "GUILDA" ? "A Guilda" : aba === "LOJA" ? "Loja S+" : aba === "FORJA" ? "Forja de Ranks" : aba === "SISTEMA" ? "Sistema" : "Ferramentas"}
           </button>
         ))}
       </div>
@@ -451,46 +435,62 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
       {/* 👥 TELA GUILDA */}
       {abaAtiva === "GUILDA" && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+          <div className="rounded-3xl border border-white/10 bg-zinc-950/35 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset] backdrop-blur-xl">
+            <p className="text-xs font-black uppercase tracking-widest text-amber-200/90">
+              Criação de perfis
+            </p>
+            <p className="mt-2 text-[11px] leading-relaxed text-zinc-400">
+              No novo modelo de segurança, os usuários devem criar conta na tela de Login primeiro.
+              O painel abaixo serve para ajustar esmolas, avatar e nome de exibição dos caçadores já vinculados ao Auth.
+            </p>
+            <div className="mt-5 space-y-2 rounded-2xl border border-white/5 bg-black/30 p-4">
+              <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                UUID do Supabase Auth (vinculação)
+              </label>
+              <input
+                type="text"
+                disabled
+                title="No novo modelo de segurança, os usuários devem criar conta na tela de Login primeiro."
+                placeholder="Cole o UUID após o cadastro em Login"
+                className="w-full cursor-not-allowed rounded-xl border border-white/10 bg-zinc-950/60 px-4 py-3 text-xs text-zinc-600 outline-none"
+              />
+              <p className="text-[9px] text-zinc-600">
+                Novos perfis passam a existir quando há conta Auth; use a edição por cartão para moedas e identidade visual.
+              </p>
+            </div>
+          </div>
+
           <div className="flex justify-between items-center mb-6">
             <p className="text-xs font-black text-zinc-500 uppercase tracking-widest">Caçadores Registrados ({localPerfis.length})</p>
-            <div className="flex items-center">
-              <button onClick={criarNovoUsuario} disabled={carregandoAcao} className="px-6 py-3 bg-green-500/10 border border-green-500/50 text-green-500 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-green-500 hover:text-black transition-all">
-                + Recrutar Novo
-              </button>
-              <button onClick={() => setMostrarPins(!mostrarPins)} className="px-4 py-3 bg-zinc-800 border border-zinc-700 text-zinc-400 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-zinc-700 hover:text-white transition-all ml-4">
-                {mostrarPins ? "🙈 Ocultar PINs" : "👁️ Revelar PINs"}
-              </button>
-            </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {localPerfis.map(p => (
-              <div key={p.id} className={`bg-zinc-900/40 p-6 rounded-3xl border flex flex-col gap-4 relative overflow-hidden transition-all hover:border-yellow-500/50 ${p.nome_original === "Admin" ? 'border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.05)]' : 'border-zinc-800'}`}>
-                {p.nome_original === "Admin" && <div className="absolute top-0 right-0 bg-yellow-500 text-black text-[8px] font-black px-3 py-1 rounded-bl-xl uppercase tracking-widest">Mestre</div>}
+              <div key={p.id} className="bg-zinc-900/40 p-6 rounded-3xl border border-zinc-800 flex flex-col gap-4 relative overflow-hidden transition-all hover:border-yellow-500/50">
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 bg-black rounded-2xl overflow-hidden border border-zinc-700 flex items-center justify-center text-2xl">
-                    {p.avatar?.startsWith('http') ? <img src={p.avatar} className="w-full h-full object-cover" /> : p.avatar}
+                    {p.avatar?.startsWith('http') ? <img src={p.avatar} alt="" className="w-full h-full object-cover" /> : p.avatar}
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <p className="text-sm font-black text-white uppercase truncate">{p.nome_exibicao}</p>
                     <p className="text-[9px] text-zinc-500 uppercase tracking-widest">Login: {p.nome_original}</p>
                   </div>
                 </div>
-                <div className="flex justify-between items-center bg-black/50 p-3 rounded-xl border border-white/5 mt-2">
-                  <div className="text-center">
-                    <p className="text-[8px] text-zinc-500 uppercase font-black">PIN</p>
-                    <p className="text-xs font-bold text-white tracking-widest">{p.nome_original === "Admin" ? "🔒 .ENV" : (!p.pin ? "N/A" : (mostrarPins ? p.pin : "••••"))}</p>
+                <div className="flex justify-between items-center bg-black/50 p-3 rounded-xl border border-white/5 mt-2 gap-3">
+                  <div className="text-center min-w-0 flex-1">
+                    <p className="text-[8px] text-zinc-500 uppercase font-black">Auth user_id</p>
+                    <p className="text-[10px] font-mono text-zinc-300 truncate" title={p.user_id || "—"}>
+                      {p.user_id ? `${p.user_id.slice(0, 10)}…` : "—"}
+                    </p>
                   </div>
-                  <div className="text-center">
+                  <div className="text-center flex-1 shrink-0">
                     <p className="text-[8px] text-yellow-500 uppercase font-black">Esmolas</p>
                     <p className="text-xs font-bold text-yellow-500">{p.esmolas || 0}</p>
                   </div>
                 </div>
-                {p.nome_original !== "Admin" && (
-                  <div className="flex gap-2 mt-2">
-                    <button onClick={() => abrirEdicao(p)} className="flex-1 py-3 bg-zinc-800 text-zinc-300 rounded-xl text-[9px] font-black uppercase hover:bg-white hover:text-black transition-all">Editar Tudo</button>
-                    <button onClick={() => deletarPerfil(p)} className="px-4 py-3 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl text-[9px] font-black uppercase hover:bg-red-500 hover:text-white transition-all">X</button>
-                  </div>
-                )}
+                <div className="flex gap-2 mt-2">
+                  <button type="button" onClick={() => abrirEdicao(p)} className="flex-1 py-3 bg-zinc-800 text-zinc-300 rounded-xl text-[9px] font-black uppercase hover:bg-white hover:text-black transition-all">Editar</button>
+                  <button type="button" onClick={() => deletarPerfil(p)} className="px-4 py-3 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl text-[9px] font-black uppercase hover:bg-red-500 hover:text-white transition-all">X</button>
+                </div>
               </div>
             ))}
           </div>
@@ -705,15 +705,9 @@ export default function AdminPanel({ perfis, config, setUsuarioAtual, atualizarC
                 <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">Nome de Exibição</label>
                 <input type="text" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold outline-none focus:border-yellow-500 transition-all mt-1" value={formEdit.nome_exibicao} onChange={e => setFormEdit({...formEdit, nome_exibicao: e.target.value})} />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">Saldo de Esmolas</label>
-                  <input type="number" className="w-full bg-black border border-yellow-500/30 p-4 rounded-xl text-yellow-500 font-black outline-none focus:border-yellow-500 transition-all mt-1" value={formEdit.esmolas} onChange={e => setFormEdit({...formEdit, esmolas: parseInt(e.target.value) || 0})} />
-                </div>
-                <div>
-                  <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">Novo PIN (4 Dig)</label>
-                  <input type="text" maxLength={4} className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold text-center tracking-[0.5em] outline-none focus:border-red-500 transition-all mt-1" value={formEdit.pin} onChange={e => setFormEdit({...formEdit, pin: e.target.value.replace(/\D/g, '')})} placeholder="0000" />
-                </div>
+              <div>
+                <label className="text-[9px] font-black text-zinc-500 uppercase tracking-widest ml-1">Saldo de Esmolas</label>
+                <input type="number" className="w-full bg-black border border-yellow-500/30 p-4 rounded-xl text-yellow-500 font-black outline-none focus:border-yellow-500 transition-all mt-1" value={formEdit.esmolas} onChange={e => setFormEdit({...formEdit, esmolas: parseInt(e.target.value) || 0})} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

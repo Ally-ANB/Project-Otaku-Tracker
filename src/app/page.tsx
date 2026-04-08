@@ -3,19 +3,19 @@
 // ==========================================
 // 📦 [SESSÃO 1] - IMPORTAÇÕES E INTERFACES
 // ==========================================
-import AcessoMestre from "@/components/ui/AcessoMestre";
 import { supabase } from "./supabase";
-import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import MangaDetailsModal from "@/components/ui/MangaDetailsModal";
 import AdminPanel from "@/components/ui/AdminPanel";
-import ProfileSelection from "@/components/ui/ProfileSelection";
 import { useSenhaMestraInterativa } from "@/hooks/useSenhaMestraInterativa";
 import { dbClient, requisicaoDbApi } from "@/lib/dbClient";
 import ANBCalendarView from "@/components/ANBCalendarView";
 import ANBHomeView from "@/components/ANBHomeView";
 import ANBSidebar from "@/components/ANBSidebar";
 import type { ObraComTipo } from "@/components/anbUtils";
-import { AlertTriangle, CheckCircle2, Globe, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Globe, LogOut, XCircle } from "lucide-react";
 import type { AbaPrincipal, Manga } from "@/types/hunter_registry";
 import { ESTANTE_ATUALIZADA_EVENT } from "@/lib/estanteEvents";
 
@@ -32,14 +32,13 @@ const TEMAS = {
 };
 
 export default function Home() {
+  const router = useRouter();
+
   // ==========================================
   // 🔐 [SESSÃO 3] - ESTADOS GERAIS DO APP
   // ==========================================
-  const [mestreAutorizado, setMestreAutorizado] = useState(false);
   const [usuarioAtual, setUsuarioAtual] = useState<string | null>(null);
-  const [perfilAlvoParaBloqueio, setPerfilAlvoParaBloqueio] = useState<string | null>(null);
-  const [pinDigitado, setPinDigitado] = useState("");
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [authEmail, setAuthEmail] = useState<string | null>(null);
 
   const [abaPrincipal, setAbaPrincipal] = useState<"MANGA" | "ANIME" | "FILME" | "LIVRO" | "SERIE" | "JOGO" | "MUSICA">("MANGA"); 
   const [mangas, setMangas] = useState<Manga[]>([]);
@@ -73,7 +72,6 @@ export default function Home() {
   const [novoHunter, setNovoHunter] = useState({ nome: '', avatar: '👤', pin: '', cor: 'verde' });
   const [editandoNomeOriginal, setEditandoNomeOriginal] = useState<string | null>(null);
   const [mostrandoFormHunter, setMostrandoFormHunter] = useState(false);
-  const [pinAdminAberto, setPinAdminAberto] = useState(false);
   const { obterSenhaMestreInterativa, modalSenhaMestra } = useSenhaMestraInterativa();
 
   const [anbNavMode, setAnbNavMode] = useState<"HOME" | "ESTANTE">("HOME");
@@ -98,15 +96,13 @@ export default function Home() {
   // ==========================================
   // 🔄 [SESSÃO 5] - INICIALIZAÇÃO
   // ==========================================
-  useEffect(() => { 
-    const mestre = sessionStorage.getItem("acesso_mestre");
-    if (mestre === "true") {
-      setMestreAutorizado(true);
-      sessionStorage.setItem('estante_acesso', 'true');
-    }
-    const hunterSalvo = sessionStorage.getItem("hunter_ativo");
-    if (hunterSalvo) setUsuarioAtual(hunterSalvo);
+  const isAccountAdmin = useMemo(() => {
+    const expected = process.env.NEXT_PUBLIC_ADMIN_EMAIL?.trim();
+    if (!expected || !authEmail) return false;
+    return authEmail.toLowerCase() === expected.toLowerCase();
+  }, [authEmail]);
 
+  useEffect(() => { 
     const cinemaSalvo = localStorage.getItem("hunter_modo_cinema");
     if (cinemaSalvo === "true") setModoCinema(true);
     
@@ -122,7 +118,6 @@ export default function Home() {
 
   useEffect(() => {
     if (usuarioAtual) {
-      setIsAdmin(usuarioAtual === "Admin");
       buscarMangas(); buscarAnimes(); buscarFilmes(); buscarLivros();
       buscarSeries(); buscarJogos(); buscarMusicas();
       
@@ -151,50 +146,50 @@ export default function Home() {
   };
 
   async function buscarMangas() {
-    if (!usuarioAtual || usuarioAtual === "Admin") return;
+    if (!usuarioAtual) return;
     const { data } = await supabase.from("mangas").select("*").eq("usuario", usuarioAtual).order("ultima_leitura", { ascending: false });
     if (data) setMangas(data as Manga[]);
   }
 
   async function buscarAnimes() {
-    if (!usuarioAtual || usuarioAtual === "Admin") return;
+    if (!usuarioAtual) return;
     const { data } = await supabase.from("animes").select("*").eq("usuario", usuarioAtual).order("ultima_leitura", { ascending: false });
     if (data) setAnimes(data as Manga[]);
   }
 
   async function buscarFilmes() {
-    if (!usuarioAtual || usuarioAtual === "Admin") return;
+    if (!usuarioAtual) return;
     const { data } = await supabase.from("filmes").select("*").eq("usuario", usuarioAtual).order("ultima_leitura", { ascending: false });
     if (data) setFilmes(data as Manga[]);
   }
 
   async function buscarLivros() {
-    if (!usuarioAtual || usuarioAtual === "Admin") return;
+    if (!usuarioAtual) return;
     const { data } = await supabase.from("livros").select("*").eq("usuario", usuarioAtual).order("ultima_leitura", { ascending: false });
     if (data) setLivros(data as Manga[]);
   }
 
   async function buscarSeries() {
-    if (!usuarioAtual || usuarioAtual === "Admin") return;
+    if (!usuarioAtual) return;
     const { data } = await supabase.from("series").select("*").eq("usuario", usuarioAtual).order("ultima_leitura", { ascending: false });
     if (data) setSeries(data as Manga[]);
   }
 
   async function buscarJogos() {
-    if (!usuarioAtual || usuarioAtual === "Admin") return;
+    if (!usuarioAtual) return;
     const { data } = await supabase.from("jogos").select("*").eq("usuario", usuarioAtual).order("ultima_leitura", { ascending: false });
     if (data) setJogos(data as Manga[]);
   }
 
   const buscarMusicas = useCallback(async () => {
-    if (!usuarioAtual || usuarioAtual === "Admin") return;
+    if (!usuarioAtual) return;
     const { data } = await supabase.from("musicas").select("*").eq("usuario", usuarioAtual).order("ultima_leitura", { ascending: false });
     if (data) setMusicas(data as Manga[]);
   }, [usuarioAtual]);
 
   useEffect(() => {
     const onEstanteAtualizada = () => {
-      if (!usuarioAtual || usuarioAtual === "Admin") return;
+      if (!usuarioAtual) return;
       void buscarMangas();
       void buscarAnimes();
       void buscarFilmes();
@@ -208,8 +203,39 @@ export default function Home() {
   }, [usuarioAtual, buscarMusicas]);
 
   async function buscarPerfis() {
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData?.user;
+    setAuthEmail(user?.email ?? null);
+
     const { data } = await supabase.from("perfis").select("*");
-    if (data) setPerfis(data);
+    if (!data) return;
+
+    setPerfis(data);
+
+    if (user?.id) {
+      const meus = data.filter(
+        (p: { user_id?: string | null }) => p.user_id === user.id
+      );
+      if (meus.length > 0) {
+        const saved = sessionStorage.getItem("hunter_ativo");
+        const validSaved =
+          saved && meus.some((m) => m.nome_original === saved);
+        const pick =
+          validSaved && saved
+            ? saved
+            : meus.find((m) => m.nome_original)?.nome_original ?? null;
+        if (pick) {
+          setUsuarioAtual(pick);
+          sessionStorage.setItem("hunter_ativo", pick);
+        } else {
+          setUsuarioAtual(null);
+        }
+      } else {
+        setUsuarioAtual(null);
+      }
+    } else {
+      setUsuarioAtual(null);
+    }
   }
 
   async function requisicaoDbSegura(method: "POST" | "DELETE", payload: Record<string, any>, exigirSenhaMestre = true) {
@@ -482,7 +508,6 @@ export default function Home() {
   }
 
   async function deletarPerfil(perfil: any) {
-    if (perfil.nome_original === "Admin") return alert("Impossível remover Admin.");
     if (confirm(`Remover Hunter "${perfil.nome_exibicao}"?`)) {
       const resultado = await requisicaoDbSegura("DELETE", {
         tabela: "perfis",
@@ -497,113 +522,68 @@ export default function Home() {
   }
 
   // ==========================================
-  // 🔑 [SESSÃO 10] - LOGIN E SEGURANÇA (PIN)
-  // ==========================================
-  async function confirmarPin() {
-    if (!perfilAlvoParaBloqueio) return;
-
-    // ✅ VALIDAÇÃO BLINDADA DO ADMIN VIA BACKEND
-    if (perfilAlvoParaBloqueio === "Admin") {
-      const { data: adminDb } = await supabase
-        .from("perfis")
-        .select("pin")
-        .eq("nome_original", "Admin")
-        .maybeSingle();
-
-      // Se o Admin tiver um PIN personalizado salvo no Supabase, usa ele.
-      if (adminDb?.pin) {
-        if (pinDigitado === adminDb.pin) {
-          sessionStorage.setItem("hunter_ativo", "Admin");
-          setUsuarioAtual("Admin"); setPerfilAlvoParaBloqueio(null);
-          window.dispatchEvent(new CustomEvent("hunter_cosmeticos_update", { detail: { nome: "Admin" } }));
-        } else {
-          mostrarToast("Acesso Negado: PIN de Administrador Incorreto!", "erro");
-        }
-        return;
-      }
-
-      // Se NÃO tiver PIN no banco, vai perguntar pro Cofre do Servidor (.env)
-      try {
-        const res = await fetch("/api/auth/anilist", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tipo: "admin_pin", senhaDigitada: pinDigitado })
-        });
-        const data = await res.json();
-
-        if (data.autorizado) {
-          sessionStorage.setItem("hunter_ativo", "Admin");
-          setUsuarioAtual("Admin"); setPerfilAlvoParaBloqueio(null);
-          window.dispatchEvent(new CustomEvent("hunter_cosmeticos_update", { detail: { nome: "Admin" } }));
-        } else {
-          mostrarToast("Acesso Negado: PIN de Administrador Incorreto!", "erro");
-        }
-      } catch {
-        mostrarToast("Erro ao validar PIN no servidor.", "erro");
-      }
-      return;
-    }
-
-    // ✅ VALIDAÇÃO DE USUÁRIOS COMUNS (Continua igual, lê do Supabase)
-    const { data: perfil } = await supabase
-      .from("perfis")
-      .select("pin")
-      .eq("nome_original", perfilAlvoParaBloqueio)
-      .single();
-
-    if (perfil?.pin === pinDigitado) {
-      sessionStorage.setItem("hunter_ativo", perfilAlvoParaBloqueio);
-      setUsuarioAtual(perfilAlvoParaBloqueio); setPerfilAlvoParaBloqueio(null);
-      window.dispatchEvent(new CustomEvent("hunter_cosmeticos_update", { detail: { nome: perfilAlvoParaBloqueio } }));
-    } else {
-      mostrarToast("PIN Incorreto!", "erro");
-    }
-  }
-
-  function tentarMudarPerfil(nome: string) {
-    const info = perfis.find(p => p.nome_original === nome);
-    if (info?.pin || nome === "Admin") { setPerfilAlvoParaBloqueio(nome); setPinDigitado(""); } 
-    else { 
-      setUsuarioAtual(nome); 
-      sessionStorage.setItem('hunter_ativo', nome); 
-      window.dispatchEvent(new CustomEvent("hunter_cosmeticos_update", { detail: { nome } }));
-    }
-  }
-
-  // ==========================================
   // 🖥️ [SESSÃO 11] - RENDERIZAÇÃO
   // ==========================================
-  if (!mestreAutorizado) return <AcessoMestre aoAutorizar={() => setMestreAutorizado(true)} />;
+  if (carregando) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-transparent px-6 text-zinc-500">
+        <div className="rounded-[2rem] border border-white/10 bg-zinc-950/50 px-12 py-10 text-center backdrop-blur-xl">
+          <p className="text-[10px] font-black uppercase tracking-[0.35em]">
+            Carregando estante
+          </p>
+        </div>
+      </div>
+    );
+  }
 
-  if (!usuarioAtual) return (
-  <ProfileSelection 
-    perfis={perfis} 
-    lojaItens={lojaItens} 
-    temas={TEMAS} 
-    tentarMudarPerfil={tentarMudarPerfil} 
-    perfilAlvoParaBloqueio={perfilAlvoParaBloqueio} 
-    setPerfilAlvoParaBloqueio={setPerfilAlvoParaBloqueio} 
-    pinDigitado={pinDigitado} 
-    setPinDigitado={setPinDigitado} 
-    confirmarPin={confirmarPin} 
-    setPinAdminAberto={setPinAdminAberto} 
-    pinAdminAberto={pinAdminAberto} 
-  />
-);
+  if (isAccountAdmin) {
+    return (
+      <>
+        <AdminPanel
+          perfis={perfis}
+          config={config}
+          atualizarConfig={atualizarConfig}
+          deletarPerfil={deletarPerfil}
+          solicitarSenhaMestre={obterSenhaMestreInterativa}
+        />
+        {modalSenhaMestra}
+      </>
+    );
+  }
 
-  if (isAdmin) return (
-    <>
-      <AdminPanel
-        perfis={perfis}
-        config={config}
-        setUsuarioAtual={setUsuarioAtual}
-        atualizarConfig={atualizarConfig}
-        deletarPerfil={deletarPerfil}
-        solicitarSenhaMestre={obterSenhaMestreInterativa}
-      />
-      {modalSenhaMestra}
-    </>
-  );
+  if (!usuarioAtual) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-transparent px-6">
+        <div className="max-w-md rounded-[2rem] border border-white/10 bg-zinc-950/45 p-10 text-center shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl">
+          <p className="text-sm font-bold text-zinc-200">
+            Nenhum perfil Hunter está vinculado à sua conta.
+          </p>
+          <p className="mt-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+            Crie ou associe um perfil na área de configuração.
+          </p>
+          <Link
+            href="/perfil"
+            className="mt-8 inline-block rounded-2xl border border-cyan-500/35 bg-cyan-500/10 px-8 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-cyan-200 transition hover:border-cyan-400/50 hover:bg-cyan-500/15"
+          >
+            Ir para perfil
+          </Link>
+          <button
+            type="button"
+            onClick={async () => {
+              await supabase.auth.signOut();
+              localStorage.clear();
+              router.push("/login");
+              router.refresh();
+            }}
+            className="mt-4 flex w-full items-center justify-center gap-2 text-sm text-white/50 transition-colors hover:text-white"
+          >
+            <LogOut className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
+            Encerrar Sessão
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const perfilAtivo = perfis.find(p => p.nome_original === usuarioAtual) || { nome_exibicao: usuarioAtual, avatar: "👤", cor_tema: "verde", custom_color: "#22c55e", cosmeticos: { ativos: {} } };
   const aura = perfilAtivo.cor_tema?.startsWith('#') ? TEMAS.custom : (TEMAS[perfilAtivo.cor_tema as keyof typeof TEMAS] || TEMAS.verde);
@@ -635,7 +615,7 @@ export default function Home() {
 
   return (
     <main
-      className="relative flex min-h-screen gap-2 overflow-x-hidden bg-transparent p-3 text-white sm:gap-3 sm:p-4 md:gap-4 md:p-6"
+      className="relative flex min-h-screen gap-2 overflow-x-visible bg-transparent p-3 text-white sm:gap-3 sm:p-4 md:gap-4 md:p-6"
       style={perfilAtivo.cor_tema?.startsWith("#") ? ({ "--aura": perfilAtivo.cor_tema } as Record<string, string>) : undefined}
     >
       <ANBSidebar
@@ -655,7 +635,7 @@ export default function Home() {
         onSyncAnilist={puxarProgressoDoAniList}
       />
 
-      <div className="relative z-20 flex min-h-0 min-w-0 flex-1 flex-col gap-6">
+      <div className="relative z-20 flex min-h-0 min-w-0 flex-1 flex-col gap-6 overflow-x-hidden">
         <header className="shrink-0 border-b border-zinc-800/40 pb-4">
           <h1 className="text-2xl font-black italic tracking-tighter md:text-4xl">
             Hunter<span className={aura.text}>.</span>Tracker
@@ -701,7 +681,7 @@ export default function Home() {
           manga={mangaDetalhe}
           tabelaObra={tabelaObraAtual}
           abaPrincipal={abaPrincipal}
-          podeEditarPrivilegiado={mestreAutorizado || isAdmin}
+          podeEditarPrivilegiado
           solicitarSenhaMestre={obterSenhaMestreInterativa}
           aoFechar={() => setMangaDetalhe(null)}
           aoAtualizarCapitulo={atualizarCapitulo}

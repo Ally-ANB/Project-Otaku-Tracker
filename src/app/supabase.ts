@@ -1,6 +1,31 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient as createBrowserSupabase } from "@/utils/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+let browserClient: SupabaseClient | null = null;
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+function getBrowserClient(): SupabaseClient {
+  if (typeof window === "undefined") {
+    throw new Error(
+      "O cliente `supabase` do app só roda no browser. Em Server Components use createClient de @/utils/supabase/server."
+    );
+  }
+  if (!browserClient) {
+    browserClient = createBrowserSupabase();
+  }
+  return browserClient;
+}
+
+/**
+ * Cliente Supabase alinhado aos cookies da sessão (@supabase/ssr).
+ * Acesso lazy para não executar createBrowserClient durante SSR/prerender.
+ */
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_target, prop, receiver) {
+    const client = getBrowserClient();
+    const value = Reflect.get(client, prop, receiver) as unknown;
+    if (typeof value === "function") {
+      return value.bind(client);
+    }
+    return value;
+  },
+});

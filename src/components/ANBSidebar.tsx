@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { createClient } from "@/utils/supabase/client";
 import {
   BookOpen,
   CalendarDays,
@@ -9,7 +11,6 @@ import {
   Gamepad2,
   Home,
   Library,
-  LogOut,
   MonitorPlay,
   Moon,
   Music,
@@ -19,7 +20,6 @@ import {
   Shield,
   Tv,
   User,
-  UserCog,
 } from "lucide-react";
 import type { AbaPrincipal } from "@/types/hunter_registry";
 import { OMNISEARCH_OPEN_EVENT } from "@/components/features/OmniSearch";
@@ -40,10 +40,16 @@ export type ANBSidebarProps = {
   anilistDisponivel: boolean;
   sincronizando: boolean;
   onSyncAnilist: () => void;
+  /** Reservado: atalho ao painel admin (conta de sistema usa e-mail em env, não a estante). */
+  mostrarAtalhoPainelAdmin?: boolean;
+  onAbrirPainelAdmin?: () => void;
 };
 
 const BTN_BASE =
   "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-zinc-400 transition-all duration-200 hover:text-cyan-100";
+
+const MENU_ITEM_CLASS =
+  "w-full py-3 text-left whitespace-nowrap text-zinc-300 transition-colors hover:text-white";
 
 export default function ANBSidebar({
   navMode,
@@ -57,24 +63,23 @@ export default function ANBSidebar({
   anilistDisponivel,
   sincronizando,
   onSyncAnilist,
+  mostrarAtalhoPainelAdmin = false,
+  onAbrirPainelAdmin,
 }: ANBSidebarProps) {
+  const router = useRouter();
   const [menuAberto, setMenuAberto] = useState(false);
-  const menuWrapRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!menuAberto) return;
-    const fechar = (e: MouseEvent) => {
-      if (menuWrapRef.current && !menuWrapRef.current.contains(e.target as Node)) {
-        setMenuAberto(false);
-      }
-    };
-    document.addEventListener("mousedown", fechar);
-    return () => document.removeEventListener("mousedown", fechar);
-  }, [menuAberto]);
-
-  const encerrarSessao = () => {
-    sessionStorage.removeItem("hunter_ativo");
-    window.location.href = "/";
+  const encerrarSessao = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    try {
+      sessionStorage.clear();
+      localStorage.clear();
+    } catch {
+      /* ignore */
+    }
+    router.push("/login");
+    router.refresh();
   };
 
   const shelfActive = navMode === "ESTANTE";
@@ -101,6 +106,7 @@ export default function ANBSidebar({
   };
 
   return (
+    <>
     <aside
       className="sticky top-3 flex w-[3.25rem] shrink-0 flex-col items-center gap-3 self-start rounded-2xl border border-cyan-500/20 bg-[#08080a]/75 py-2 shadow-[0_0_24px_rgba(34,211,238,0.08)] backdrop-blur-xl"
       aria-label="Navegação principal"
@@ -214,7 +220,7 @@ export default function ANBSidebar({
         >
           <User className="h-[18px] w-[18px]" strokeWidth={2.25} aria-hidden />
         </Link>
-        <div className="relative flex flex-col items-center" ref={menuWrapRef}>
+        <div className="flex flex-col items-center">
           <button
             type="button"
             title="Menu de configurações"
@@ -228,36 +234,56 @@ export default function ANBSidebar({
           >
             <Settings className="h-[18px] w-[18px]" strokeWidth={2.25} aria-hidden />
           </button>
-          {menuAberto ? (
-            <div
-              role="menu"
-              className="absolute bottom-full left-1/2 z-50 mb-2 w-max min-w-[11.5rem] -translate-x-1/2 rounded-xl border border-cyan-500/25 bg-[#060607]/95 py-1 shadow-[0_0_20px_rgba(34,211,238,0.12)] backdrop-blur-xl"
-            >
-              <Link
-                href="/perfil?aba=config"
-                role="menuitem"
-                className="flex items-center gap-2 px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-zinc-300 transition-colors hover:bg-cyan-500/10 hover:text-cyan-100"
-                onClick={() => setMenuAberto(false)}
-              >
-                <UserCog className="h-3.5 w-3.5 shrink-0 text-cyan-400/90" aria-hidden />
-                Configurações de Perfil
-              </Link>
-              <button
-                type="button"
-                role="menuitem"
-                className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-zinc-300 transition-colors hover:bg-red-500/10 hover:text-red-300"
-                onClick={() => {
-                  setMenuAberto(false);
-                  encerrarSessao();
-                }}
-              >
-                <LogOut className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden />
-                Encerrar Sessão
-              </button>
-            </div>
-          ) : null}
         </div>
       </div>
     </aside>
+
+    {menuAberto ? (
+      <div
+        className="fixed inset-0 z-[9998]"
+        aria-hidden
+        onClick={() => setMenuAberto(false)}
+      >
+        <div
+          role="menu"
+          className="fixed bottom-24 left-1/2 z-[9999] flex w-max min-w-[240px] -translate-x-1/2 flex-col rounded-xl border border-white/10 bg-black/60 px-6 py-2 shadow-2xl backdrop-blur-xl md:bottom-20 md:left-20 md:translate-x-0"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Link
+            href="/perfil?aba=config"
+            role="menuitem"
+            className={MENU_ITEM_CLASS}
+            onClick={() => setMenuAberto(false)}
+          >
+            Configurações Dinâmicas
+          </Link>
+          {mostrarAtalhoPainelAdmin && onAbrirPainelAdmin ? (
+            <button
+              type="button"
+              role="menuitem"
+              className={MENU_ITEM_CLASS}
+              onClick={() => {
+                setMenuAberto(false);
+                onAbrirPainelAdmin();
+              }}
+            >
+              Painel Admin
+            </button>
+          ) : null}
+          <button
+            type="button"
+            role="menuitem"
+            className={MENU_ITEM_CLASS}
+            onClick={() => {
+              setMenuAberto(false);
+              void encerrarSessao();
+            }}
+          >
+            Encerrar Sessão
+          </button>
+        </div>
+      </div>
+    ) : null}
+    </>
   );
 }

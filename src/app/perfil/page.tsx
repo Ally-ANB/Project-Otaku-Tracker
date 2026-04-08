@@ -3,7 +3,8 @@
 import { supabase } from "../supabase";
 import { useEffect, useMemo, useState, Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { createClient } from "@/utils/supabase/client";
 import { useSenhaMestraInterativa } from "@/hooks/useSenhaMestraInterativa";
 import { requisicaoDbApi } from "@/lib/dbClient";
 import { preverRecompensaRank } from "../guilda/guildaRankEconomia";
@@ -23,6 +24,61 @@ import {
 } from "../guilda/rankUtils";
 import HunterCard from "@/components/ui/HunterCard";
 import EfeitosVisuais from "@/components/ui/EfeitosVisuais";
+import type { LucideIcon } from "lucide-react";
+import {
+  AlertTriangle,
+  Award,
+  Bird,
+  BookOpen,
+  Check,
+  CheckCircle2,
+  ChevronLeft,
+  CloudRain,
+  Coffee,
+  Coins,
+  Compass,
+  Crown,
+  Database,
+  Download,
+  Eye,
+  Film,
+  Flame,
+  Footprints,
+  Frame,
+  Gem,
+  Globe,
+  Hand,
+  Heart,
+  Hourglass,
+  Library,
+  Link2,
+  Loader2,
+  Maximize2,
+  Medal,
+  MessageCircle,
+  Minimize2,
+  Moon,
+  Mountain,
+  Package,
+  Palette,
+  PenLine,
+  PersonStanding,
+  Save,
+  Shield,
+  Sparkles,
+  Sprout,
+  Star,
+  Sun,
+  Swords,
+  Target,
+  Trophy,
+  Upload,
+  User,
+  Waves,
+  X,
+  XCircle,
+  Zap,
+} from "lucide-react";
 
 const TEMAS = {
   verde: { bg: "bg-green-500", text: "text-green-500", border: "border-green-500", glow: "shadow-green-500/20", btn: "bg-green-500/10 border-green-500/50 hover:bg-green-500 hover:text-black" },
@@ -40,11 +96,53 @@ export const MOLDURAS_DISCORD: any = {
 };
 
 const LOJA_ITENS_FALLBACK = [
-  { id: "particula_fogo_vfx", nome: "Chamas Infernais", tipo: "particula", preco: 1200, icone: "♨️", desc_texto: "Fogo real gravado em alta definição (VFX)." },
-  { id: "particula_dispersao_dark", nome: "Desintegração S+", tipo: "particula", preco: 1500, icone: "🫠", desc_texto: "Partículas reais se dissipando (VFX)." },
-  { id: "particula_chuva_janela", nome: "Caçador Melancólico", tipo: "particula", preco: 1000, icone: "🌧️", desc_texto: "Chuva real escorrendo pelo vidro (VFX)." },
-  { id: "particula_fogo_cinematic", nome: "Fogueira Hunter", tipo: "particula", preco: 1800, icone: "🔥", desc_texto: "Fogueira real cinematográfica (VFX)." }
+  { id: "particula_fogo_vfx", nome: "Chamas Infernais", tipo: "particula", preco: 1200, desc_texto: "Fogo real gravado em alta definição (VFX)." },
+  { id: "particula_dispersao_dark", nome: "Desintegração S+", tipo: "particula", preco: 1500, desc_texto: "Partículas reais se dissipando (VFX)." },
+  { id: "particula_chuva_janela", nome: "Caçador Melancólico", tipo: "particula", preco: 1000, desc_texto: "Chuva real escorrendo pelo vidro (VFX)." },
+  { id: "particula_fogo_cinematic", nome: "Fogueira Hunter", tipo: "particula", preco: 1800, desc_texto: "Fogueira real cinematográfica (VFX)." },
 ];
+
+const TROPHY_ICONS: LucideIcon[] = [
+  Sprout,
+  BookOpen,
+  Flame,
+  Footprints,
+  Hourglass,
+  Gem,
+  Bird,
+  Compass,
+  Trophy,
+  Swords,
+  Coffee,
+  Library,
+  Package,
+  Star,
+  PenLine,
+  Zap,
+  Heart,
+  PersonStanding,
+  Database,
+  Crown,
+  Target,
+  Globe,
+  Palette,
+  Medal,
+  Mountain,
+  Sparkles,
+  Moon,
+  Sun,
+  CloudRain,
+  Waves,
+  Eye,
+];
+
+function IconeItemLoja({ item }: { item: { tipo?: string } }) {
+  const t = String(item.tipo || "").toLowerCase();
+  if (t === "moldura") return <Frame className="h-8 w-8 text-zinc-400" aria-hidden />;
+  if (t === "titulo") return <Award className="h-8 w-8 text-zinc-400" aria-hidden />;
+  if (t === "particula" || t === "vfx") return <Sparkles className="h-8 w-8 text-zinc-400" aria-hidden />;
+  return <Package className="h-8 w-8 text-zinc-400" aria-hidden />;
+}
 
 const CARD_CONFIG_PADRAO = {
   banner_url: "",
@@ -209,6 +307,7 @@ function MiniCardPerfilLojaPreview({
 }
 
 function PerfilContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [usuarioAtivo, setUsuarioAtivo] = useState<string | null>(null);
   const [abaAtiva, setAbaAtiva] = useState("STATUS");
@@ -235,7 +334,17 @@ function PerfilContent() {
     chat_cor: "",
     chat_balao: "",
   });
-  const [dadosPerfil, setDadosPerfil] = useState({ nome: "", avatar: "", bio: "", tema: "azul", custom_color: "#3b82f6", pin: "", anilist_token: "" });
+  const [dadosPerfil, setDadosPerfil] = useState({
+    nome: "",
+    avatar: "",
+    bio: "",
+    tema: "azul",
+    custom_color: "#3b82f6",
+    anilist_token: "",
+  });
+  const [novaSenha, setNovaSenha] = useState("");
+  const [senhaFeedback, setSenhaFeedback] = useState<{ tipo: "sucesso" | "erro"; mensagem: string } | null>(null);
+  const [atualizandoSenha, setAtualizandoSenha] = useState(false);
   const [obrasUsuario, setObrasUsuario] = useState<any[]>([]);
   const [stats, setStats] = useState({ obras: 0, caps: 0, finais: 0, horasVida: 0, favs: 0, filmes: 0, livros: 0 });
   const [guildaRanks, setGuildaRanks] = useState<GuildaRank[]>([]);
@@ -267,6 +376,19 @@ function PerfilContent() {
     const id = Date.now() + Math.random();
     setToastsPerfil((prev) => [...prev, { id, mensagem, tipo }]);
     setTimeout(() => setToastsPerfil((prev) => prev.filter((t) => t.id !== id)), 4000);
+  }
+
+  async function encerrarSessaoAuth() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    try {
+      sessionStorage.clear();
+      localStorage.clear();
+    } catch {
+      /* ignore */
+    }
+    router.push("/login");
+    router.refresh();
   }
 
   useEffect(() => {
@@ -392,14 +514,13 @@ function PerfilContent() {
     }
 
     if (p) {
-      setDadosPerfil({ 
-        nome: p.nome_exibicao || usuarioAtivo!, 
-        avatar: p.avatar || "👤", 
-        bio: p.bio || "", 
-        tema: p.cor_tema || "azul", 
-        custom_color: p.custom_color || "#3b82f6", 
-        pin: p.pin || "", 
-        anilist_token: p.anilist_token || "" 
+      setDadosPerfil({
+        nome: p.nome_exibicao || usuarioAtivo!,
+        avatar: p.avatar || "",
+        bio: p.bio || "",
+        tema: p.cor_tema || "azul",
+        custom_color: p.custom_color || "#3b82f6",
+        anilist_token: p.anilist_token || "",
       });
       setEsmolas(p.esmolas || 0);
       setXpMissoes(p.xp_missoes || 0);
@@ -456,9 +577,9 @@ function PerfilContent() {
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
       setDadosPerfil({ ...dadosPerfil, avatar: data.publicUrl });
-      alert("✅ Imagem carregada! Não esqueça de clicar em 'Sincronizar Hunter' para salvar.");
+      mostrarToastPerfil("Imagem carregada. Salve as alterações para persistir.", "sucesso");
     } catch (error: any) {
-      alert("❌ Erro no upload: " + error.message);
+      mostrarToastPerfil("Erro no upload: " + error.message, "erro");
     } finally {
       setFazendoUpload(false);
     }
@@ -525,7 +646,10 @@ function PerfilContent() {
   }
 
   async function comprarCosmetico(item: any) {
-    if (esmolas < item.preco) return alert("❌ Esmolas insuficientes!");
+    if (esmolas < item.preco) {
+      mostrarToastPerfil("Esmolas insuficientes.", "erro");
+      return;
+    }
     if (confirm(`Comprar ${item.nome}?`)) {
       const nSaldo = esmolas - item.preco; 
       const nInv = [...inventario, item.id];
@@ -553,12 +677,12 @@ function PerfilContent() {
     });
     setEquipados(nEquip);
 
-    // ✅ DISPARA SINAL GLOBAL PARA O LAYOUT ATUALIZAR O FUNDO
+    // Dispara sinal global para o layout atualizar o fundo
     window.dispatchEvent(new Event("hunter_cosmeticos_update"));
   }
 
   async function atualizarPerfil() {
-    await requisicaoDb({
+    const res = await requisicaoDb({
       tabela: "perfis",
       nome_original: usuarioAtivo,
       dados: {
@@ -566,10 +690,41 @@ function PerfilContent() {
         avatar: dadosPerfil.avatar,
         cor_tema: dadosPerfil.tema,
         custom_color: dadosPerfil.custom_color,
-        pin: dadosPerfil.pin
-      }
+      },
     });
-    alert("✨ Hunter Sincronizado!");
+    if (!res.ok) {
+      mostrarToastPerfil(res.data?.error || "Falha ao salvar o perfil.", "erro");
+      return;
+    }
+    mostrarToastPerfil("Alterações salvas!", "sucesso");
+  }
+
+  async function atualizarSenhaSupabase() {
+    setSenhaFeedback(null);
+    const s = novaSenha.trim();
+    if (!s) {
+      setSenhaFeedback({ tipo: "erro", mensagem: "Digite uma nova senha." });
+      return;
+    }
+    setAtualizandoSenha(true);
+    try {
+      const client = createClient();
+      const { error } = await client.auth.updateUser({ password: s });
+      if (error) {
+        setSenhaFeedback({ tipo: "erro", mensagem: error.message });
+        mostrarToastPerfil(error.message, "erro");
+        return;
+      }
+      setSenhaFeedback({ tipo: "sucesso", mensagem: "Senha atualizada!" });
+      setNovaSenha("");
+      mostrarToastPerfil("Senha atualizada!", "sucesso");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Erro ao atualizar senha.";
+      setSenhaFeedback({ tipo: "erro", mensagem: msg });
+      mostrarToastPerfil(msg, "erro");
+    } finally {
+      setAtualizandoSenha(false);
+    }
   }
 
   function exportarBiblioteca() {
@@ -593,10 +748,8 @@ function PerfilContent() {
     reader.readAsText(file);
   }
 
-  const iconesTrofeus = [ "🌱","📖","🔥","🏃","⏳","💎","🦉","🧭","🏆","⚔️","☕","📚","📦","🌟","🖋️","⚡","❤️","🧘","💾","👑","🐦","🎯","🌐","🎨","🎖️","🏮","⛩️","🐉","🌋","🌌","🔮","🧿","🧸","🃏","🎭","🩰","🧶","🧵","🧹","🧺","🧷","🧼","🧽","🧴","🗝️","⚙️","🧪","🛰️","🔭","🔱","🎬","🍿","🎟️","📽","🎞️","📼","🎫","📺","🎥","🧛","🦸","🧙","🧟","👽","🕵️","🥷","🧑‍🚀","REX","🦈","🛸","📜","✒️","🕯️","🪶","📚","🔖","📓","📙","📗","📘","📔","📃","📰","🗺️","🏛️" ];
-  
   const listaTrofeus = Array.from({ length: 85 }, (_, i) => {
-    const id = i + 1; 
+    const id = i + 1;
     let check = false;
     if (id <= 50) {
       if (id === 1) check = stats.obras >= 1;
@@ -604,22 +757,27 @@ function PerfilContent() {
       else if (id === 3) check = stats.caps >= 100;
       else if (id === 4) check = stats.horasVida >= 10;
       else if (id === 5) check = stats.favs >= 5;
-      else check = stats.obras >= (id * 3);
+      else check = stats.obras >= id * 3;
     } else if (id <= 70) {
-      check = stats.filmes >= ((id - 50) * 5);
+      check = stats.filmes >= (id - 50) * 5;
     } else {
-      check = stats.livros >= ((id - 70) * 5);
+      check = stats.livros >= (id - 70) * 5;
     }
-    return { id, nome: `Hunter ${id}`, icone: iconesTrofeus[i], check };
+    return { id, nome: `Hunter ${id}`, iconIndex: i, check };
   });
 
-  const listaMissoes = [
-    { titulo: "Check-in Diário", desc: "Aceda à guilda hoje", recompensa: 10, icone: "👋" },
-    { titulo: "Leitor Assíduo", desc: "Leia/Atualize 1 manga ou livro hoje", recompensa: 20, icone: "📚" },
-    { titulo: "Sétima Arte", desc: "Assista/Atualize 1 anime ou filme hoje", recompensa: 20, icone: "🎬" },
-    { titulo: "Caçador Ativo", desc: "Interaja com 3 obras diferentes hoje", recompensa: 25, icone: "🎯" },
-    { titulo: "Curador", desc: "Mantenha pelo menos 5 obras favoritas", recompensa: 15, icone: "✨" },
-    { titulo: "Socializador", desc: "Interaja e envie mensagens no chat da Guilda hoje", recompensa: 15, icone: "🌍" },
+  const listaMissoes: {
+    titulo: string;
+    desc: string;
+    recompensa: number;
+    Icon: LucideIcon;
+  }[] = [
+    { titulo: "Check-in Diário", desc: "Aceda à guilda hoje", recompensa: 10, Icon: Hand },
+    { titulo: "Leitor Assíduo", desc: "Leia/Atualize 1 manga ou livro hoje", recompensa: 20, Icon: BookOpen },
+    { titulo: "Sétima Arte", desc: "Assista/Atualize 1 anime ou filme hoje", recompensa: 20, Icon: Film },
+    { titulo: "Caçador Ativo", desc: "Interaja com 3 obras diferentes hoje", recompensa: 25, Icon: Target },
+    { titulo: "Curador", desc: "Mantenha pelo menos 5 obras favoritas", recompensa: 15, Icon: Sparkles },
+    { titulo: "Socializador", desc: "Interaja e envie mensagens no chat da Guilda hoje", recompensa: 15, Icon: MessageCircle },
   ];
 
   const aura = dadosPerfil.tema === "custom" ? TEMAS.custom : (TEMAS[dadosPerfil.tema as keyof typeof TEMAS] || TEMAS.azul);
@@ -632,14 +790,33 @@ function PerfilContent() {
     <main className="min-h-screen bg-transparent flex flex-col items-center justify-center p-6 relative overflow-hidden" style={{ "--aura": dadosPerfil.custom_color } as any}>
       
       <div className="fixed top-0 left-0 w-full p-10 flex justify-between items-center z-[110] pointer-events-none">
-        <Link href="/" className="pointer-events-auto bg-black/50 px-6 py-3 rounded-2xl border border-white/5 text-[10px] font-black uppercase text-zinc-500 hover:text-white transition-all">← Voltar</Link>
-        <button onClick={() => setTelaCheia(!telaCheia)} className="pointer-events-auto text-[10px] font-black uppercase bg-zinc-900/90 px-4 py-2 rounded-xl border border-zinc-800 text-zinc-400 hover:text-white transition-all">{telaCheia ? "⊙ Central" : "⛶ Tela Cheia"}</button>
+        <Link href="/" className="pointer-events-auto flex items-center gap-2 bg-black/50 px-6 py-3 rounded-2xl border border-white/5 text-[10px] font-black uppercase text-zinc-500 hover:text-white transition-all">
+          <ChevronLeft className="h-4 w-4 shrink-0" aria-hidden />
+          Voltar
+        </Link>
+        <button
+          type="button"
+          onClick={() => setTelaCheia(!telaCheia)}
+          className="pointer-events-auto flex items-center gap-2 text-[10px] font-black uppercase bg-zinc-900/90 px-4 py-2 rounded-xl border border-zinc-800 text-zinc-400 hover:text-white transition-all"
+        >
+          {telaCheia ? (
+            <>
+              <Minimize2 className="h-4 w-4 shrink-0" aria-hidden />
+              Central
+            </>
+          ) : (
+            <>
+              <Maximize2 className="h-4 w-4 shrink-0" aria-hidden />
+              Tela Cheia
+            </>
+          )}
+        </button>
       </div>
 
       <div className={`bg-[#0e0e11]/95 backdrop-blur-2xl rounded-[3.5rem] p-12 mt-10 border border-white/5 relative flex flex-col items-center shadow-2xl transition-all duration-700 z-10 ${telaCheia ? 'w-full max-w-6xl' : 'w-full max-w-[550px]'}`}>
         
-        <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-black/90 px-6 py-2 rounded-2xl border border-yellow-500/30 flex items-center gap-3 shadow-xl z-50">
-          <span className="text-xl">🪙</span>
+        <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-black/90 px-6 py-2 rounded-2xl border border-yellow-500/30 flex items-center gap-2 shadow-xl z-50">
+          <Coins className="h-5 w-5 text-amber-400 shrink-0" aria-hidden />
           <span className="text-white font-black">{esmolas}</span>
         </div>
 
@@ -651,7 +828,13 @@ function PerfilContent() {
             ${!MOLDURAS_DISCORD[equipados.moldura] && !imagemMolduraUrl ? 'border-2 ' + aura.border + (contornoRankPerfil ? ' ' + contornoRankPerfil : '') : ''} 
             ${MOLDURAS_DISCORD[equipados.moldura] || (!imagemMolduraUrl ? equipados.moldura : '')}
           `}>
-            {dadosPerfil.avatar?.startsWith('http') ? <img src={dadosPerfil.avatar} className="w-full h-full object-cover rounded-[2.5rem]" /> : <span className="text-5xl">{dadosPerfil.avatar}</span>}
+            {dadosPerfil.avatar?.startsWith("http") ? (
+              <img src={dadosPerfil.avatar} className="w-full h-full object-cover rounded-[2.5rem]" alt="" />
+            ) : dadosPerfil.avatar ? (
+              <span className="text-5xl">{dadosPerfil.avatar}</span>
+            ) : (
+              <User className="h-14 w-14 text-zinc-500" aria-hidden />
+            )}
           </div>
         </div>
 
@@ -722,8 +905,21 @@ function PerfilContent() {
                     : `${stats.horasVida} HORAS`}
                 </span>
                 <p className="text-[7px] font-black text-zinc-500 uppercase tracking-widest italic mt-1">Tempo de Vida Consumido</p>
-                <a href={`/api/auth/anilist?hunter=${usuarioAtivo}`} className="mt-6 w-full py-3 bg-blue-600/10 border border-blue-500/30 text-blue-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all text-center z-10">
-                  {dadosPerfil.anilist_token ? "✅ AniList Conectado (Sincronizar)" : "🔗 Conectar com AniList"}
+                <a
+                  href={`/api/auth/anilist?hunter=${usuarioAtivo}`}
+                  className="mt-6 w-full py-3 bg-blue-600/10 border border-blue-500/30 text-blue-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all text-center z-10 flex items-center justify-center gap-2"
+                >
+                  {dadosPerfil.anilist_token ? (
+                    <>
+                      <Check className="h-4 w-4 shrink-0" aria-hidden />
+                      AniList conectado (sincronizar)
+                    </>
+                  ) : (
+                    <>
+                      <Link2 className="h-4 w-4 shrink-0" aria-hidden />
+                      Conectar com AniList
+                    </>
+                  )}
                 </a>
               </div>
             </div>
@@ -731,35 +927,68 @@ function PerfilContent() {
 
           {abaAtiva === "MISSÕES" && (
             <div className="space-y-4 pb-10">
-              {listaMissoes.map((m, i) => (
-                <div key={i} className={`p-5 rounded-3xl border flex items-center justify-between transition-all ${missoesProgresso[i] ? 'bg-black/40 border-green-500/20' : condicoesMissoes[i] ? 'bg-zinc-900 border-yellow-500/40' : 'bg-zinc-900/50 border-zinc-800'}`}>
-                  <div className="flex items-center gap-4">
-                    <span className="text-3xl">{m.icone}</span>
-                    <div>
-                      <p className={`font-bold uppercase text-[10px] ${missoesProgresso[i] ? 'text-green-500' : 'text-white'}`}>{m.titulo}</p>
-                      <p className="text-[8px] text-zinc-500 uppercase">+{m.recompensa} Esmolas</p>
+              {listaMissoes.map((m, i) => {
+                const IconeMissao = m.Icon;
+                return (
+                  <div
+                    key={i}
+                    className={`p-5 rounded-3xl border flex items-center justify-between transition-all ${
+                      missoesProgresso[i]
+                        ? "bg-black/40 border-green-500/20"
+                        : condicoesMissoes[i]
+                          ? "bg-zinc-900 border-yellow-500/40"
+                          : "bg-zinc-900/50 border-zinc-800"
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-black/30">
+                        <IconeMissao className="h-6 w-6 text-zinc-300" aria-hidden />
+                      </span>
+                      <div>
+                        <p className={`font-bold uppercase text-[10px] ${missoesProgresso[i] ? "text-green-500" : "text-white"}`}>{m.titulo}</p>
+                        <p className="text-[8px] text-zinc-500 uppercase">+{m.recompensa} Esmolas</p>
+                      </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => completarMissao(i, m.recompensa)}
+                      disabled={missoesProgresso[i] || !condicoesMissoes[i]}
+                      className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-[9px] font-black border border-white/10 disabled:opacity-40"
+                    >
+                      {missoesProgresso[i] ? (
+                        "Feito"
+                      ) : (
+                        <>
+                          <Coins className="h-4 w-4 shrink-0 text-amber-400" aria-hidden />
+                          Receber
+                        </>
+                      )}
+                    </button>
                   </div>
-                  <button onClick={() => completarMissao(i, m.recompensa)} disabled={missoesProgresso[i] || !condicoesMissoes[i]} className="px-4 py-2 rounded-xl text-[9px] font-black border border-white/10">
-                    {missoesProgresso[i] ? "Feito" : "💰"}
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
           {abaAtiva === "TROFÉUS" && (
             <div className="grid grid-cols-5 gap-y-10 pb-10">
-              {listaTrofeus.map(t => (
+              {listaTrofeus.map((t) => {
+                const IconeTrofeu = TROPHY_ICONS[t.iconIndex % TROPHY_ICONS.length];
+                return (
                 <div key={t.id} className="flex flex-col items-center group relative">
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl border-2 transition-all ${t.check ? aura.border + " bg-black/40" : "border-zinc-800 opacity-10 grayscale"}`}>
-                    {t.icone}
+                  <div
+                    className={`w-14 h-14 rounded-2xl flex items-center justify-center border-2 transition-all ${
+                      t.check ? aura.border + " bg-black/40 text-white" : "border-zinc-800 opacity-10 grayscale text-zinc-500"
+                    }`}
+                  >
+                    <IconeTrofeu className="h-7 w-7" aria-hidden />
                   </div>
                   <div className="absolute -top-12 bg-black border border-white/10 px-3 py-2 rounded-xl text-[8px] font-bold text-white opacity-0 group-hover:opacity-100 z-50 whitespace-nowrap">
                     {t.nome}
                   </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
           )}
 
@@ -800,7 +1029,9 @@ function PerfilContent() {
                           <img src={item.imagem_url} alt={item.nome} className="w-full h-full object-contain" />
                         </div>
                       ) : (
-                        <span className="text-3xl bg-zinc-950 p-4 rounded-2xl border border-white/5">{item.icone}</span>
+                        <span className="flex h-[72px] w-[72px] items-center justify-center bg-zinc-950 p-4 rounded-2xl border border-white/5">
+                          <IconeItemLoja item={item} />
+                        </span>
                       )}
                       <div>
                         <p className={`font-black uppercase text-[10px] ${item.tipo === 'titulo' && item.imagem_url ? item.imagem_url : 'text-white'}`}>{item.nome}</p>
@@ -811,17 +1042,22 @@ function PerfilContent() {
                       <button
                         type="button"
                         onClick={() => setPreviewItem(item)}
-                        className="flex-1 py-3 rounded-xl bg-cyan-500/10 border border-cyan-400/35 text-cyan-200 font-black text-[8px] uppercase tracking-tight hover:bg-cyan-500/20"
+                        className="flex flex-1 items-center justify-center gap-2 py-3 rounded-xl bg-cyan-500/10 border border-cyan-400/35 text-cyan-200 font-black text-[8px] uppercase tracking-tight hover:bg-cyan-500/20"
                       >
-                        👁️ Visualizar
+                        <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                        Visualizar
                       </button>
                       {!comprado ? (
                         <button
                           type="button"
                           onClick={() => comprarCosmetico(item)}
-                          className="flex-1 py-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 font-black text-[8px] uppercase"
+                          className="flex flex-1 flex-col items-center justify-center gap-0.5 py-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 font-black text-[8px] uppercase sm:flex-row sm:gap-1.5"
                         >
-                          Comprar ({item.preco} 🪙)
+                          <span>Comprar</span>
+                          <span className="inline-flex items-center gap-1">
+                            {item.preco}
+                            <Coins className="h-3.5 w-3.5 shrink-0 text-amber-400" aria-hidden />
+                          </span>
                         </button>
                       ) : (
                         <button
@@ -846,22 +1082,101 @@ function PerfilContent() {
 
           {abaAtiva === "CONFIG" && (
             <div className="space-y-6 pb-10">
-              <button onClick={atualizarPerfil} className={`w-full py-5 rounded-xl font-black text-[12px] uppercase shadow-xl ${aura.btn}`}>
-                💾 Sincronizar Hunter
+              <button
+                type="button"
+                onClick={() => void atualizarPerfil()}
+                className={`flex w-full items-center justify-center py-5 rounded-xl font-black text-[12px] uppercase shadow-xl ${aura.btn}`}
+              >
+                <Save className="h-4 w-4 mr-2 shrink-0" aria-hidden />
+                Salvar Alterações
               </button>
-              <input type="text" placeholder="Nome Hunter" className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold outline-none" value={dadosPerfil.nome} onChange={e => setDadosPerfil({...dadosPerfil, nome: e.target.value})} />
+              <input
+                type="text"
+                placeholder="Nome Hunter"
+                className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold outline-none"
+                value={dadosPerfil.nome}
+                onChange={(e) => setDadosPerfil({ ...dadosPerfil, nome: e.target.value })}
+              />
               <div className="flex gap-3">
-                <input type="text" placeholder="Avatar URL" className="flex-1 bg-black border border-white/5 p-4 rounded-xl text-white text-xs outline-none" value={dadosPerfil.avatar} onChange={e => setDadosPerfil({...dadosPerfil, avatar: e.target.value})} />
-                <label className={`flex items-center justify-center px-4 rounded-xl font-black uppercase text-[9px] cursor-pointer transition-all border ${fazendoUpload ? 'bg-zinc-800 text-zinc-500 border-zinc-700' : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:text-white'}`}>
-                  {fazendoUpload ? "⏳..." : "⬆️ Upar do PC"}
+                <input
+                  type="text"
+                  placeholder="Avatar URL"
+                  className="flex-1 bg-black border border-white/5 p-4 rounded-xl text-white text-xs outline-none"
+                  value={dadosPerfil.avatar}
+                  onChange={(e) => setDadosPerfil({ ...dadosPerfil, avatar: e.target.value })}
+                />
+                <label
+                  className={`flex cursor-pointer items-center justify-center gap-2 px-4 rounded-xl font-black uppercase text-[9px] transition-all border ${
+                    fazendoUpload
+                      ? "bg-zinc-800 text-zinc-500 border-zinc-700"
+                      : "bg-zinc-900 text-zinc-400 border-zinc-700 hover:text-white"
+                  }`}
+                >
+                  {fazendoUpload ? (
+                    <>
+                      <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+                      Aguarde
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 shrink-0" aria-hidden />
+                      Upar do PC
+                    </>
+                  )}
                   <input type="file" accept="image/*" className="hidden" onChange={fazerUploadAvatar} disabled={fazendoUpload} />
                 </label>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <select className="bg-black border border-white/5 p-4 rounded-xl text-white font-bold uppercase text-[10px]" value={dadosPerfil.tema} onChange={e => setDadosPerfil({...dadosPerfil, tema: e.target.value})}>
-                   <option value="azul">Azul Néon</option><option value="verde">Verde Hacker</option><option value="roxo">Roxo Galático</option><option value="laranja">Laranja Fogo</option><option value="custom">Personalizada</option>
-                </select>
-                <input type="password" placeholder="PIN Hunter (4 dígitos)" maxLength={4} className="bg-black border border-white/5 p-4 rounded-xl text-white font-bold text-center tracking-[0.5em]" value={dadosPerfil.pin} onChange={e => setDadosPerfil({...dadosPerfil, pin: e.target.value})} />
+              <select
+                className="w-full bg-black border border-white/5 p-4 rounded-xl text-white font-bold uppercase text-[10px]"
+                value={dadosPerfil.tema}
+                onChange={(e) => setDadosPerfil({ ...dadosPerfil, tema: e.target.value })}
+              >
+                <option value="azul">Azul Néon</option>
+                <option value="verde">Verde Hacker</option>
+                <option value="roxo">Roxo Galático</option>
+                <option value="laranja">Laranja Fogo</option>
+                <option value="custom">Personalizada</option>
+              </select>
+              <div className="rounded-2xl border border-white/10 bg-black/25 p-5 backdrop-blur-md space-y-4">
+                <h3 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                  <Shield className="h-4 w-4 shrink-0 text-zinc-300" aria-hidden />
+                  Segurança da Conta
+                </h3>
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="Nova Senha"
+                    className="min-w-0 flex-1 bg-black border border-white/5 p-4 rounded-xl text-white font-bold outline-none sm:min-w-[200px]"
+                    value={novaSenha}
+                    onChange={(e) => {
+                      setNovaSenha(e.target.value);
+                      if (senhaFeedback) setSenhaFeedback(null);
+                    }}
+                  />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={atualizandoSenha}
+                      onClick={() => void atualizarSenhaSupabase()}
+                      className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-zinc-900 px-5 py-4 text-[9px] font-black uppercase tracking-widest text-white transition-all hover:border-white/20 hover:bg-zinc-800 disabled:opacity-50"
+                    >
+                      {atualizandoSenha ? (
+                        <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+                      ) : null}
+                      Atualizar Senha
+                    </button>
+                    {senhaFeedback ? (
+                      <span
+                        className={`text-[9px] font-bold uppercase tracking-wide ${
+                          senhaFeedback.tipo === "sucesso" ? "text-green-400" : "text-red-400"
+                        }`}
+                      >
+                        {senhaFeedback.mensagem}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -869,10 +1184,27 @@ function PerfilContent() {
 
         <div className="w-full flex flex-col gap-3 mt-8 relative z-20">
           <div className="grid grid-cols-2 gap-3">
-             <button onClick={exportarBiblioteca} className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase text-zinc-500 hover:text-white transition-all">💾 Exportar</button>
-             <label className="py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase text-zinc-500 flex items-center justify-center cursor-pointer hover:text-white">📥 Importar <input type="file" accept=".json" className="hidden" onChange={importarJSON} /></label>
+             <button
+               type="button"
+               onClick={exportarBiblioteca}
+               className="flex items-center justify-center gap-2 py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase text-zinc-500 hover:text-white transition-all"
+             >
+               <Save className="h-4 w-4 shrink-0" aria-hidden />
+               Exportar
+             </button>
+             <label className="flex cursor-pointer items-center justify-center gap-2 py-4 rounded-xl border border-zinc-800 text-[9px] font-black uppercase text-zinc-500 hover:text-white">
+               <Download className="h-4 w-4 shrink-0" aria-hidden />
+               Importar
+               <input type="file" accept=".json" className="hidden" onChange={importarJSON} />
+             </label>
           </div>
-          <button onClick={() => { sessionStorage.removeItem('hunter_ativo'); window.location.href = '/'; }} className="w-full py-3 text-[8px] font-black text-zinc-700 hover:text-red-500 uppercase tracking-[0.3em] transition-all">Encerrar Sessão</button>
+          <button
+            type="button"
+            onClick={() => void encerrarSessaoAuth()}
+            className="w-full py-3 text-[8px] font-black uppercase tracking-[0.3em] text-zinc-700 transition-all hover:text-red-500"
+          >
+            Encerrar Sessão
+          </button>
         </div>
       </div>
 
@@ -891,7 +1223,7 @@ function PerfilContent() {
               className="absolute top-2 right-2 z-[110] flex h-9 w-9 items-center justify-center rounded-xl border border-white/25 bg-black/70 text-sm font-black text-white shadow-lg hover:bg-red-950/80 hover:border-red-400/50"
               aria-label="Fechar"
             >
-              ✕
+              <X className="h-4 w-4" aria-hidden />
             </button>
             <h2 id="loja-preview-titulo" className="sr-only">
               Prévia do perfil — {String(previewItem.nome ?? "Item")}
@@ -1005,7 +1337,15 @@ function PerfilContent() {
                   : "bg-orange-500/10 border-orange-500/50 text-orange-400"
             }`}
           >
-            <span className="text-2xl">{t.tipo === "sucesso" ? "✅" : t.tipo === "erro" ? "❌" : "⚠️"}</span>
+            <span className="flex shrink-0 items-center justify-center">
+              {t.tipo === "sucesso" ? (
+                <CheckCircle2 className="h-6 w-6" aria-hidden />
+              ) : t.tipo === "erro" ? (
+                <XCircle className="h-6 w-6" aria-hidden />
+              ) : (
+                <AlertTriangle className="h-6 w-6" aria-hidden />
+              )}
+            </span>
             <span className="text-[10px] font-black uppercase tracking-widest mt-1">{t.mensagem}</span>
           </div>
         ))}
