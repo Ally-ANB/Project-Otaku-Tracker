@@ -17,6 +17,7 @@ import ANBSidebar from "@/components/ANBSidebar";
 import type { ObraComTipo } from "@/components/anbUtils";
 import { AlertTriangle, CheckCircle2, Globe, XCircle } from "lucide-react";
 import type { AbaPrincipal, Manga } from "@/types/hunter_registry";
+import { ESTANTE_ATUALIZADA_EVENT } from "@/lib/estanteEvents";
 
 // ==========================================
 // 🎨 [SESSÃO 2] - TEMAS E ESTILOS (AURAS)
@@ -192,12 +193,19 @@ export default function Home() {
   }, [usuarioAtual]);
 
   useEffect(() => {
-    const onMusicUpdated = () => {
+    const onEstanteAtualizada = () => {
+      if (!usuarioAtual || usuarioAtual === "Admin") return;
+      void buscarMangas();
+      void buscarAnimes();
+      void buscarFilmes();
+      void buscarLivros();
+      void buscarSeries();
+      void buscarJogos();
       void buscarMusicas();
     };
-    window.addEventListener("music-updated", onMusicUpdated);
-    return () => window.removeEventListener("music-updated", onMusicUpdated);
-  }, [buscarMusicas]);
+    window.addEventListener(ESTANTE_ATUALIZADA_EVENT, onEstanteAtualizada);
+    return () => window.removeEventListener(ESTANTE_ATUALIZADA_EVENT, onEstanteAtualizada);
+  }, [usuarioAtual, buscarMusicas]);
 
   async function buscarPerfis() {
     const { data } = await supabase.from("perfis").select("*");

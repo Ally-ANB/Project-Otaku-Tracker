@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/app/supabase";
 import { requisicaoDbApi, obterSenhaMestreRevelada } from "@/lib/dbClient";
+import { notificarEstanteAtualizada } from "@/lib/estanteEvents";
 import { useSenhaMestraInterativa } from "@/hooks/useSenhaMestraInterativa";
 import { aplicarEconomiaPosAdicaoEstante } from "@/app/guilda/guildaRankEconomia";
 import {
@@ -1009,7 +1010,7 @@ export default function RadioHunter() {
         return;
       }
 
-      window.dispatchEvent(new Event("music-updated"));
+      notificarEstanteAtualizada();
       setCapturaConfirmadaUi(true);
       window.setTimeout(() => setCapturaConfirmadaUi(false), 1400);
 

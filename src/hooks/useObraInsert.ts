@@ -7,6 +7,7 @@ import {
   obterSenhaMestreRevelada,
   parseJsonRespostaApiDb,
 } from "@/lib/dbClient";
+import { notificarEstanteAtualizada } from "@/lib/estanteEvents";
 import { aplicarEconomiaPosAdicaoEstante } from "@/app/guilda/guildaRankEconomia";
 import type { AbaPrincipal, NovoObraDraft } from "@/types/hunter_registry";
 
@@ -160,6 +161,8 @@ export function useObraInsert({
           typeof firstRow?.id === "number" && Number.isFinite(firstRow.id)
             ? firstRow.id
             : undefined;
+
+        notificarEstanteAtualizada();
 
         void (async () => {
           try {

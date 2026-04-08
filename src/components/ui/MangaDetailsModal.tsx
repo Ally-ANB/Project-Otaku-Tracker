@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  Clapperboard,
+  Languages,
   Layers,
   Lock,
   Maximize2,
@@ -562,9 +564,7 @@ export default function MangaDetailsModal({
                       ) : (
                         <div className="min-w-0 rounded-2xl border border-white/5 border-l-2 border-l-emerald-500 bg-black/40 p-4">
                           <p className="mb-4 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500">
-                            <span className="shrink-0" aria-hidden>
-                              🎬
-                            </span>
+                            <Clapperboard className="h-4 w-4 shrink-0" aria-hidden />
                             {tituloProgressoUnico}
                           </p>
                           {modoEdicao ? (
@@ -693,10 +693,23 @@ export default function MangaDetailsModal({
                           onClick={aoTraduzir}
                           className="mt-4 flex items-center gap-2 rounded-lg border border-blue-500/20 bg-blue-500/5 px-4 py-2 text-[9px] font-black uppercase tracking-widest text-blue-500 transition-all hover:text-white"
                         >
-                          🌐 Traduzir Relatório
+                          <Languages className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                          Traduzir Relatório
                         </button>
                       </div>
                     </div>
+
+                    {!somenteLeitura && (
+                      <div className="mt-8 pt-4 border-t border-white/10 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => aoDeletar(manga.id)}
+                          className="rounded-2xl border border-red-500/20 px-8 py-4 text-[10px] font-black uppercase text-red-500 transition-all hover:bg-red-500 hover:text-white hover:shadow-[0_0_20px_rgba(239,68,68,0.2)]"
+                        >
+                          Eliminar Registro da Estante
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -914,18 +927,6 @@ export default function MangaDetailsModal({
                     />
                   )}
                 </div>
-
-                {!somenteLeitura && (
-                  <div className="flex justify-end pt-4">
-                    <button
-                      type="button"
-                      onClick={() => aoDeletar(manga.id)}
-                      className="rounded-2xl border border-red-500/20 px-8 py-4 text-[10px] font-black uppercase text-red-500 transition-all hover:bg-red-500 hover:text-white hover:shadow-[0_0_20px_rgba(239,68,68,0.2)]"
-                    >
-                      Eliminar Registro da Estante
-                    </button>
-                  </div>
-                )}
               </div>
             )}
           </div>

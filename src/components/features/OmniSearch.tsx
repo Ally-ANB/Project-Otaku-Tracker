@@ -29,6 +29,7 @@ import {
   obterSenhaMestreRevelada,
   parseJsonRespostaApiDb,
 } from "@/lib/dbClient";
+import { notificarEstanteAtualizada } from "@/lib/estanteEvents";
 import {
   RADIO_HUNTER_ADD_QUEUE,
   RADIO_HUNTER_SELECT_PLAYLIST,
@@ -686,9 +687,7 @@ export default function OmniSearch() {
         prev.filter((h) => !(h.tipo_obra === item.tipo_obra && h.id === item.id))
       );
       setEstanteRefreshNonce((n) => n + 1);
-      if (item.tipo_obra === "song") {
-        window.dispatchEvent(new Event("music-updated"));
-      }
+      notificarEstanteAtualizada();
     } finally {
       setExcluindoChave(null);
     }
@@ -889,6 +888,7 @@ export default function OmniSearch() {
         setEstanteRefreshNonce((n) => n + 1);
         setFeedbackInline(`"${novo.titulo}" atualizado.`);
         window.setTimeout(() => setFeedbackInline(null), 3200);
+        notificarEstanteAtualizada();
         fecharInspecao();
       } catch (e) {
         if (prevItem) {
@@ -962,9 +962,6 @@ export default function OmniSearch() {
       setFeedbackInline(`"${novo.titulo}" na estante.`);
       window.setTimeout(() => setFeedbackInline(null), 3200);
       fecharInspecao();
-      if (tipoObra === "song") {
-        window.dispatchEvent(new Event("music-updated"));
-      }
     } catch (e) {
       setEstanteHits((prev) => prev.filter((h) => h.id !== tempId));
       console.error("Erro no Frontend ao processar resposta:", e);
