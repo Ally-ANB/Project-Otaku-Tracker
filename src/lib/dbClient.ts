@@ -4,5 +4,6 @@ export {
   definirSenhaMestreNaSessao,
   limparSenhaMestreNaSessao,
   obterSenhaMestreRevelada,
+  parseJsonRespostaApiDb,
   requisicaoDbApi,
 } from "@/app/lib/dbClient";

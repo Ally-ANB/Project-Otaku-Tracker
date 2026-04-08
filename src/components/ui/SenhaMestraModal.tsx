@@ -28,7 +28,7 @@ export default function SenhaMestraModal({ aberto, aoConfirmar, aoCancelar }: Se
   }
 
   return (
-    <div className="fixed inset-0 z-[600] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 p-6 backdrop-blur-md">
       <div
         className="w-full max-w-md rounded-[2rem] border-2 border-cyan-500/60 bg-[#050508] p-8 shadow-[0_0_40px_rgba(34,211,238,0.25),inset_0_0_60px_rgba(34,211,238,0.04)] animate-in zoom-in fade-in duration-300"
         role="dialog"

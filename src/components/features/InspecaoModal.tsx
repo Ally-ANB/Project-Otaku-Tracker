@@ -70,6 +70,8 @@ export function InspecaoModal({
     setInspecaoSalvandoLocal(true);
     try {
       await Promise.resolve(onSave());
+    } catch (error) {
+      console.error("Erro no Frontend ao processar resposta:", error);
     } finally {
       setInspecaoSalvandoLocal(false);
     }
@@ -86,7 +88,7 @@ export function InspecaoModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           data-inspecao-galaxia={modoGalaxia ? "1" : "0"}
-          className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/90 p-4 backdrop-blur-md sm:p-6"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4 backdrop-blur-md sm:p-6"
         >
           <motion.div
             initial={{ scale: 0.95, opacity: 0, y: 10 }}

@@ -37,6 +37,20 @@ export function obterSenhaMestreRevelada(): string | null {
   return lerSenhaMestreArmazenada();
 }
 
+/** Lê o corpo JSON de `/api/db` sem lançar (corpo vazio → `{}`). */
+export async function parseJsonRespostaApiDb(
+  res: Response
+): Promise<Record<string, unknown>> {
+  try {
+    const raw = await res.text();
+    if (!raw.trim()) return {};
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch (error) {
+    console.error("Erro no Frontend ao processar resposta:", error);
+    return {};
+  }
+}
+
 export async function requisicaoDbApi(
   method: "POST" | "DELETE",
   body: Record<string, unknown>
@@ -46,12 +60,7 @@ export async function requisicaoDbApi(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  let data: any = {};
-  try {
-    data = await res.json();
-  } catch {
-    /* ignore */
-  }
+  const data = await parseJsonRespostaApiDb(res);
   if (res.status === 401) limparSenhaMestreNaSessao();
   return { ok: res.ok && !!data?.success, data };
 }
@@ -74,18 +83,18 @@ export const dbClient = {
         body: JSON.stringify({ tabela, id, dados, senhaMestre }),
       });
 
-      const data = await res.json();
+      const data = await parseJsonRespostaApiDb(res);
       if (res.status === 401) {
         limparSenhaMestreNaSessao();
         return {
           success: false,
-          error: data.error || "Acesso negado.",
+          error: (data.error as string) || "Acesso negado.",
           precisaSenhaMestre: true as const,
         };
       }
-      if (!res.ok) throw new Error(data.error || "Erro na atualização");
+      if (!res.ok) throw new Error((data.error as string) || "Erro na atualização");
 
-      return { success: true as const };
+      return { success: true as const, data };
     } catch (error: any) {
       console.error("Erro no dbClient:", error.message);
       return { success: false, error: error.message };
@@ -109,16 +118,16 @@ export const dbClient = {
         body: JSON.stringify({ id, tabela, senhaMestre }),
       });
 
-      const data = await res.json();
+      const data = await parseJsonRespostaApiDb(res);
       if (res.status === 401) {
         limparSenhaMestreNaSessao();
         return {
           success: false,
-          error: data.error || "Acesso negado.",
+          error: (data.error as string) || "Acesso negado.",
           precisaSenhaMestre: true as const,
         };
       }
-      if (!res.ok) throw new Error(data.error || "Erro na exclusão");
+      if (!res.ok) throw new Error((data.error as string) || "Erro na exclusão");
 
       return { success: true as const };
     } catch (error: any) {

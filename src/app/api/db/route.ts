@@ -37,13 +37,38 @@ function idUuidValido(id: unknown): id is string {
   return typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id.trim());
 }
 
+/**
+ * Aceita id numérico vindo do JSON como number ou string (ex.: `"12345"` do cliente).
+ * Evita falha de update/delete quando o front serializa bigint ou id como string.
+ */
+function idNumericoPositivo(id: unknown): number | null {
+  if (typeof id === 'number' && Number.isInteger(id) && id > 0) return id;
+  if (typeof id === 'string') {
+    const t = id.trim();
+    if (/^\d+$/.test(t)) {
+      const n = Number(t);
+      if (Number.isSafeInteger(n) && n > 0) return n;
+    }
+  }
+  return null;
+}
+
 // Whitelist de seguranca
 const TABELAS_PERMITIDAS = ['mangas', 'animes', 'filmes', 'series', 'livros', 'jogos', 'musicas', 'perfis', 'site_config', 'loja_itens', 'search_cache', 'guilda_mensagens', 'guilda_ranks'] as const;
 
 export async function POST(request: Request) {
   try {
     const admin = getSupabaseAdmin();
-    const { tabela, id, nome_original, dados, senhaMestre, operacao = 'update' } = await request.json();
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch (parseErr) {
+      console.error('[api/db POST] Corpo JSON invalido:', parseErr);
+      return NextResponse.json({ error: 'Corpo da requisicao JSON invalido.' }, { status: 400 });
+    }
+
+    const { tabela, id, nome_original, dados, senhaMestre, operacao = 'update' } =
+      (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
 
     if (!tabela || typeof tabela !== 'string') {
       return NextResponse.json({ error: 'Tabela invalida.' }, { status: 400 });
@@ -77,24 +102,36 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, data });
     }
 
-    const idValido = Number.isInteger(id) && id > 0;
+    const idNum = idNumericoPositivo(id);
     const uuidValido = idUuidValido(id);
     const nomeValido = typeof nome_original === 'string' && nome_original.trim().length > 0;
-    if (!idValido && !uuidValido && !nomeValido) {
+    if (idNum === null && !uuidValido && !nomeValido) {
+      console.error('[api/db POST] Identificador invalido para update', {
+        tabela,
+        tipoId: typeof id,
+        idPreview: typeof id === 'string' ? id.slice(0, 80) : id,
+        temNomeOriginal: nomeValido,
+      });
       return NextResponse.json({ error: 'Identificador ausente (id, id uuid ou nome_original).' }, { status: 400 });
     }
 
     let query = admin.from(tabela).update(dados);
-    if (idValido) query = query.eq('id', id);
+    if (idNum !== null) query = query.eq('id', idNum);
     else if (uuidValido) query = query.eq('id', id.trim());
     else if (nomeValido) query = query.eq('nome_original', nome_original);
 
-    const { error } = await query;
+    const { data, error } = await query.select();
     if (error) throw error;
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, data });
   } catch (error) {
     const msg = mensagemErroSupabase(error);
-    console.error('[api/db POST]', error);
+    const errObj = error instanceof Error ? error : null;
+    console.error('[api/db POST] Falha:', {
+      message: errObj?.message ?? msg,
+      stack: errObj?.stack,
+      cause: errObj && 'cause' in errObj ? (errObj as Error & { cause?: unknown }).cause : undefined,
+      raw: error,
+    });
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
@@ -103,7 +140,16 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const admin = getSupabaseAdmin();
-    const { id, nome_original, senhaMestre, tabela, limparTudo } = await request.json();
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch (parseErr) {
+      console.error('[api/db DELETE] Corpo JSON invalido:', parseErr);
+      return NextResponse.json({ error: 'Corpo da requisicao JSON invalido.' }, { status: 400 });
+    }
+
+    const { id, nome_original, senhaMestre, tabela, limparTudo } =
+      (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
 
     if (!tabela || typeof tabela !== 'string') {
       return NextResponse.json({ error: 'Tabela invalida.' }, { status: 400 });
@@ -126,15 +172,20 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: true });
     }
 
-    const idValido = Number.isInteger(id) && id > 0;
+    const idNum = idNumericoPositivo(id);
     const uuidValido = idUuidValido(id);
     const nomeValido = typeof nome_original === 'string' && nome_original.trim().length > 0;
-    if (!idValido && !uuidValido && !nomeValido) {
+    if (idNum === null && !uuidValido && !nomeValido) {
+      console.error('[api/db DELETE] Identificador invalido', {
+        tabela,
+        tipoId: typeof id,
+        idPreview: typeof id === 'string' ? id.slice(0, 80) : id,
+      });
       return NextResponse.json({ error: 'Identificador ausente (id, id uuid ou nome_original).' }, { status: 400 });
     }
 
     let query = admin.from(tabela).delete();
-    if (idValido) query = query.eq('id', id);
+    if (idNum !== null) query = query.eq('id', idNum);
     else if (uuidValido) query = query.eq('id', id.trim());
     else if (nomeValido) query = query.eq('nome_original', nome_original);
 
@@ -143,7 +194,13 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: true });
   } catch (error) {
     const msg = mensagemErroSupabase(error);
-    console.error('[api/db DELETE]', error);
+    const errObj = error instanceof Error ? error : null;
+    console.error('[api/db DELETE] Falha:', {
+      message: errObj?.message ?? msg,
+      stack: errObj?.stack,
+      cause: errObj && 'cause' in errObj ? (errObj as Error & { cause?: unknown }).cause : undefined,
+      raw: error,
+    });
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

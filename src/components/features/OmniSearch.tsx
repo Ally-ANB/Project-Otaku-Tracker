@@ -27,6 +27,7 @@ import {
   API_DB_PATH,
   limparSenhaMestreNaSessao,
   obterSenhaMestreRevelada,
+  parseJsonRespostaApiDb,
 } from "@/lib/dbClient";
 import {
   RADIO_HUNTER_ADD_QUEUE,
@@ -859,7 +860,7 @@ export default function OmniSearch() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        const data = (await res.json()) as { success?: boolean; error?: string };
+        const data = await parseJsonRespostaApiDb(res);
         if (res.status === 401) limparSenhaMestreNaSessao();
         if (!res.ok || !data.success) {
           if (prevItem) {
@@ -867,7 +868,9 @@ export default function OmniSearch() {
               prev.map((h) => (h.tipo_obra === tipoObra && h.id === idEstante ? prevItem : h))
             );
           }
-          setFeedbackInline(data.error || "Erro ao atualizar.");
+          setFeedbackInline(
+            (typeof data.error === "string" && data.error) || "Erro ao atualizar."
+          );
           window.setTimeout(() => setFeedbackInline(null), 4000);
           return;
         }
@@ -893,6 +896,7 @@ export default function OmniSearch() {
             prev.map((h) => (h.tipo_obra === tipoObra && h.id === idEstante ? prevItem : h))
           );
         }
+        console.error("Erro no Frontend ao processar resposta:", e);
         logSearchFailure("atualizar inspeção", e);
         setFeedbackInline("Erro ao atualizar.");
         window.setTimeout(() => setFeedbackInline(null), 4000);
@@ -963,6 +967,7 @@ export default function OmniSearch() {
       }
     } catch (e) {
       setEstanteHits((prev) => prev.filter((h) => h.id !== tempId));
+      console.error("Erro no Frontend ao processar resposta:", e);
       logSearchFailure("salvar inspeção", e);
     }
   }, [
@@ -1058,7 +1063,7 @@ export default function OmniSearch() {
             role="dialog"
             aria-modal="true"
             aria-label="Busca global"
-            className="fixed inset-0 z-[9900] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm md:p-8"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm md:p-8"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
