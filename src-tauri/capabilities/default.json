@@ -1,0 +1,17 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "FS somente leitura com escopo; diálogo para escolher pastas; path via core:default (Tauri 2).",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "fs:deny-default",
+    "fs:allow-read-file",
+    "fs:allow-read-dir",
+    {
+      "identifier": "fs:scope",
+      "allow": ["$AUDIO/*", "$VIDEO/*", "$DOCUMENT/*"]
+    },
+    "dialog:allow-open"
+  ]
+}
