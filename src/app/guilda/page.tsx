@@ -9,6 +9,7 @@ import MemberPopout from "./components/MemberPopout";
 import SintoniaIndicator from "./components/SintoniaIndicator";
 import { useSenhaMestraInterativa } from "@/hooks/useSenhaMestraInterativa";
 import { API_DB_PATH } from "@/lib/dbClient";
+import { getApiUrl } from "@/utils/api";
 // ✅ MOLDURAS IMPORTADAS DO PERFIL
 import { MOLDURAS_DISCORD } from "../perfil/page";
 // ✅ COMPONENTE DE IDENTIDADE UNIFICADO
@@ -121,7 +122,7 @@ export default function GuildaPage() {
   }
 
   async function requisicaoDb(method: "POST" | "DELETE", payload: Record<string, any>) {
-    const res = await fetch(API_DB_PATH, {
+    const res = await fetch(getApiUrl(API_DB_PATH), {
       method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)

@@ -28,6 +28,7 @@ import {
   Unlink,
   X,
 } from "lucide-react";
+import { getApiUrl } from "@/utils/api";
 import { parseMediaFilename } from "@/utils/mediaParser";
 import {
   TIPO_OBRA_LABEL_SECAO,
@@ -480,7 +481,7 @@ export function LocalPlayerModal({ isOpen, onClose }: LocalPlayerModalProps) {
         setLinkSearchError(null);
         try {
           if (searchEngine === "local") {
-            const res = await fetch("/api/estante/search", {
+            const res = await fetch(getApiUrl("/api/estante/search"), {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -501,8 +502,8 @@ export function LocalPlayerModal({ isOpen, onClose }: LocalPlayerModalProps) {
             setLinkTmdbResults([]);
           } else {
             const [resM, resT] = await Promise.all([
-              fetch(`/api/tmdb?q=${encodeURIComponent(q)}&type=movie`),
-              fetch(`/api/tmdb?q=${encodeURIComponent(q)}&type=tv`),
+              fetch(getApiUrl(`/api/tmdb?q=${encodeURIComponent(q)}&type=movie`)),
+              fetch(getApiUrl(`/api/tmdb?q=${encodeURIComponent(q)}&type=tv`)),
             ]);
             const jM = (await resM.json()) as {
               results?: Record<string, unknown>[];

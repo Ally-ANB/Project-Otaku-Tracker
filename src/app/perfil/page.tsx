@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { useSenhaMestraInterativa } from "@/hooks/useSenhaMestraInterativa";
 import { requisicaoDbApi } from "@/lib/dbClient";
+import { getApiUrl } from "@/utils/api";
 import { preverRecompensaRank } from "../guilda/guildaRankEconomia";
 import {
   XP_POR_MISSAO_COMPLETA,
@@ -906,7 +907,7 @@ function PerfilContent() {
                 </span>
                 <p className="text-[7px] font-black text-zinc-500 uppercase tracking-widest italic mt-1">Tempo de Vida Consumido</p>
                 <a
-                  href={`/api/auth/anilist?hunter=${usuarioAtivo}`}
+                  href={getApiUrl(`/api/auth/anilist?hunter=${usuarioAtivo}`)}
                   className="mt-6 w-full py-3 bg-blue-600/10 border border-blue-500/30 text-blue-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all text-center z-10 flex items-center justify-center gap-2"
                 >
                   {dadosPerfil.anilist_token ? (

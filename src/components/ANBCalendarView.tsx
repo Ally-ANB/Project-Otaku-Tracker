@@ -9,6 +9,7 @@ import {
   type AnilistAiringScheduleEntry,
   type AnilistScheduleMedia,
 } from "@/lib/anilistSchedule";
+import { getApiUrl } from "@/utils/api";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Bot,
@@ -310,7 +311,7 @@ export default function ANBCalendarView() {
     if (synopsisTranslated === null) {
       setTranslateLoading(true);
       try {
-        const res = await fetch("/api/translate", {
+        const res = await fetch(getApiUrl("/api/translate"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ text: rawSynopsisTrim }),

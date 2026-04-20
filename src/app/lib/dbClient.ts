@@ -1,5 +1,7 @@
 // src/app/lib/dbClient.ts
 
+import { getApiUrl } from "@/utils/api";
+
 /** Caminho da rota em `src/app/api/db/route.ts` — relativo à origem (browser / mesmo deploy). */
 export const API_DB_PATH = "/api/db" as const;
 
@@ -55,7 +57,7 @@ export async function requisicaoDbApi(
   method: "POST" | "DELETE",
   body: Record<string, unknown>
 ): Promise<{ ok: boolean; data?: any }> {
-  const res = await fetch(API_DB_PATH, {
+  const res = await fetch(getApiUrl(API_DB_PATH), {
     method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -77,7 +79,7 @@ export const dbClient = {
     }
 
     try {
-      const res = await fetch(API_DB_PATH, {
+      const res = await fetch(getApiUrl(API_DB_PATH), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tabela, id, dados, senhaMestre }),
@@ -112,7 +114,7 @@ export const dbClient = {
     }
 
     try {
-      const res = await fetch(API_DB_PATH, {
+      const res = await fetch(getApiUrl(API_DB_PATH), {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, tabela, senhaMestre }),

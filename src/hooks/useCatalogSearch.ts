@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { supabase } from "@/app/supabase";
 import { API_DB_PATH } from "@/lib/dbClient";
+import { getApiUrl } from "@/utils/api";
 import { anilistExternalToProviders } from "@/lib/watchProviders";
 import type { AbaPrincipal, ResultadoBusca, TipoObra } from "@/types/hunter_registry";
 
@@ -31,7 +32,7 @@ function dedupeResultados(arr: ResultadoBusca[]): ResultadoBusca[] {
 }
 
 async function insertSearchCache(termoOriginal: string, resultadoIa: string) {
-  await fetch(API_DB_PATH, {
+  await fetch(getApiUrl(API_DB_PATH), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -70,7 +71,7 @@ export async function fetchCatalogForAba(
     if (cacheHit) {
       termoFinal = cacheHit.resultado_ia as string;
     } else {
-      const resIA = await fetch("/api/tradutor-ia", {
+      const resIA = await fetch(getApiUrl("/api/tradutor-ia"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ termo: termoAnilist }),
@@ -90,7 +91,7 @@ export async function fetchCatalogForAba(
     const tipoTmdb = abaPrincipal === "FILME" ? "movie" : "tv";
     const tipoCatalogo = abaPrincipal === "FILME" ? "movie" : "series";
     const res = await fetch(
-      `/api/tmdb?q=${encodeURIComponent(termoFinal)}&type=${tipoTmdb}`
+      getApiUrl(`/api/tmdb?q=${encodeURIComponent(termoFinal)}&type=${tipoTmdb}`)
     );
     const json = await res.json();
 
@@ -120,7 +121,7 @@ export async function fetchCatalogForAba(
   }
 
   if (abaPrincipal === "LIVRO") {
-    const res = await fetch(`/api/books?q=${encodeURIComponent(termoFinal)}`);
+    const res = await fetch(getApiUrl(`/api/books?q=${encodeURIComponent(termoFinal)}`));
     if (!res.ok) return [];
     const contentType = res.headers.get("content-type");
     if (!contentType || !contentType.includes("application/json")) return [];
@@ -156,7 +157,7 @@ export async function fetchCatalogForAba(
   }
 
   if (abaPrincipal === "JOGO") {
-    const resRawg = await fetch(`/api/rawg?q=${encodeURIComponent(termoFinal)}`);
+    const resRawg = await fetch(getApiUrl(`/api/rawg?q=${encodeURIComponent(termoFinal)}`));
     const jsonRawg = await resRawg.json();
 
     if (jsonRawg.results) {
@@ -371,7 +372,7 @@ export async function fetchExploracaoTodosAnilistTmdb(
 
 async function fetchYoutubeCatalog(termo: string): Promise<ResultadoBusca[]> {
   const res = await fetch(
-    `/api/youtube?q=${encodeURIComponent(termo.trim())}`
+    getApiUrl(`/api/youtube?q=${encodeURIComponent(termo.trim())}`)
   );
   const json = (await res.json()) as {
     results?: Array<{

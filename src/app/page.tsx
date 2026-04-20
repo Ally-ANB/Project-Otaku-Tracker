@@ -18,6 +18,7 @@ import type { ObraComTipo } from "@/components/anbUtils";
 import { AlertTriangle, CheckCircle2, Globe, LogOut, XCircle } from "lucide-react";
 import type { AbaPrincipal, Manga } from "@/types/hunter_registry";
 import { ESTANTE_ATUALIZADA_EVENT } from "@/lib/estanteEvents";
+import { getApiUrl } from "@/utils/api";
 
 // ==========================================
 // 🎨 [SESSÃO 2] - TEMAS E ESTILOS (AURAS)
@@ -255,7 +256,7 @@ export default function Home() {
   async function sincronizarComAniList(titulo: string, capitulo: number, statusLocal: string, token: string, acao: "SALVAR" | "DELETAR" = "SALVAR", tipoObra: "MANGA" | "ANIME" | "FILME" | "LIVRO" | "SERIE" | "JOGO" | "MUSICA" = "MANGA") {
     if (tipoObra === "FILME" || tipoObra === "LIVRO" || tipoObra === "SERIE" || tipoObra === "JOGO" || tipoObra === "MUSICA") return;
     try {
-      const res = await fetch('/api/anilist/sync', {
+      const res = await fetch(getApiUrl('/api/anilist/sync'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ titulo, capitulo, statusLocal, token, acao, tipoObra })
@@ -273,7 +274,7 @@ export default function Home() {
     mostrarToast(`SINCRONIZANDO ${abaPrincipal}...`, "aviso");
 
     try {
-      const res = await fetch('/api/anilist/sync', {
+      const res = await fetch(getApiUrl('/api/anilist/sync'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

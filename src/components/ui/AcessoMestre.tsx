@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { getApiUrl } from "@/utils/api";
 
 export default function AcessoMestre({ aoAutorizar }: { aoAutorizar: () => void }) {
   const [senhaDigitada, setSenhaDigitada] = useState("");
@@ -11,7 +12,7 @@ export default function AcessoMestre({ aoAutorizar }: { aoAutorizar: () => void 
     setValidando(true);
     
     try {
-      const res = await fetch('/api/auth/anilist', {
+      const res = await fetch(getApiUrl('/api/auth/anilist'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tipo: 'mestre', senhaDigitada })

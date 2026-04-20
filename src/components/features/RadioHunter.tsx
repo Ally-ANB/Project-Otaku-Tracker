@@ -33,6 +33,7 @@ import {
   VolumeX,
 } from "lucide-react";
 import { supabase } from "@/app/supabase";
+import { getApiUrl } from "@/utils/api";
 import { requisicaoDbApi, obterSenhaMestreRevelada } from "@/lib/dbClient";
 import { notificarEstanteAtualizada } from "@/lib/estanteEvents";
 import { useSenhaMestraInterativa } from "@/hooks/useSenhaMestraInterativa";
@@ -762,7 +763,7 @@ export default function RadioHunter() {
     }
     setImportandoPlaylistYoutube(true);
     try {
-      const res = await fetch(`/api/youtube-playlist?url=${encodeURIComponent(url)}`);
+      const res = await fetch(getApiUrl(`/api/youtube-playlist?url=${encodeURIComponent(url)}`));
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         mostrarToast(typeof data.error === "string" ? data.error : "Falha ao ler a playlist.", "erro");
@@ -824,7 +825,7 @@ export default function RadioHunter() {
     }
     setSearchLoading(true);
     try {
-      const res = await fetch(`/api/youtube?q=${encodeURIComponent(q)}`);
+      const res = await fetch(getApiUrl(`/api/youtube?q=${encodeURIComponent(q)}`));
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         mostrarToast(typeof data.error === "string" ? data.error : "Erro na busca.", "erro");

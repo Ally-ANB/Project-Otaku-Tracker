@@ -30,6 +30,7 @@ import {
   parseJsonRespostaApiDb,
 } from "@/lib/dbClient";
 import { notificarEstanteAtualizada } from "@/lib/estanteEvents";
+import { getApiUrl } from "@/utils/api";
 import {
   RADIO_HUNTER_ADD_QUEUE,
   RADIO_HUNTER_SELECT_PLAYLIST,
@@ -422,7 +423,7 @@ export default function OmniSearch() {
       }
 
       try {
-        const res = await fetch("/api/estante/search", {
+        const res = await fetch(getApiUrl("/api/estante/search"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -670,7 +671,7 @@ export default function OmniSearch() {
         return;
       }
 
-      const res = await fetch(API_DB_PATH, {
+      const res = await fetch(getApiUrl(API_DB_PATH), {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -854,7 +855,7 @@ export default function OmniSearch() {
       }
 
       try {
-        const res = await fetch(API_DB_PATH, {
+        const res = await fetch(getApiUrl(API_DB_PATH), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),

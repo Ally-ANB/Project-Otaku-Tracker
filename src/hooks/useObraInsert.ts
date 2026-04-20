@@ -7,6 +7,7 @@ import {
   obterSenhaMestreRevelada,
   parseJsonRespostaApiDb,
 } from "@/lib/dbClient";
+import { getApiUrl } from "@/utils/api";
 import { notificarEstanteAtualizada } from "@/lib/estanteEvents";
 import { aplicarEconomiaPosAdicaoEstante } from "@/app/guilda/guildaRankEconomia";
 import type { AbaPrincipal, NovoObraDraft } from "@/types/hunter_registry";
@@ -26,7 +27,7 @@ async function requisicaoDbInsertSegura(
   senhaMestre: string | undefined,
   exigirSenhaMestre: boolean
 ) {
-  const res = await fetch(API_DB_PATH, {
+  const res = await fetch(getApiUrl(API_DB_PATH), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -183,7 +184,7 @@ export function useObraInsert({
                 ? localStorage.getItem("anilist_token")
                 : null);
             if (token && (abaPrincipal === "MANGA" || abaPrincipal === "ANIME")) {
-              fetch("/api/anilist/sync", {
+              fetch(getApiUrl("/api/anilist/sync"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
