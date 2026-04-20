@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import {
   BookOpen,
@@ -14,6 +14,7 @@ import {
   MonitorPlay,
   Moon,
   Music,
+  PlayCircle,
   RefreshCw,
   Search,
   Settings,
@@ -23,6 +24,8 @@ import {
 } from "lucide-react";
 import type { AbaPrincipal } from "@/types/hunter_registry";
 import { OMNISEARCH_OPEN_EVENT } from "@/components/features/OmniSearch";
+import { LocalPlayerModal } from "@/components/features/LocalPlayerModal";
+import { isTauriEnvironment } from "@/utils/isTauri";
 
 type NavMode = "HOME" | "ESTANTE";
 
@@ -68,6 +71,15 @@ export default function ANBSidebar({
 }: ANBSidebarProps) {
   const router = useRouter();
   const [menuAberto, setMenuAberto] = useState(false);
+  const [isLocalPlayerOpen, setIsLocalPlayerOpen] = useState(false);
+  const [showLocalPlayerButton, setShowLocalPlayerButton] = useState(false);
+
+  useEffect(() => {
+    if (isTauriEnvironment()) {
+      // Botão só após montagem: evita divergência SSR e garante __TAURI* disponível
+      setShowLocalPlayerButton(true); // eslint-disable-line react-hooks/set-state-in-effect -- detecção pós-mount (Tauri)
+    }
+  }, []);
 
   const encerrarSessao = async () => {
     const supabase = createClient();
@@ -152,6 +164,17 @@ export default function ANBSidebar({
         >
           <Search className="h-[18px] w-[18px]" strokeWidth={2.25} aria-hidden />
         </button>
+        {showLocalPlayerButton ? (
+          <button
+            type="button"
+            title="Player Local"
+            aria-label="Player Local"
+            onClick={() => setIsLocalPlayerOpen(true)}
+            className={`${BTN_BASE} border-white/10 bg-white/[0.04] hover:border-emerald-500/40 hover:text-emerald-100`}
+          >
+            <MonitorPlay className="h-[18px] w-[18px]" strokeWidth={2.25} aria-hidden />
+          </button>
+        ) : null}
       </div>
 
       <div
@@ -163,7 +186,7 @@ export default function ANBSidebar({
         {estanteBtn("MANGA", BookOpen)}
         {estanteBtn("ANIME", Tv)}
         {estanteBtn("FILME", Film)}
-        {estanteBtn("SERIE", MonitorPlay)}
+        {estanteBtn("SERIE", PlayCircle)}
         {estanteBtn("JOGO", Gamepad2)}
         {estanteBtn("MUSICA", Music)}
         {estanteBtn("LIVRO", Library)}
@@ -237,6 +260,13 @@ export default function ANBSidebar({
         </div>
       </div>
     </aside>
+
+    {showLocalPlayerButton ? (
+      <LocalPlayerModal
+        isOpen={isLocalPlayerOpen}
+        onClose={() => setIsLocalPlayerOpen(false)}
+      />
+    ) : null}
 
     {menuAberto ? (
       <div
